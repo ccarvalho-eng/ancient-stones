@@ -18,6 +18,9 @@ defmodule AncientStoneWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live "/worlds/new", WorldLive.New, :new
+    live "/worlds/:id", WorldLive.Show, :show
   end
 
   # Other scopes may use custom stacks.

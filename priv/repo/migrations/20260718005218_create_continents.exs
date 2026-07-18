@@ -4,9 +4,9 @@ defmodule AncientStone.Repo.Migrations.CreateContinents do
   def change do
     create table(:continents, primary_key: false) do
       add :id, :binary_id, primary_key: true
-      add :name, :string
+      add :name, :string, null: false
       add :description, :text
-      add :world_id, references(:worlds, on_delete: :nothing, type: :binary_id)
+      add :world_id, references(:worlds, on_delete: :nothing, type: :binary_id), null: false
 
       timestamps(type: :utc_datetime)
     end

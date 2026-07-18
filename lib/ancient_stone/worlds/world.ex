@@ -1,24 +1,20 @@
-defmodule AncientStone.World.Continent do
+defmodule AncientStone.Worlds.World do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias AncientStone.World
-
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
-  schema "continents" do
+  schema "worlds" do
     field :name, :string
     field :description, :string
-
-    belongs_to(:world, World)
 
     timestamps(type: :utc_datetime)
   end
 
   @doc false
-  def changeset(continent, attrs) do
-    continent
+  def changeset(world, attrs) do
+    world
     |> cast(attrs, [:name, :description])
-    |> validate_required([:name, :description])
+    |> validate_required([:name])
   end
 end

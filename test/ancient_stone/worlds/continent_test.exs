@@ -1,12 +1,12 @@
-defmodule AncientStone.World.ContinentTest do
+defmodule AncientStone.Worlds.ContinentTest do
   use ExUnit.Case
-  doctest AncientStone.World.Continent
+  doctest AncientStone.Worlds.Continent
 
-  alias AncientStone.World.Continent
+  alias AncientStone.Worlds.Continent
 
   test "changeset/2 builds a valid changeset" do
     struct = %Continent{}
-    attrs = %{name: "some name", description: "some description"}
+    attrs = %{name: "some name", description: "some description", world_id: Ecto.UUID.generate()}
 
     changeset = Continent.changeset(struct, attrs)
 

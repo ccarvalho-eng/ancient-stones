@@ -1,8 +1,8 @@
-defmodule AncientStone.WorldTest do
+defmodule AncientStone.Worlds.WorldTest do
   use ExUnit.Case
-  doctest AncientStone.World
+  doctest AncientStone.Worlds.World
 
-  alias AncientStone.World
+  alias AncientStone.Worlds.World
 
   test "changeset/2 builds a valid changeset" do
     struct = %World{}
@@ -17,7 +17,7 @@ defmodule AncientStone.WorldTest do
     struct = %World{}
     attrs = %{name: nil, description: nil}
 
-    changeset = World.changeset(struct, attrs) |> dbg()
+    changeset = World.changeset(struct, attrs)
 
     refute changeset.valid?
   end
