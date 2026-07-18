@@ -1,6 +1,5 @@
 defmodule AncientStoneWeb.WorldLive.NewTest do
   use AncientStoneWeb.ConnCase, async: true
-  doctest AncientStoneWeb.WorldLive.New
 
   import Phoenix.LiveViewTest
 

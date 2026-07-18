@@ -1,6 +1,5 @@
 defmodule AncientStone.Worlds.ContinentTest do
   use ExUnit.Case
-  doctest AncientStone.Worlds.Continent
 
   alias AncientStone.Worlds.Continent
 
