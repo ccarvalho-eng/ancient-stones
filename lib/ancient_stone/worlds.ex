@@ -1,7 +1,5 @@
 defmodule AncientStone.Worlds do
-  @moduledoc """
-  The Worlds context
-  """
+  @moduledoc false
 
   alias AncientStone.Repo
   alias AncientStone.Worlds.World
