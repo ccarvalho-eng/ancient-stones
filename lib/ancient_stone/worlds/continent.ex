@@ -12,7 +12,6 @@ defmodule AncientStone.Worlds.Continent do
     field :description, :string
 
     belongs_to(:world, World)
-
     has_many(:provinces, Province)
 
     timestamps(type: :utc_datetime)

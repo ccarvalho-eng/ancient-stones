@@ -3,6 +3,7 @@ defmodule AncientStone.Worlds.Continents.Province do
   import Ecto.Changeset
 
   alias AncientStone.Worlds.Continent
+  alias AncientStone.Worlds.Continents.Hold
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -11,6 +12,7 @@ defmodule AncientStone.Worlds.Continents.Province do
     field :description, :string
 
     belongs_to(:continent, Continent)
+    has_many(:holds, Hold)
 
     timestamps(type: :utc_datetime)
   end
