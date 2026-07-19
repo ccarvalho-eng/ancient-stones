@@ -12,6 +12,7 @@ defmodule AncientStones.Worlds.Character do
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Race
+  alias AncientStones.Worlds.Relationship
   alias AncientStones.Worlds.World
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -52,6 +53,8 @@ defmodule AncientStones.Worlds.Character do
     has_many(:spellbook_entries, CharacterSpellbookEntry)
     has_many(:guild_influences, GuildInfluence)
     has_many(:political_offices, PoliticalOffice)
+    has_many(:source_relationships, Relationship, foreign_key: :source_character_id)
+    has_many(:target_relationships, Relationship, foreign_key: :target_character_id)
 
     timestamps(type: :utc_datetime)
   end

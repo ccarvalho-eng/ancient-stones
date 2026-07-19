@@ -7,6 +7,7 @@ defmodule AncientStones.Worlds.Location do
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
+  alias AncientStones.Worlds.Relationship
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -22,6 +23,8 @@ defmodule AncientStones.Worlds.Location do
     has_many(:civilizations, through: [:civilization_locations, :civilization])
     has_many(:creature_locations, CreatureLocation)
     has_many(:creatures, through: [:creature_locations, :creature])
+    has_many(:source_relationships, Relationship, foreign_key: :source_location_id)
+    has_many(:target_relationships, Relationship, foreign_key: :target_location_id)
 
     timestamps(type: :utc_datetime)
   end

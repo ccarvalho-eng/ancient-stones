@@ -17,7 +17,9 @@ defmodule AncientStones.Templates.Skyrim do
       gods: gods(),
       guilds: guilds(),
       characters: characters(),
+      documents: documents(),
       occupations: occupations(),
+      relationships: relationships(),
       spells: spells(),
       effects: effects(),
       items: items(),
@@ -2187,6 +2189,112 @@ defmodule AncientStones.Templates.Skyrim do
       hold_office("Winterhold", "Steward", "Malur Seloth", "Stormcloak"),
       hold_office("Winterhold", "Housecarl", "Thaena", "Stormcloak")
     ]
+  end
+
+  defp documents do
+    [
+      document(
+        "The Book of the Dragonborn",
+        "book",
+        "Skyrim",
+        "A lore text about the Dragonborn, prophecy, and the return of dragons.",
+        civilization: "Ancient Nords"
+      ),
+      document(
+        "A Gentleman's Guide to Whiterun",
+        "book",
+        "Skyrim",
+        "A traveler's guide to Whiterun, its districts, and its people.",
+        location: "Whiterun"
+      ),
+      document(
+        "Nords of Skyrim",
+        "book",
+        "Skyrim",
+        "A cultural account of Nord identity, history, and custom.",
+        race: "Nord"
+      ),
+      document(
+        "The Great War",
+        "book",
+        "Skyrim",
+        "A historical account of the Great War between the Empire and Aldmeri Dominion.",
+        guild: "Imperial Legion"
+      ),
+      document(
+        "Black-Briar Correspondence",
+        "note",
+        "Skyrim",
+        "A writer-facing note representing Maven Black-Briar's criminal and political leverage in Riften.",
+        author: "Maven Black-Briar",
+        guild: "Thieves Guild",
+        location: "Riften"
+      )
+    ]
+  end
+
+  defp relationships do
+    [
+      relationship(
+        "Black-Briar Patronage",
+        {:character, "Maven Black-Briar"},
+        {:guild, "Thieves Guild"},
+        "patron",
+        "active",
+        "Maven Black-Briar maintains a powerful patronage relationship with the Thieves Guild in Riften."
+      ),
+      relationship(
+        "Black-Briar Dark Contacts",
+        {:character, "Maven Black-Briar"},
+        {:guild, "Dark Brotherhood"},
+        "criminal contact",
+        "active",
+        "Maven is known for using feared criminal contacts to protect her interests."
+      ),
+      relationship(
+        "Stormcloak Rebellion",
+        {:character, "Ulfric Stormcloak"},
+        {:guild, "Stormcloaks"},
+        "leader",
+        "active",
+        "Ulfric Stormcloak leads the Stormcloak rebellion from Windhelm."
+      ),
+      relationship(
+        "Greybeard Teaching",
+        {:character, "Arngeir"},
+        {:location, "High Hrothgar"},
+        "teacher at",
+        "active",
+        "Arngeir is one of the Greybeards at High Hrothgar."
+      )
+    ]
+  end
+
+  defp document(title, kind, source, summary, opts) do
+    %{
+      title: title,
+      kind: kind,
+      source: source,
+      summary: summary,
+      content: Keyword.get(opts, :content),
+      author: Keyword.get(opts, :author),
+      location: Keyword.get(opts, :location),
+      guild: Keyword.get(opts, :guild),
+      god: Keyword.get(opts, :god),
+      race: Keyword.get(opts, :race),
+      civilization: Keyword.get(opts, :civilization)
+    }
+  end
+
+  defp relationship(name, source, target, relationship_type, status, description) do
+    %{
+      name: name,
+      source: source,
+      target: target,
+      relationship_type: relationship_type,
+      status: status,
+      description: description
+    }
   end
 
   defp province_office(province, office, character, politics, description) do

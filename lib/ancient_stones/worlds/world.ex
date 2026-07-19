@@ -7,6 +7,7 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.CreatureType
+  alias AncientStones.Worlds.Document
   alias AncientStones.Galaxies.Galaxy
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
@@ -16,6 +17,7 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Race
+  alias AncientStones.Worlds.Relationship
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillTree
   alias AncientStones.Worlds.Spell
@@ -34,6 +36,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:continents, Continent)
     has_many(:creature_types, CreatureType)
     has_many(:creatures, Creature)
+    has_many(:documents, Document)
     has_many(:gods, God)
     has_many(:guilds, Guild)
     has_many(:items, Item)
@@ -42,6 +45,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:occupations, Occupation)
     has_many(:political_offices, PoliticalOffice)
     has_many(:races, Race)
+    has_many(:relationships, Relationship)
     has_many(:skills, Skill)
     has_many(:skill_trees, SkillTree)
     has_many(:spells, Spell)

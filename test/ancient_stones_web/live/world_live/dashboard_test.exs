@@ -11,6 +11,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.CreatureLocation
   alias AncientStones.Worlds.CreatureType
+  alias AncientStones.Worlds.Document
   alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
@@ -25,6 +26,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.Race
+  alias AncientStones.Worlds.Relationship
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillLevel
   alias AncientStones.Worlds.SkillTreePerk
@@ -416,6 +418,83 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert Repo.get_by!(God, name: "Jhunal").domain == "runes"
     assert has_element?(view, "#god-list", "Jhunal")
+  end
+
+  test "creates documents and relationships from dashboard sections", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, character} = Worlds.create_character(world, %{name: "Maven Black-Briar"})
+    {:ok, guild} = Worlds.create_guild(world, %{name: "Thieves Guild"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "The Rift"})
+    {:ok, city} = Worlds.create_location_type(world, %{name: "City"})
+    {:ok, riften} = Worlds.create_location(hold, city, %{name: "Riften"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=documents")
+
+    assert has_element?(view, "#document_kind option[value='book']", "Book")
+    assert has_element?(view, "#document_kind option[value='journal']", "Journal")
+    assert has_element?(view, "#document_kind option[value='prophecy']", "Prophecy")
+
+    view
+    |> form("#document-form",
+      document: %{
+        title: "Black-Briar Correspondence",
+        kind: "note",
+        source: "Skyrim",
+        author_character_id: character.id,
+        location_id: riften.id,
+        guild_id: guild.id,
+        summary: "A note about Riften influence.",
+        content: "Maven keeps her allies close."
+      }
+    )
+    |> render_submit()
+
+    document = Repo.get_by!(Document, title: "Black-Briar Correspondence")
+
+    assert document.author_character_id == character.id
+    assert document.guild_id == guild.id
+    assert has_element?(view, "#folded-documents-note:not([open])")
+
+    view
+    |> element("#folded-documents-note summary")
+    |> render_click()
+
+    assert has_element?(view, "#folded-documents-note[open]")
+    assert has_element?(view, "#document-list", "Black-Briar Correspondence")
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=relationships")
+
+    view
+    |> form("#relationship-form",
+      relationship: %{
+        name: "Black-Briar Patronage",
+        source_entity: "character:#{character.id}",
+        target_entity: "guild:#{guild.id}",
+        relationship_type: "patron",
+        status: "active",
+        description: "Maven protects and uses the Thieves Guild."
+      }
+    )
+    |> render_submit()
+
+    relationship =
+      Relationship
+      |> Repo.get_by!(name: "Black-Briar Patronage")
+      |> Repo.preload([:source_character, :target_guild])
+
+    assert relationship.source_character.name == "Maven Black-Briar"
+    assert relationship.target_guild.name == "Thieves Guild"
+    assert relationship.relationship_type == "patron"
+    assert has_element?(view, "#folded-relationships-character-maven-black-briar:not([open])")
+
+    view
+    |> element("#folded-relationships-character-maven-black-briar summary")
+    |> render_click()
+
+    assert has_element?(view, "#folded-relationships-character-maven-black-briar[open]")
+    assert has_element?(view, "#relationship-list", "Black-Briar Patronage")
   end
 
   test "creates characters from the characters section", %{conn: conn} do

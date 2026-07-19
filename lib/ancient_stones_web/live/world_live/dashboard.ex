@@ -95,6 +95,16 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                         label="Civilizations"
                       />
                       <.section_menu_link
+                        patch={~p"/worlds/#{@world}/dashboard?section=documents"}
+                        selected={@section == "documents"}
+                        label="Documents"
+                      />
+                      <.section_menu_link
+                        patch={~p"/worlds/#{@world}/dashboard?section=relationships"}
+                        selected={@section == "relationships"}
+                        label="Relationships"
+                      />
+                      <.section_menu_link
                         patch={~p"/worlds/#{@world}/dashboard?section=characters"}
                         selected={@section == "characters"}
                         label="Characters"
@@ -1722,6 +1732,547 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                           />
                           <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
                             Create
+                          </.button>
+                        </.form>
+                      </.action_section>
+                    </div>
+                  </aside>
+                </div>
+              <% @section == "documents" -> %>
+                <div
+                  id="documents-dashboard"
+                  class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+                >
+                  <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+                    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+                      <div>
+                        <h2 class="text-sm font-semibold text-zinc-800">Documents</h2>
+                        <p class="text-xs text-zinc-500">Books, notes, journals, and lore</p>
+                      </div>
+                      <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
+                        {length(@documents)}
+                      </span>
+                    </div>
+
+                    <div id="document-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                      <div :if={@documents == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                        No documents have been added to this world.
+                      </div>
+
+                      <div
+                        :for={{kind, kind_documents} <- grouped_documents(@documents)}
+                        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
+                      >
+                        <.folded_group
+                          id={folded_group_dom_id("documents", kind)}
+                          label={display_value(kind)}
+                          count={length(kind_documents)}
+                          open={folded_group_open?(@open_folded_groups, "documents", kind)}
+                          toggle_key={folded_group_key("documents", kind)}
+                        >
+                          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+                            <div
+                              :for={document <- kind_documents}
+                              class={[
+                                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                                @selected_document && @selected_document.id == document.id &&
+                                  "stone-selected"
+                              ]}
+                            >
+                              <.link
+                                patch={
+                                  ~p"/worlds/#{@world}/dashboard?section=documents&document_id=#{document.id}"
+                                }
+                                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                              >
+                                <div class="truncate text-sm font-semibold text-zinc-800">
+                                  {document.title}
+                                </div>
+                                <p class="mt-1 text-xs font-medium text-zinc-500">
+                                  {display_value(document.source)}
+                                </p>
+                              </.link>
+                              <button
+                                type="button"
+                                phx-click="delete_document"
+                                phx-value-id={document.id}
+                                data-confirm={"Delete #{document.title}?"}
+                                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Delete #{document.title}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </.folded_group>
+                      </div>
+                    </div>
+                  </section>
+
+                  <main class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+                    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+                      <div>
+                        <h2 class="text-sm font-semibold text-zinc-800">Details</h2>
+                        <p class="text-xs text-zinc-500">
+                          {if @selected_document,
+                            do: @selected_document.title,
+                            else: "No document selected"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="max-h-[720px] overflow-y-auto p-4">
+                      <div
+                        :if={is_nil(@selected_document)}
+                        class="py-8 text-center text-sm text-zinc-500"
+                      >
+                        Select a document to inspect its context and text.
+                      </div>
+
+                      <div :if={@selected_document} id="document-details" class="space-y-4">
+                        <div>
+                          <h3 class="text-lg font-semibold text-zinc-800">
+                            {@selected_document.title}
+                          </h3>
+                          <p class="mt-1 text-sm leading-6 text-zinc-600">
+                            {@selected_document.summary || "No summary yet."}
+                          </p>
+                        </div>
+
+                        <div class="grid gap-3 text-sm sm:grid-cols-2">
+                          <.detail label="Kind" value={display_value(@selected_document.kind)} />
+                          <.detail label="Source" value={display_value(@selected_document.source)} />
+                          <.detail
+                            label="Author"
+                            value={record_name(@selected_document.author_character)}
+                          />
+                          <.detail label="Location" value={record_name(@selected_document.location)} />
+                          <.detail label="Guild" value={record_name(@selected_document.guild)} />
+                          <.detail label="God" value={record_name(@selected_document.god)} />
+                          <.detail label="Race" value={record_name(@selected_document.race)} />
+                          <.detail
+                            label="Civilization"
+                            value={record_name(@selected_document.civilization)}
+                          />
+                        </div>
+
+                        <div class="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                          <p class="text-[11px] font-semibold uppercase text-zinc-500">Text</p>
+                          <p class="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-600">
+                            {@selected_document.content || "No text has been added."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </main>
+
+                  <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+                    <div class="rounded-md border border-zinc-200 bg-white px-4 py-3">
+                      <h2 class="text-sm font-semibold text-zinc-800">Actions</h2>
+                      <p class="mt-1 text-xs text-zinc-500">Create and edit lore documents.</p>
+                    </div>
+
+                    <div id="document-action-list" class="max-h-[720px] overflow-y-auto">
+                      <.action_section
+                        action="document"
+                        expanded_action={@expanded_action}
+                        icon="hero-document-text"
+                        title="Add Document"
+                      >
+                        <.form
+                          for={@document_form}
+                          id="document-form"
+                          phx-submit="create_document"
+                          class="space-y-2"
+                        >
+                          <.input field={@document_form[:title]} type="text" label="Title" required />
+                          <.input
+                            field={@document_form[:kind]}
+                            type="select"
+                            label="Kind"
+                            options={document_kind_options()}
+                          />
+                          <.input field={@document_form[:source]} type="text" label="Source" />
+                          <.input
+                            field={@document_form[:author_character_id]}
+                            type="select"
+                            label="Author"
+                            prompt="None"
+                            options={@character_options}
+                          />
+                          <.input
+                            field={@document_form[:location_id]}
+                            type="select"
+                            label="Location"
+                            prompt="None"
+                            options={@all_location_options}
+                          />
+                          <.input
+                            field={@document_form[:guild_id]}
+                            type="select"
+                            label="Guild"
+                            prompt="None"
+                            options={@guild_options}
+                          />
+                          <.input
+                            field={@document_form[:god_id]}
+                            type="select"
+                            label="God"
+                            prompt="None"
+                            options={@god_options}
+                          />
+                          <.input
+                            field={@document_form[:race_id]}
+                            type="select"
+                            label="Race"
+                            prompt="None"
+                            options={@race_options}
+                          />
+                          <.input
+                            field={@document_form[:civilization_id]}
+                            type="select"
+                            label="Civilization"
+                            prompt="None"
+                            options={@civilization_options}
+                          />
+                          <.input field={@document_form[:summary]} type="textarea" label="Summary" />
+                          <.input field={@document_form[:content]} type="textarea" label="Text" />
+                          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                            Create
+                          </.button>
+                        </.form>
+                      </.action_section>
+
+                      <.action_section
+                        :if={@selected_document}
+                        action="document_edit"
+                        expanded_action={@expanded_action}
+                        icon="hero-pencil-square"
+                        title="Edit Document"
+                      >
+                        <.form
+                          for={@document_edit_form}
+                          id="document-edit-form"
+                          phx-submit="update_document"
+                          class="space-y-2"
+                        >
+                          <.input
+                            field={@document_edit_form[:title]}
+                            type="text"
+                            label="Title"
+                            required
+                          />
+                          <.input
+                            field={@document_edit_form[:kind]}
+                            type="select"
+                            label="Kind"
+                            options={document_kind_options()}
+                          />
+                          <.input field={@document_edit_form[:source]} type="text" label="Source" />
+                          <.input
+                            field={@document_edit_form[:author_character_id]}
+                            type="select"
+                            label="Author"
+                            prompt="None"
+                            options={@character_options}
+                          />
+                          <.input
+                            field={@document_edit_form[:location_id]}
+                            type="select"
+                            label="Location"
+                            prompt="None"
+                            options={@all_location_options}
+                          />
+                          <.input
+                            field={@document_edit_form[:guild_id]}
+                            type="select"
+                            label="Guild"
+                            prompt="None"
+                            options={@guild_options}
+                          />
+                          <.input
+                            field={@document_edit_form[:god_id]}
+                            type="select"
+                            label="God"
+                            prompt="None"
+                            options={@god_options}
+                          />
+                          <.input
+                            field={@document_edit_form[:race_id]}
+                            type="select"
+                            label="Race"
+                            prompt="None"
+                            options={@race_options}
+                          />
+                          <.input
+                            field={@document_edit_form[:civilization_id]}
+                            type="select"
+                            label="Civilization"
+                            prompt="None"
+                            options={@civilization_options}
+                          />
+                          <.input
+                            field={@document_edit_form[:summary]}
+                            type="textarea"
+                            label="Summary"
+                          />
+                          <.input field={@document_edit_form[:content]} type="textarea" label="Text" />
+                          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                            Save
+                          </.button>
+                        </.form>
+                      </.action_section>
+                    </div>
+                  </aside>
+                </div>
+              <% @section == "relationships" -> %>
+                <div
+                  id="relationships-dashboard"
+                  class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+                >
+                  <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+                    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+                      <div>
+                        <h2 class="text-sm font-semibold text-zinc-800">Relationships</h2>
+                        <p class="text-xs text-zinc-500">
+                          Influence, loyalty, patronage, and conflict
+                        </p>
+                      </div>
+                      <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
+                        {length(@relationships)}
+                      </span>
+                    </div>
+
+                    <div
+                      id="relationship-list"
+                      class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5"
+                    >
+                      <div
+                        :if={@relationships == []}
+                        class="px-4 py-8 text-center text-sm text-zinc-500"
+                      >
+                        No relationships have been added to this world.
+                      </div>
+
+                      <div
+                        :for={
+                          {source, source_relationships} <-
+                            grouped_relationships(@relationships)
+                        }
+                        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
+                      >
+                        <.folded_group
+                          id={folded_group_dom_id("relationships", source)}
+                          label={source}
+                          count={length(source_relationships)}
+                          open={folded_group_open?(@open_folded_groups, "relationships", source)}
+                          toggle_key={folded_group_key("relationships", source)}
+                        >
+                          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+                            <div
+                              :for={relationship <- source_relationships}
+                              class={[
+                                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                                @selected_relationship &&
+                                  @selected_relationship.id == relationship.id &&
+                                  "stone-selected"
+                              ]}
+                            >
+                              <.link
+                                patch={
+                                  ~p"/worlds/#{@world}/dashboard?section=relationships&relationship_id=#{relationship.id}"
+                                }
+                                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                              >
+                                <div class="truncate text-sm font-semibold text-zinc-800">
+                                  {relationship_name(relationship)}
+                                </div>
+                                <p class="mt-1 text-xs font-medium text-zinc-500">
+                                  {display_value(relationship.relationship_type)} / {relationship_endpoint_label(
+                                    relationship,
+                                    :target
+                                  )}
+                                </p>
+                              </.link>
+                              <button
+                                type="button"
+                                phx-click="delete_relationship"
+                                phx-value-id={relationship.id}
+                                data-confirm={"Delete #{relationship_name(relationship)}?"}
+                                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Delete #{relationship_name(relationship)}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </.folded_group>
+                      </div>
+                    </div>
+                  </section>
+
+                  <main class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+                    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+                      <div>
+                        <h2 class="text-sm font-semibold text-zinc-800">Details</h2>
+                        <p class="text-xs text-zinc-500">
+                          {if @selected_relationship,
+                            do: relationship_name(@selected_relationship),
+                            else: "No relationship selected"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="max-h-[720px] overflow-y-auto p-4">
+                      <div
+                        :if={is_nil(@selected_relationship)}
+                        class="py-8 text-center text-sm text-zinc-500"
+                      >
+                        Select a relationship to inspect its source, target, and context.
+                      </div>
+
+                      <div :if={@selected_relationship} id="relationship-details" class="space-y-4">
+                        <div>
+                          <h3 class="text-lg font-semibold text-zinc-800">
+                            {relationship_name(@selected_relationship)}
+                          </h3>
+                          <p class="mt-1 text-sm leading-6 text-zinc-600">
+                            {@selected_relationship.description || "No description yet."}
+                          </p>
+                        </div>
+
+                        <div class="grid gap-3 text-sm sm:grid-cols-2">
+                          <.detail
+                            label="Source"
+                            value={relationship_endpoint_label(@selected_relationship, :source)}
+                          />
+                          <.detail
+                            label="Target"
+                            value={relationship_endpoint_label(@selected_relationship, :target)}
+                          />
+                          <.detail
+                            label="Type"
+                            value={display_value(@selected_relationship.relationship_type)}
+                          />
+                          <.detail
+                            label="Status"
+                            value={display_value(@selected_relationship.status)}
+                          />
+                          <.detail
+                            label="Started"
+                            value={display_value(@selected_relationship.started_at)}
+                          />
+                          <.detail
+                            label="Ended"
+                            value={display_value(@selected_relationship.ended_at)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </main>
+
+                  <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+                    <div class="rounded-md border border-zinc-200 bg-white px-4 py-3">
+                      <h2 class="text-sm font-semibold text-zinc-800">Actions</h2>
+                      <p class="mt-1 text-xs text-zinc-500">Create and edit relationship links.</p>
+                    </div>
+
+                    <div id="relationship-action-list" class="max-h-[720px] overflow-y-auto">
+                      <.action_section
+                        action="relationship"
+                        expanded_action={@expanded_action}
+                        icon="hero-link"
+                        title="Add Relationship"
+                      >
+                        <.form
+                          for={@relationship_form}
+                          id="relationship-form"
+                          phx-submit="create_relationship"
+                          class="space-y-2"
+                        >
+                          <.input field={@relationship_form[:name]} type="text" label="Name" />
+                          <.input
+                            field={@relationship_form[:source_entity]}
+                            type="select"
+                            label="Source"
+                            options={@relationship_entity_options}
+                          />
+                          <.input
+                            field={@relationship_form[:target_entity]}
+                            type="select"
+                            label="Target"
+                            options={@relationship_entity_options}
+                          />
+                          <.input
+                            field={@relationship_form[:relationship_type]}
+                            type="text"
+                            label="Relationship"
+                            required
+                          />
+                          <.input field={@relationship_form[:status]} type="text" label="Status" />
+                          <.input field={@relationship_form[:started_at]} type="text" label="Started" />
+                          <.input field={@relationship_form[:ended_at]} type="text" label="Ended" />
+                          <.input
+                            field={@relationship_form[:description]}
+                            type="textarea"
+                            label="Description"
+                          />
+                          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                            Create
+                          </.button>
+                        </.form>
+                      </.action_section>
+
+                      <.action_section
+                        :if={@selected_relationship}
+                        action="relationship_edit"
+                        expanded_action={@expanded_action}
+                        icon="hero-pencil-square"
+                        title="Edit Relationship"
+                      >
+                        <.form
+                          for={@relationship_edit_form}
+                          id="relationship-edit-form"
+                          phx-submit="update_relationship"
+                          class="space-y-2"
+                        >
+                          <.input field={@relationship_edit_form[:name]} type="text" label="Name" />
+                          <.input
+                            field={@relationship_edit_form[:source_entity]}
+                            type="select"
+                            label="Source"
+                            options={@relationship_entity_options}
+                          />
+                          <.input
+                            field={@relationship_edit_form[:target_entity]}
+                            type="select"
+                            label="Target"
+                            options={@relationship_entity_options}
+                          />
+                          <.input
+                            field={@relationship_edit_form[:relationship_type]}
+                            type="text"
+                            label="Relationship"
+                            required
+                          />
+                          <.input field={@relationship_edit_form[:status]} type="text" label="Status" />
+                          <.input
+                            field={@relationship_edit_form[:started_at]}
+                            type="text"
+                            label="Started"
+                          />
+                          <.input
+                            field={@relationship_edit_form[:ended_at]}
+                            type="text"
+                            label="Ended"
+                          />
+                          <.input
+                            field={@relationship_edit_form[:description]}
+                            type="textarea"
+                            label="Description"
+                          />
+                          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                            Save
                           </.button>
                         </.form>
                       </.action_section>
@@ -4100,6 +4651,56 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  def handle_event("create_document", %{"document" => params}, socket) do
+    create_and_reload(socket, fn ->
+      with {:ok, refs} <- document_refs(socket, params) do
+        Worlds.create_document(socket.assigns.world, params, refs)
+      end
+    end)
+  end
+
+  def handle_event("update_document", %{"document_edit" => params}, socket) do
+    update_and_reload(socket, fn ->
+      with {:ok, document} <- get_selected_document(socket),
+           {:ok, refs} <- document_refs(socket, params) do
+        Worlds.update_document(document, params, refs)
+      end
+    end)
+  end
+
+  def handle_event("delete_document", %{"id" => id}, socket) do
+    delete_and_reload(socket, fn ->
+      with {:ok, document} <- get_document_in_world(socket, id) do
+        Worlds.delete_document(document)
+      end
+    end)
+  end
+
+  def handle_event("create_relationship", %{"relationship" => params}, socket) do
+    create_and_reload(socket, fn ->
+      with {:ok, refs} <- relationship_refs(socket, params) do
+        Worlds.create_relationship(socket.assigns.world, params, refs)
+      end
+    end)
+  end
+
+  def handle_event("update_relationship", %{"relationship_edit" => params}, socket) do
+    update_and_reload(socket, fn ->
+      with {:ok, relationship} <- get_selected_relationship(socket),
+           {:ok, refs} <- relationship_refs(socket, params) do
+        Worlds.update_relationship(relationship, params, refs)
+      end
+    end)
+  end
+
+  def handle_event("delete_relationship", %{"id" => id}, socket) do
+    delete_and_reload(socket, fn ->
+      with {:ok, relationship} <- get_relationship_in_world(socket, id) do
+        Worlds.delete_relationship(relationship)
+      end
+    end)
+  end
+
   def handle_event("create_civilization", %{"civilization" => params}, socket) do
     create_and_reload(socket, fn ->
       with {:ok, timeline_era} <-
@@ -4521,6 +5122,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     creature_types = sorted(world.creature_types)
     creatures = sorted(world.creatures)
     creature_locations = flat_creature_locations(creatures)
+    documents = sorted_by_title(world.documents)
     effects = sorted(world.effects)
     gods = sorted(world.gods)
     guilds = sorted(world.guilds)
@@ -4529,6 +5131,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     occupations = sorted(world.occupations)
     political_offices = world.political_offices
     races = sorted(world.races)
+    relationships = sorted_relationships(world.relationships)
     skills = sorted(world.skills)
     spells = sorted(world.spells)
     timelines = sorted(world.timelines)
@@ -4545,11 +5148,16 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       character_inventory_items(selected_character)
 
     selected_creature = select_record(creatures, params["creature_id"]) || first_record(creatures)
+    selected_document = select_record(documents, params["document_id"]) || first_record(documents)
     selected_god = select_record(gods, params["god_id"]) || first_record(gods)
     selected_guild = select_record(guilds, params["guild_id"]) || first_record(guilds)
     selected_item = select_record(items, params["item_id"]) || first_record(items)
     selected_item_effects = item_effects(selected_item)
     selected_race = select_record(races, params["race_id"]) || first_record(races)
+
+    selected_relationship =
+      select_record(relationships, params["relationship_id"]) || first_record(relationships)
+
     selected_skill = select_record(skills, params["skill_id"]) || first_record(skills)
     skill_detail_tab = selected_skill_detail_tab(socket)
     selected_spell = select_record(spells, params["spell_id"]) || first_record(spells)
@@ -4580,6 +5188,19 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     selected_province_id = selected_or_first_id(selected_path.province, provinces)
     selected_hold_options = option_list(List.wrap(selected_hold))
 
+    relationship_entity_options =
+      relationship_entity_options(
+        characters,
+        civilizations,
+        continents,
+        gods,
+        guilds,
+        holds,
+        locations,
+        provinces,
+        races
+      )
+
     socket
     |> assign(:world, world)
     |> assign(:page_title, world.name)
@@ -4601,6 +5222,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:creatures, creatures)
     |> assign(:creature_locations, creature_locations)
     |> assign(:selected_creature, selected_creature)
+    |> assign(:documents, documents)
+    |> assign(:selected_document, selected_document)
     |> assign(:effects, effects)
     |> assign(:gods, gods)
     |> assign(:selected_god, selected_god)
@@ -4612,6 +5235,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:occupations, occupations)
     |> assign(:races, races)
     |> assign(:selected_race, selected_race)
+    |> assign(:relationships, relationships)
+    |> assign(:selected_relationship, selected_relationship)
     |> assign(:skills, skills)
     |> assign(:selected_skill, selected_skill)
     |> assign(:skill_detail_tab, skill_detail_tab)
@@ -4637,6 +5262,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:civilization_options, option_list(civilizations))
     |> assign(:creature_type_options, option_list(creature_types))
     |> assign(:creature_options, option_list(creatures))
+    |> assign(:document_options, option_list(documents, & &1.title))
     |> assign(:effect_options, option_list(effects))
     |> assign(:all_location_options, option_list(locations))
     |> assign(:god_options, option_list(gods))
@@ -4651,6 +5277,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:political_office_options, political_office_options(selected_political_offices))
     |> assign(:province_options, option_list(provinces))
     |> assign(:race_options, option_list(races))
+    |> assign(:relationship_entity_options, relationship_entity_options)
+    |> assign(:relationship_options, option_list(relationships, &relationship_name/1))
     |> assign(:skill_options, option_list(skills))
     |> assign(:spell_options, option_list(spells))
     |> assign(:timeline_options, option_list(timelines))
@@ -4811,6 +5439,30 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :calendar_edit_form,
       data_form(:calendar_edit, calendar_edit_attrs(selected_calendar))
     )
+    |> assign(
+      :document_form,
+      data_form(:document, %{
+        "kind" => "book",
+        "source" => "Skyrim"
+      })
+    )
+    |> assign(
+      :document_edit_form,
+      data_form(:document_edit, document_edit_attrs(selected_document))
+    )
+    |> assign(
+      :relationship_form,
+      data_form(:relationship, %{
+        "relationship_type" => "ally",
+        "status" => "active",
+        "source_entity" => first_relationship_entity(relationship_entity_options),
+        "target_entity" => first_relationship_entity(relationship_entity_options)
+      })
+    )
+    |> assign(
+      :relationship_edit_form,
+      data_form(:relationship_edit, relationship_edit_attrs(selected_relationship))
+    )
   end
 
   defp reload_params(socket) do
@@ -4823,8 +5475,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "god_id" => selected_record_id(socket.assigns[:selected_god]),
       "character_id" => selected_record_id(socket.assigns[:selected_character]),
       "creature_id" => selected_record_id(socket.assigns[:selected_creature]),
+      "document_id" => selected_record_id(socket.assigns[:selected_document]),
       "item_id" => selected_record_id(socket.assigns[:selected_item]),
       "political_office_id" => selected_record_id(socket.assigns[:selected_political_office]),
+      "relationship_id" => selected_record_id(socket.assigns[:selected_relationship]),
       "skill_id" => selected_record_id(socket.assigns[:selected_skill]),
       "spell_id" => selected_record_id(socket.assigns[:selected_spell]),
       "civilization_id" => selected_record_id(socket.assigns[:selected_civilization]),
@@ -4941,6 +5595,22 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     )
   end
 
+  defp get_document_in_world(socket, document_id) do
+    get_record_in_options(
+      socket.assigns.document_options,
+      document_id,
+      &Worlds.get_document!/1
+    )
+  end
+
+  defp get_relationship_in_world(socket, relationship_id) do
+    get_record_in_options(
+      socket.assigns.relationship_options,
+      relationship_id,
+      &Worlds.get_relationship!/1
+    )
+  end
+
   defp get_calendar_in_world(socket, calendar_id) do
     get_record_in_options(socket.assigns.calendar_options, calendar_id, &Worlds.get_calendar!/1)
   end
@@ -4967,6 +5637,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp get_optional_guild_in_world(socket, guild_id) do
     get_optional_record_in_options(socket.assigns.guild_options, guild_id, &Worlds.get_guild!/1)
+  end
+
+  defp get_optional_civilization_in_world(socket, civilization_id) do
+    get_optional_record_in_options(
+      socket.assigns.civilization_options,
+      civilization_id,
+      &Worlds.get_civilization!/1
+    )
   end
 
   defp get_optional_occupation_in_world(socket, occupation_id) do
@@ -5165,6 +5843,22 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     {:error, :creature_not_selected}
   end
 
+  defp get_selected_document(%{assigns: %{selected_document: %{} = document}}) do
+    {:ok, document}
+  end
+
+  defp get_selected_document(_socket) do
+    {:error, :document_not_selected}
+  end
+
+  defp get_selected_relationship(%{assigns: %{selected_relationship: %{} = relationship}}) do
+    {:ok, relationship}
+  end
+
+  defp get_selected_relationship(_socket) do
+    {:error, :relationship_not_selected}
+  end
+
   defp get_parent_location_in_selected_hold(_socket, parent_location_id)
        when parent_location_id in [nil, ""] do
     {:ok, nil}
@@ -5302,6 +5996,106 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp political_office_refs(_socket, _params) do
     {:error, :invalid_political_scope}
+  end
+
+  defp document_refs(socket, params) do
+    with {:ok, author_character} <-
+           get_optional_character_in_world(socket, params["author_character_id"]),
+         {:ok, location} <- get_optional_location_in_world(socket, params["location_id"]),
+         {:ok, guild} <- get_optional_guild_in_world(socket, params["guild_id"]),
+         {:ok, god} <- get_optional_god_in_world(socket, params["god_id"]),
+         {:ok, race} <- get_optional_race_in_world(socket, params["race_id"]),
+         {:ok, civilization} <-
+           get_optional_civilization_in_world(socket, params["civilization_id"]) do
+      {:ok,
+       %{
+         author_character: author_character,
+         location: location,
+         guild: guild,
+         god: god,
+         race: race,
+         civilization: civilization
+       }}
+    end
+  end
+
+  defp relationship_refs(socket, params) do
+    with {:ok, source} <- relationship_endpoint(socket, params["source_entity"]),
+         {:ok, target} <- relationship_endpoint(socket, params["target_entity"]) do
+      {:ok, %{source: source, target: target}}
+    end
+  end
+
+  defp relationship_endpoint(_socket, value) when value in [nil, ""] do
+    {:error, :relationship_endpoint_required}
+  end
+
+  defp relationship_endpoint(socket, value) do
+    case String.split(value, ":", parts: 2) do
+      [kind, record_id] ->
+        relationship_endpoint_record(socket, kind, record_id)
+
+      _invalid ->
+        {:error, :invalid_relationship_endpoint}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "character", record_id) do
+    with {:ok, record} <- get_character_in_world(socket, record_id) do
+      {:ok, {:character, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "civilization", record_id) do
+    with {:ok, record} <- get_civilization_in_world(socket, record_id) do
+      {:ok, {:civilization, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "continent", record_id) do
+    with {:ok, record} <- get_continent_in_world(socket, record_id) do
+      {:ok, {:continent, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "god", record_id) do
+    with {:ok, record} <- get_god_in_world(socket, record_id) do
+      {:ok, {:god, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "guild", record_id) do
+    with {:ok, record} <- get_guild_in_world(socket, record_id) do
+      {:ok, {:guild, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "hold", record_id) do
+    with {:ok, record} <- get_hold_in_world(socket, record_id) do
+      {:ok, {:hold, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "location", record_id) do
+    with {:ok, record} <- get_location_in_world(socket, record_id) do
+      {:ok, {:location, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "province", record_id) do
+    with {:ok, record} <- get_province_in_world(socket, record_id) do
+      {:ok, {:province, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(socket, "race", record_id) do
+    with {:ok, record} <- get_race_in_world(socket, record_id) do
+      {:ok, {:race, record}}
+    end
+  end
+
+  defp relationship_endpoint_record(_socket, _kind, _record_id) do
+    {:error, :invalid_relationship_endpoint}
   end
 
   defp select_path(_continents, nil, nil, nil) do
@@ -5457,6 +6251,43 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     }
   end
 
+  defp document_edit_attrs(nil) do
+    %{}
+  end
+
+  defp document_edit_attrs(document) do
+    %{
+      "title" => document.title,
+      "kind" => document.kind,
+      "source" => document.source,
+      "summary" => document.summary,
+      "content" => document.content,
+      "author_character_id" => selected_record_id(document.author_character),
+      "location_id" => selected_record_id(document.location),
+      "guild_id" => selected_record_id(document.guild),
+      "god_id" => selected_record_id(document.god),
+      "race_id" => selected_record_id(document.race),
+      "civilization_id" => selected_record_id(document.civilization)
+    }
+  end
+
+  defp relationship_edit_attrs(nil) do
+    %{}
+  end
+
+  defp relationship_edit_attrs(relationship) do
+    %{
+      "name" => relationship.name,
+      "relationship_type" => relationship.relationship_type,
+      "status" => relationship.status,
+      "started_at" => relationship.started_at,
+      "ended_at" => relationship.ended_at,
+      "description" => relationship.description,
+      "source_entity" => relationship_endpoint_value(relationship, :source),
+      "target_entity" => relationship_endpoint_value(relationship, :target)
+    }
+  end
+
   defp skill_edit_attrs(nil) do
     %{}
   end
@@ -5536,6 +6367,23 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     ]
   end
 
+  defp document_kind_options do
+    [
+      {"Book", "book"},
+      {"Note", "note"},
+      {"Journal", "journal"},
+      {"Letter", "letter"},
+      {"Map", "map"},
+      {"Recipe", "recipe"},
+      {"Law", "law"},
+      {"Rumor", "rumor"},
+      {"Prophecy", "prophecy"},
+      {"Record", "record"},
+      {"Contract", "contract"},
+      {"Other", "other"}
+    ]
+  end
+
   defp item_category_label(nil) do
     "None"
   end
@@ -5561,6 +6409,20 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     characters
     |> Enum.group_by(&record_name(&1.race))
     |> Enum.sort_by(fn {race, _race_characters} -> race end)
+  end
+
+  defp grouped_documents(documents) do
+    documents
+    |> Enum.group_by(& &1.kind)
+    |> Enum.sort_by(fn {kind, _kind_documents} -> display_value(kind) end)
+  end
+
+  defp grouped_relationships(relationships) do
+    relationships
+    |> Enum.group_by(&relationship_endpoint_label(&1, :source))
+    |> Enum.sort_by(fn {source, _source_relationships} ->
+      source
+    end)
   end
 
   defp grouped_gods(gods) do
@@ -5669,6 +6531,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     Enum.map(records, &{&1.name, &1.id})
   end
 
+  defp option_list(records, label_fun) do
+    Enum.map(records, &{label_fun.(&1), &1.id})
+  end
+
   defp political_office_options(records) do
     Enum.map(records, fn political_office ->
       {political_office_label(political_office), political_office.id}
@@ -5681,6 +6547,136 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp political_office_label(%{scope: "hold"} = political_office) do
     "#{political_office.office} / #{record_name(political_office.hold)}"
+  end
+
+  defp relationship_entity_options(
+         characters,
+         civilizations,
+         continents,
+         gods,
+         guilds,
+         holds,
+         locations,
+         provinces,
+         races
+       ) do
+    [
+      relationship_entity_group("Character", "character", characters),
+      relationship_entity_group("Guild", "guild", guilds),
+      relationship_entity_group("God", "god", gods),
+      relationship_entity_group("Race", "race", races),
+      relationship_entity_group("Civilization", "civilization", civilizations),
+      relationship_entity_group("Location", "location", locations),
+      relationship_entity_group("Hold", "hold", holds),
+      relationship_entity_group("Province", "province", provinces),
+      relationship_entity_group("Continent", "continent", continents)
+    ]
+    |> List.flatten()
+  end
+
+  defp relationship_entity_group(label, kind, records) do
+    Enum.map(records, fn record ->
+      {"#{label} / #{record.name}", "#{kind}:#{record.id}"}
+    end)
+  end
+
+  defp first_relationship_entity([{_label, value} | _options]) do
+    value
+  end
+
+  defp first_relationship_entity([]) do
+    nil
+  end
+
+  defp relationship_name(relationship) do
+    relationship.name || relationship_label(relationship)
+  end
+
+  defp relationship_label(relationship) do
+    "#{relationship_endpoint_label(relationship, :source)} #{relationship.relationship_type} #{relationship_endpoint_label(relationship, :target)}"
+  end
+
+  defp relationship_endpoint_label(relationship, side) do
+    relationship
+    |> relationship_endpoint_record(side)
+    |> case do
+      {kind, record} ->
+        "#{relationship_kind_label(kind)} / #{record.name}"
+
+      nil ->
+        "Unassigned"
+    end
+  end
+
+  defp relationship_endpoint_value(relationship, side) do
+    relationship
+    |> relationship_endpoint_record(side)
+    |> case do
+      {kind, record} ->
+        "#{kind}:#{record.id}"
+
+      nil ->
+        nil
+    end
+  end
+
+  defp relationship_endpoint_record(relationship, :source) do
+    relationship_endpoint_record(relationship, "source")
+  end
+
+  defp relationship_endpoint_record(relationship, :target) do
+    relationship_endpoint_record(relationship, "target")
+  end
+
+  defp relationship_endpoint_record(relationship, side) do
+    [
+      {:character, Map.get(relationship, :"#{side}_character")},
+      {:guild, Map.get(relationship, :"#{side}_guild")},
+      {:god, Map.get(relationship, :"#{side}_god")},
+      {:race, Map.get(relationship, :"#{side}_race")},
+      {:civilization, Map.get(relationship, :"#{side}_civilization")},
+      {:location, Map.get(relationship, :"#{side}_location")},
+      {:hold, Map.get(relationship, :"#{side}_hold")},
+      {:province, Map.get(relationship, :"#{side}_province")},
+      {:continent, Map.get(relationship, :"#{side}_continent")}
+    ]
+    |> Enum.find(fn {_kind, record} -> record end)
+  end
+
+  defp relationship_kind_label(:character) do
+    "Character"
+  end
+
+  defp relationship_kind_label(:civilization) do
+    "Civilization"
+  end
+
+  defp relationship_kind_label(:continent) do
+    "Continent"
+  end
+
+  defp relationship_kind_label(:god) do
+    "God"
+  end
+
+  defp relationship_kind_label(:guild) do
+    "Guild"
+  end
+
+  defp relationship_kind_label(:hold) do
+    "Hold"
+  end
+
+  defp relationship_kind_label(:location) do
+    "Location"
+  end
+
+  defp relationship_kind_label(:province) do
+    "Province"
+  end
+
+  defp relationship_kind_label(:race) do
+    "Race"
   end
 
   defp first_id([record | _records]) do
@@ -5712,7 +6708,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp normalize_section(section)
-       when section in ~w(bestiary calendar characters civilizations geography gods guilds items races skills spells timeline) do
+       when section in ~w(bestiary calendar characters civilizations documents geography gods guilds items races relationships skills spells timeline) do
     section
   end
 
@@ -5754,6 +6750,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp section_label("civilizations") do
     "Civilizations"
+  end
+
+  defp section_label("documents") do
+    "Documents"
+  end
+
+  defp section_label("relationships") do
+    "Relationships"
   end
 
   defp section_label("calendar") do
@@ -5812,6 +6816,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp default_expanded_action("civilizations") do
     "civilization"
+  end
+
+  defp default_expanded_action("documents") do
+    "document"
+  end
+
+  defp default_expanded_action("relationships") do
+    "relationship"
   end
 
   defp default_expanded_action("calendar") do
@@ -6164,6 +7176,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp sorted(records) do
     Enum.sort_by(records, & &1.name)
+  end
+
+  defp sorted_by_title(records) do
+    Enum.sort_by(records, & &1.title)
+  end
+
+  defp sorted_relationships(records) do
+    Enum.sort_by(records, &relationship_name/1)
   end
 
   defp sidebar_continents(continents) do

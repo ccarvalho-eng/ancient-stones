@@ -23,6 +23,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.CreatureLocation
   alias AncientStones.Worlds.CreatureType
+  alias AncientStones.Worlds.Document
   alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
@@ -38,6 +39,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.RaceTrait
+  alias AncientStones.Worlds.Relationship
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillLevel
   alias AncientStones.Worlds.SkillTree
@@ -134,6 +136,14 @@ defmodule AncientStones.Worlds do
       ],
       creature_types: [],
       creatures: [:creature_type, creature_locations: [:location]],
+      documents: [
+        :author_character,
+        :location,
+        :guild,
+        :god,
+        :race,
+        :civilization
+      ],
       galaxy: [:worlds],
       gods: [],
       guilds: [guild_influences: [:god, :character]],
@@ -143,6 +153,26 @@ defmodule AncientStones.Worlds do
       occupations: [],
       political_offices: [:character, :province, :hold],
       races: [:traits],
+      relationships: [
+        :source_character,
+        :source_guild,
+        :source_god,
+        :source_race,
+        :source_civilization,
+        :source_location,
+        :source_hold,
+        :source_province,
+        :source_continent,
+        :target_character,
+        :target_guild,
+        :target_god,
+        :target_race,
+        :target_civilization,
+        :target_location,
+        :target_hold,
+        :target_province,
+        :target_continent
+      ],
       skills: [:levels, skill_tree: [:perks]],
       skill_trees: [:skills, :perks],
       spells: [],
@@ -461,6 +491,55 @@ defmodule AncientStones.Worlds do
   @doc "Deletes a god from a world."
   def delete_god(%God{} = god) do
     Repo.delete(god)
+  end
+
+  def create_document(%World{id: world_id}, attrs, refs \\ %{}) do
+    %Document{world_id: world_id}
+    |> Document.changeset(attrs)
+    |> put_document_refs(refs)
+    |> Repo.insert()
+  end
+
+  def get_document!(id) do
+    Document
+    |> Repo.get!(id)
+    |> Repo.preload([:author_character, :location, :guild, :god, :race, :civilization])
+  end
+
+  def update_document(%Document{} = document, attrs, refs \\ %{}) do
+    document
+    |> Document.changeset(attrs)
+    |> put_document_refs(refs)
+    |> Repo.update()
+  end
+
+  def delete_document(%Document{} = document) do
+    Repo.delete(document)
+  end
+
+  def create_relationship(%World{id: world_id}, attrs, refs) do
+    %Relationship{world_id: world_id}
+    |> Relationship.changeset(attrs)
+    |> put_relationship_refs(refs)
+    |> Repo.insert()
+  end
+
+  def get_relationship!(id) do
+    Relationship
+    |> Repo.get!(id)
+    |> Repo.preload(relationship_preloads())
+  end
+
+  def update_relationship(%Relationship{} = relationship, attrs, refs) do
+    relationship
+    |> Relationship.changeset(attrs)
+    |> clear_relationship_refs()
+    |> put_relationship_refs(refs)
+    |> Repo.update()
+  end
+
+  def delete_relationship(%Relationship{} = relationship) do
+    Repo.delete(relationship)
   end
 
   def list_characters(%World{id: world_id}) do
@@ -923,6 +1002,95 @@ defmodule AncientStones.Worlds do
 
   defp put_optional_ref(changeset, field, %{id: id}) do
     Ecto.Changeset.put_change(changeset, field, id)
+  end
+
+  defp put_document_refs(changeset, refs) do
+    changeset
+    |> put_ref(:author_character_id, refs[:author_character])
+    |> put_ref(:location_id, refs[:location])
+    |> put_ref(:guild_id, refs[:guild])
+    |> put_ref(:god_id, refs[:god])
+    |> put_ref(:race_id, refs[:race])
+    |> put_ref(:civilization_id, refs[:civilization])
+  end
+
+  defp put_relationship_refs(changeset, refs) do
+    changeset
+    |> put_relationship_endpoint(:source, refs[:source])
+    |> put_relationship_endpoint(:target, refs[:target])
+  end
+
+  defp put_relationship_endpoint(changeset, _side, nil) do
+    changeset
+  end
+
+  defp put_relationship_endpoint(changeset, _side, {_kind, nil}) do
+    changeset
+  end
+
+  defp put_relationship_endpoint(changeset, side, {kind, %{id: id}})
+       when kind in [
+              :character,
+              :guild,
+              :god,
+              :race,
+              :civilization,
+              :location,
+              :hold,
+              :province,
+              :continent
+            ] do
+    Ecto.Changeset.put_change(changeset, relationship_field(side, kind), id)
+  end
+
+  defp clear_relationship_refs(changeset) do
+    Enum.reduce(relationship_ref_fields(), changeset, fn field, changeset ->
+      Ecto.Changeset.put_change(changeset, field, nil)
+    end)
+  end
+
+  defp relationship_field(side, kind) do
+    :"#{side}_#{kind}_id"
+  end
+
+  defp relationship_ref_fields do
+    for side <- [:source, :target],
+        kind <- [
+          :character,
+          :guild,
+          :god,
+          :race,
+          :civilization,
+          :location,
+          :hold,
+          :province,
+          :continent
+        ] do
+      relationship_field(side, kind)
+    end
+  end
+
+  defp relationship_preloads do
+    [
+      :source_character,
+      :source_guild,
+      :source_god,
+      :source_race,
+      :source_civilization,
+      :source_location,
+      :source_hold,
+      :source_province,
+      :source_continent,
+      :target_character,
+      :target_guild,
+      :target_god,
+      :target_race,
+      :target_civilization,
+      :target_location,
+      :target_hold,
+      :target_province,
+      :target_continent
+    ]
   end
 
   defp put_ref(changeset, field, nil) do
@@ -1466,7 +1634,14 @@ defmodule AncientStones.Worlds do
 
     era_by_name = build_template_timelines!(world, Map.get(template_data, :timelines, []))
     race_by_name = build_template_races!(world, Map.get(template_data, :races, []))
-    build_template_civilizations!(world, Map.get(template_data, :civilizations, []), era_by_name)
+
+    civilization_by_name =
+      build_template_civilizations!(
+        world,
+        Map.get(template_data, :civilizations, []),
+        era_by_name
+      )
+
     build_template_continents!(world, continents, type_by_name)
 
     character_by_name =
@@ -1493,6 +1668,23 @@ defmodule AncientStones.Worlds do
       Map.get(template_data, :characters, []),
       character_by_name,
       item_by_name
+    )
+
+    template_refs =
+      template_refs(world, %{
+        characters: character_by_name,
+        civilizations: civilization_by_name,
+        gods: god_by_name,
+        guilds: guild_by_name,
+        races: race_by_name
+      })
+
+    build_template_documents!(world, Map.get(template_data, :documents, []), template_refs)
+
+    build_template_relationships!(
+      world,
+      Map.get(template_data, :relationships, []),
+      template_refs
     )
 
     get_world!(world.id)
@@ -1528,7 +1720,14 @@ defmodule AncientStones.Worlds do
 
     era_by_name = build_template_timelines!(world, Map.get(template_data, :timelines, []))
     race_by_name = build_template_races!(world, Map.get(template_data, :races, []))
-    build_template_civilizations!(world, Map.get(template_data, :civilizations, []), era_by_name)
+
+    civilization_by_name =
+      build_template_civilizations!(
+        world,
+        Map.get(template_data, :civilizations, []),
+        era_by_name
+      )
+
     build_template_continents!(world, continents, %{})
 
     character_by_name =
@@ -1555,6 +1754,23 @@ defmodule AncientStones.Worlds do
       Map.get(template_data, :characters, []),
       character_by_name,
       item_by_name
+    )
+
+    template_refs =
+      template_refs(world, %{
+        characters: character_by_name,
+        civilizations: civilization_by_name,
+        gods: god_by_name,
+        guilds: guild_by_name,
+        races: race_by_name
+      })
+
+    build_template_documents!(world, Map.get(template_data, :documents, []), template_refs)
+
+    build_template_relationships!(
+      world,
+      Map.get(template_data, :relationships, []),
+      template_refs
     )
 
     get_world!(world.id)
@@ -1616,13 +1832,16 @@ defmodule AncientStones.Worlds do
   end
 
   defp build_template_civilizations!(world, civilizations, era_by_name) do
-    for civilization_data <- civilizations do
+    Enum.reduce(civilizations, %{}, fn civilization_data, acc ->
       refs = %{timeline_era: Map.get(era_by_name, civilization_data[:timeline_era])}
 
-      world
-      |> create_civilization(civilization_data, refs)
-      |> unwrap_transaction!()
-    end
+      civilization =
+        world
+        |> create_civilization(civilization_data, refs)
+        |> unwrap_transaction!()
+
+      Map.put(acc, civilization.name, civilization)
+    end)
   end
 
   defp build_template_creature_types!(world, creature_types) do
@@ -1845,6 +2064,98 @@ defmodule AncientStones.Worlds do
     end
   end
 
+  defp build_template_documents!(world, documents, template_refs) do
+    for document_data <- documents do
+      refs = %{
+        author_character: template_ref(template_refs, :character, document_data[:author]),
+        location: template_ref(template_refs, :location, document_data[:location]),
+        guild: template_ref(template_refs, :guild, document_data[:guild]),
+        god: template_ref(template_refs, :god, document_data[:god]),
+        race: template_ref(template_refs, :race, document_data[:race]),
+        civilization: template_ref(template_refs, :civilization, document_data[:civilization])
+      }
+
+      world
+      |> create_document(document_data, refs)
+      |> unwrap_transaction!()
+    end
+  end
+
+  defp build_template_relationships!(world, relationships, template_refs) do
+    for relationship_data <- relationships do
+      refs = %{
+        source: template_endpoint(template_refs, relationship_data[:source]),
+        target: template_endpoint(template_refs, relationship_data[:target])
+      }
+
+      world
+      |> create_relationship(relationship_data, refs)
+      |> unwrap_transaction!()
+    end
+  end
+
+  defp template_refs(world, refs) do
+    refs
+    |> Map.put(:continents, continents_by_name(world))
+    |> Map.put(:holds, holds_by_name(world))
+    |> Map.put(:locations, locations_by_name(world))
+    |> Map.put(:provinces, provinces_by_name(world))
+  end
+
+  defp template_endpoint(_template_refs, nil) do
+    nil
+  end
+
+  defp template_endpoint(template_refs, {kind, name}) do
+    {kind, template_ref(template_refs, kind, name)}
+  end
+
+  defp template_ref(_template_refs, _kind, nil) do
+    nil
+  end
+
+  defp template_ref(template_refs, kind, name) do
+    template_refs
+    |> Map.fetch!(template_ref_key(kind))
+    |> Map.get(name)
+  end
+
+  defp template_ref_key(:character) do
+    :characters
+  end
+
+  defp template_ref_key(:civilization) do
+    :civilizations
+  end
+
+  defp template_ref_key(:continent) do
+    :continents
+  end
+
+  defp template_ref_key(:god) do
+    :gods
+  end
+
+  defp template_ref_key(:guild) do
+    :guilds
+  end
+
+  defp template_ref_key(:hold) do
+    :holds
+  end
+
+  defp template_ref_key(:location) do
+    :locations
+  end
+
+  defp template_ref_key(:province) do
+    :provinces
+  end
+
+  defp template_ref_key(:race) do
+    :races
+  end
+
   defp primary_occupation?(%{primary_occupation: occupation_name}, occupation_name) do
     true
   end
@@ -1880,6 +2191,13 @@ defmodule AncientStones.Worlds do
       |> Repo.all()
       |> Map.new(&{&1.name, &1})
     end)
+  end
+
+  defp continents_by_name(%World{id: world_id}) do
+    Continent
+    |> where([continent], continent.world_id == ^world_id)
+    |> Repo.all()
+    |> Map.new(&{&1.name, &1})
   end
 
   defp holds_by_name(%World{id: world_id}) do
