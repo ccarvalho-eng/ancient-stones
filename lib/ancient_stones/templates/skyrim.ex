@@ -1831,6 +1831,8 @@ defmodule AncientStones.Templates.Skyrim do
           location("Fort Amol", "Fort", "A fort on the road through southern Eastmarch."),
           location("Morvunskar", "Fort", "A ruined fort in the eastern volcanic plain."),
           location("Cronvangr Cave", "Cave", "A cave in the hot springs region."),
+          location("Lost Knife Hideout", "Cave", "A bandit cave system in southern Eastmarch."),
+          location("Stony Creek Cave", "Cave", "A stream-cut cave near the Eastmarch border."),
           location("Eldergleam Sanctuary", "Grove", "A sacred grove around the Eldergleam tree."),
           location("Steamcrag Camp", "Giant Camp", "A giant camp in the sulphur pools."),
           location("Gallows Rock", "Fort", "A fortified ruin used by hostile forces."),
@@ -1854,6 +1856,13 @@ defmodule AncientStones.Templates.Skyrim do
           ),
           location("Knifepoint Ridge", "Camp", "A bandit camp and mine in the mountains."),
           location("Glenmoril Coven", "Cave", "A cave associated with a coven of witches."),
+          location(
+            "Bloated Man's Grotto",
+            "Cave",
+            "A hidden forest grotto tied to Hircine's hunt."
+          ),
+          location("Haemar's Shame", "Cave", "A vampire cave associated with Clavicus Vile."),
+          location("Sunderstone Gorge", "Cave", "A necromancer lair in Falkreath's mountains."),
           location("Ilinalta's Deep", "Ruin", "A flooded ruin on Lake Ilinalta."),
           location("Roadside Ruins", "Ruin", "Ruins beside the road through the forest."),
           location("Angi's Camp", "Camp", "An isolated mountain camp."),
@@ -1875,6 +1884,8 @@ defmodule AncientStones.Templates.Skyrim do
           location("Broken Oar Grotto", "Cave", "A coastal cave used by pirates."),
           location("Northwatch Keep", "Fort", "A remote coastal fortress."),
           location("Steepfall Burrow", "Cave", "An icy cave near the sea cliffs."),
+          location("Rimerock Burrow", "Cave", "A northern cave tied to the Rueful Axe."),
+          location("Shadowgreen Cavern", "Cave", "A lush cavern hidden near Solitude."),
           location("Shrine to Meridia", "Daedric Shrine", "A shrine to Meridia above Kilkreath."),
           location("Kilkreath Ruins", "Ruin", "Ancient ruins beneath Meridia's shrine.")
         ]
@@ -1913,6 +1924,8 @@ defmodule AncientStones.Templates.Skyrim do
           ),
           location("Fort Dunstad", "Fort", "A fort in the snowy interior."),
           location("High Gate Ruins", "Nordic Ruin", "Ancient ruins near the northern coast."),
+          location("Forsaken Cave", "Cave", "A cave and crypt tied to the White Phial."),
+          location("Duskglow Crevice", "Cave", "A Falmer crevice in the snowy Pale."),
           location("Iron-Breaker Mine", "Mine", "An iron mine in Dawnstar."),
           location("Quicksilver Mine", "Mine", "A quicksilver mine in Dawnstar."),
           location("Dawnstar Sanctuary", "Landmark", "A hidden sanctuary north of Dawnstar."),
@@ -1941,6 +1954,13 @@ defmodule AncientStones.Templates.Skyrim do
           location("Blind Cliff Cave", "Cave", "A cave and tower complex in the hills."),
           location("Sky Haven Temple", "Temple", "An ancient temple in the Karth valley."),
           location("Reachwater Rock", "Cave", "A cave tied to old Nordic legend."),
+          location(
+            "Liar's Retreat",
+            "Cave",
+            "A ruined tavern cave overrun through Falmer tunnels."
+          ),
+          location("Chillwind Depths", "Cave", "A Falmer cave in the Karth marshes."),
+          location("Gloomreach", "Cave", "A deep cave complex in the Reach."),
           location("Deepwood Redoubt", "Fort", "A fortified redoubt in the far Reach.")
         ]
       ),
@@ -1959,6 +1979,17 @@ defmodule AncientStones.Templates.Skyrim do
           location("Fort Greenwall", "Fort", "A fort north of Riften."),
           location("Faldar's Tooth", "Fort", "A ruined fort near the lake."),
           location("Broken Helm Hollow", "Cave", "A cave in the southeastern hills."),
+          location(
+            "Fallowstone Cave",
+            "Cave",
+            "A giant-haunted cave leading toward Giant's Grove."
+          ),
+          location("Redwater Den", "Cave", "A hidden skooma den and vampire spring."),
+          location(
+            "Snapleg Cave",
+            "Cave",
+            "A cave east of Ivarstead used by witches and spiders."
+          ),
           location("Forelhost", "Nordic Ruin", "A Nordic ruin in the mountains."),
           location("Autumnwatch Tower", "Dragon Lair", "A dragon lair above the Rift.")
         ]
@@ -1976,6 +2007,18 @@ defmodule AncientStones.Templates.Skyrim do
           location("Bleak Falls Barrow", "Nordic Ruin", "A Nordic barrow above Riverwood."),
           location("Dustman's Cairn", "Nordic Ruin", "A tomb in the central tundra."),
           location("Valtheim Towers", "Tower", "Twin towers on the road east of Whiterun."),
+          location("Graywinter Watch", "Cave", "A troll cave east of Whiterun."),
+          location(
+            "White River Watch",
+            "Cave",
+            "A bandit cave overlooking the White River road."
+          ),
+          location("Broken Fang Cave", "Cave", "A vampire cave in western Whiterun Hold."),
+          location(
+            "Darkshade",
+            "Cave",
+            "A troll cave along the White River near Valtheim Towers."
+          ),
           location("Halted Stream Camp", "Camp", "A bandit camp north of Whiterun."),
           location("Silent Moons Camp", "Camp", "A camp near the Lunar Forge."),
           location("Honningbrew Meadery", "Farm", "A meadery outside Whiterun."),
@@ -2002,6 +2045,7 @@ defmodule AncientStones.Templates.Skyrim do
           location("Hob's Fall Cave", "Cave", "An icy cave on the northern coast."),
           location("Driftshade Refuge", "Fort", "A fortified refuge in the snow."),
           location("Sightless Pit", "Cave", "A deep pit leading into old ruins."),
+          location("Yngvild", "Cave", "An icy island cave northeast of Winterhold."),
           location("Shrine of Azura", "Daedric Shrine", "A great shrine overlooking Winterhold."),
           location("Alftand", "Dwemer Ruin", "A Dwemer ruin beneath the ice."),
           location("Wreck of the Winter War", "Shipwreck", "A shipwreck on the frozen coast.")

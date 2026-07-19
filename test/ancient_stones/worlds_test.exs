@@ -129,13 +129,26 @@ defmodule AncientStones.WorldsTest do
              "Winterhold"
            ]
 
-    whiterun = Enum.find(province.holds, &(&1.name == "Whiterun"))
+    assert location_count(province) == 121
+
+    eastmarch = hold_named(province, "Eastmarch")
+    falkreath = hold_named(province, "Falkreath")
+    pale = hold_named(province, "The Pale")
+    reach = hold_named(province, "The Reach")
+    rift = hold_named(province, "The Rift")
+    whiterun = hold_named(province, "Whiterun")
 
     assert whiterun.terrain == :plains
     assert whiterun.climate == :temperate
     assert whiterun.capital_location.name == "Whiterun"
     assert Enum.any?(whiterun.locations, &(&1.name == "Riverwood"))
     assert Enum.any?(whiterun.locations, &(&1.name == "Bleak Falls Barrow"))
+    assert cave_location?(eastmarch, "Lost Knife Hideout")
+    assert cave_location?(falkreath, "Haemar's Shame")
+    assert cave_location?(pale, "Forsaken Cave")
+    assert cave_location?(reach, "Liar's Retreat")
+    assert cave_location?(rift, "Redwater Den")
+    assert cave_location?(whiterun, "Graywinter Watch")
     assert Enum.any?(whiterun.commerce_entries, &(&1.name == "Plains farm tithe"))
     assert Enum.any?(whiterun.commerce_entries, &(&1.kind == "expense"))
 
@@ -469,6 +482,22 @@ defmodule AncientStones.WorldsTest do
 
   defp province_named(continent, name) do
     Enum.find(continent.provinces, &(&1.name == name))
+  end
+
+  defp hold_named(province, name) do
+    Enum.find(province.holds, &(&1.name == name))
+  end
+
+  defp cave_location?(hold, name) do
+    Enum.any?(hold.locations, fn location ->
+      location.name == name && location.location_type.name == "Cave"
+    end)
+  end
+
+  defp location_count(province) do
+    province.holds
+    |> Enum.flat_map(& &1.locations)
+    |> length()
   end
 
   defp skyrim_skill_names do

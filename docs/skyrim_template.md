@@ -13,7 +13,7 @@ Current template counts:
 | Continents | 7 |
 | Provinces | 9 |
 | Holds | 9 |
-| Locations | 101 |
+| Locations | 121 |
 | Races | 10 |
 | Guilds | 11 |
 | Gods | 37 |
