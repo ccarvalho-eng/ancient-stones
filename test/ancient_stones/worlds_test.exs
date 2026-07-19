@@ -95,12 +95,14 @@ defmodule AncientStones.WorldsTest do
 
     continent = continent_named(dashboard, "Tamriel")
     province = province_named(continent, "Skyrim")
+    akavir = continent_named(dashboard, "Akavir")
+    yokuda = continent_named(dashboard, "Yokuda")
 
     assert province.name == "Skyrim"
     assert province.terrain == :mountain
     assert province.climate == :cold
 
-    assert Enum.map(continent.provinces, & &1.name) == [
+    assert continent.provinces |> Enum.map(& &1.name) |> Enum.sort() == [
              "Black Marsh",
              "Cyrodiil",
              "Elsweyr",
@@ -110,6 +112,22 @@ defmodule AncientStones.WorldsTest do
              "Skyrim",
              "Summerset Isles",
              "Valenwood"
+           ]
+
+    assert akavir.provinces |> Enum.map(& &1.name) |> Enum.sort() == [
+             "Ka Po' Tun",
+             "Kamal",
+             "Tang Mo",
+             "Tsaesci"
+           ]
+
+    assert province_named(akavir, "Tsaesci").description =~ "largest known kingdom"
+
+    assert yokuda.provinces |> Enum.map(& &1.name) |> Enum.sort() == [
+             "Akos Kasaz",
+             "Kanesh",
+             "Samara",
+             "Yath"
            ]
 
     hold_names =

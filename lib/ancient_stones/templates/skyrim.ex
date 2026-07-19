@@ -135,7 +135,7 @@ defmodule AncientStones.Templates.Skyrim do
         name: "Akavir",
         description:
           "An eastern continent associated with Tsaesci, Tang Mo, Kamal, Ka Po' Tun, dragons, and invasions of Tamriel.",
-        provinces: []
+        provinces: akavir_regions()
       },
       %{
         name: "Atmora",
@@ -153,7 +153,7 @@ defmodule AncientStones.Templates.Skyrim do
         name: "Yokuda",
         description:
           "The western homeland of the Redguards before catastrophe drove survivors toward Hammerfell.",
-        provinces: []
+        provinces: yokuda_regions()
       },
       %{
         name: "Aldmeris",
@@ -214,6 +214,46 @@ defmodule AncientStones.Templates.Skyrim do
         description: "The forested south-western province of Tamriel associated with the Bosmer."
       }
     ]
+  end
+
+  defp akavir_regions do
+    [
+      %{
+        name: "Kamal",
+        description:
+          "A snow-demon kingdom of Akavir whose forces invaded eastern Skyrim in the Second Era."
+      },
+      %{
+        name: "Ka Po' Tun",
+        description: "The tiger empire of Akavir, formerly known as Po Tun."
+      },
+      %{
+        name: "Tang Mo",
+        description:
+          "The Akaviri homeland of the monkey-folk, often pressured by the continent's other powers."
+      },
+      %{
+        name: "Tsaesci",
+        description:
+          "The largest known kingdom of Akavir, associated with serpent-folk and Akaviri invasions."
+      }
+    ]
+  end
+
+  defp yokuda_regions do
+    [
+      yokudan_island("Akos Kasaz"),
+      yokudan_island("Samara"),
+      yokudan_island("Kanesh"),
+      yokudan_island("Yath")
+    ]
+  end
+
+  defp yokudan_island(name) do
+    %{
+      name: name,
+      description: "A known Yokudan island preserved in accounts of the lost continent."
+    }
   end
 
   defp tamrielic_calendar do

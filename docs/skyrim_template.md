@@ -11,7 +11,7 @@ Current template counts:
 | Area | Count |
 | --- | ---: |
 | Continents | 7 |
-| Provinces | 9 |
+| Provinces | 17 |
 | Holds | 9 |
 | Locations | 121 |
 | Races | 10 |
@@ -37,6 +37,7 @@ The template models:
 - Nirn as the world.
 - Tamriel, Akavir, Atmora, Aldmeris, Pyandonea, Thras, and Yokuda as known continents.
 - The nine provinces of Tamriel.
+- Akavir's named kingdoms and Yokuda's named islands as known region records.
 - The nine holds of Skyrim, including capitals.
 - Terrain and climate for Skyrim and its holds.
 - Location types such as cities, towns, caves, Nordic ruins, Dwemer ruins, shrines, camps, mines, farms, forts, dragon lairs, standing stones, and other RPG map markers.
