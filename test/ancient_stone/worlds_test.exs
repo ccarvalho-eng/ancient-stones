@@ -40,7 +40,7 @@ defmodule AncientStone.WorldsTest do
     {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
 
     {:ok, _rift} = Worlds.create_hold(province, %{name: "The Rift"})
-    {:ok, _whiterun} = Worlds.create_hold(province, %{name: "Whiterun Hold"})
+    {:ok, _whiterun} = Worlds.create_hold(province, %{name: "Whiterun"})
     {:ok, _eastmarch} = Worlds.create_hold(province, %{name: "Eastmarch"})
 
     assert Enum.map(Worlds.list_continents(world), & &1.name) == ["Tamriel"]
@@ -49,7 +49,7 @@ defmodule AncientStone.WorldsTest do
     assert Enum.map(Worlds.list_holds(province), & &1.name) == [
              "Eastmarch",
              "The Rift",
-             "Whiterun Hold"
+             "Whiterun"
            ]
   end
 
@@ -64,8 +64,8 @@ defmodule AncientStone.WorldsTest do
     assert {:error, province_changeset} = Worlds.create_province(continent, %{name: "Skyrim"})
     assert %{name: [_]} = errors_on(province_changeset)
 
-    assert {:ok, _hold} = Worlds.create_hold(province, %{name: "Whiterun Hold"})
-    assert {:error, hold_changeset} = Worlds.create_hold(province, %{name: "Whiterun Hold"})
+    assert {:ok, _hold} = Worlds.create_hold(province, %{name: "Whiterun"})
+    assert {:error, hold_changeset} = Worlds.create_hold(province, %{name: "Whiterun"})
     assert %{name: [_]} = errors_on(hold_changeset)
   end
 end
