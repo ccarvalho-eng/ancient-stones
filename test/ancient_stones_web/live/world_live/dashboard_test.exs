@@ -11,6 +11,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.CreatureLocation
   alias AncientStones.Worlds.CreatureType
+  alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
   alias AncientStones.Worlds.GuildInfluence
@@ -19,6 +20,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.HoldCommerceEntry
   alias AncientStones.Worlds.Item
+  alias AncientStones.Worlds.ItemEffect
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.Occupation
@@ -612,6 +614,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#item_category option[value='weapon']", "Weapons")
     assert has_element?(view, "#item_category option[value='apparel']", "Apparel")
     assert has_element?(view, "#item_category option[value='food']", "Food")
+    assert has_element?(view, "#item_category option[value='ingredient']", "Ingredients")
 
     view
     |> form("#item-form",
@@ -661,6 +664,67 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert item.name == "Tempered Iron Sword"
     assert item.damage == 8
+
+    open_action(view, "item")
+
+    view
+    |> form("#item-form",
+      item: %{
+        name: "Blue Mountain Flower",
+        category: "ingredient",
+        kind: "alchemy ingredient",
+        weight: "0.1",
+        value: 2,
+        source: "Skyrim",
+        description: "An alchemy ingredient"
+      }
+    )
+    |> render_submit()
+
+    ingredient = Repo.get_by!(Item, name: "Blue Mountain Flower")
+
+    assert has_element?(view, "#item-list", "Ingredients")
+    assert has_element?(view, "#item-list", "Blue Mountain Flower")
+
+    {:ok, view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=items&item_id=#{ingredient.id}")
+
+    open_action(view, "effect")
+
+    view
+    |> form("#effect-form",
+      effect: %{
+        name: "Restore Health",
+        category: "Alchemy",
+        description: "Restores health."
+      }
+    )
+    |> render_submit()
+
+    effect = Repo.get_by!(Effect, name: "Restore Health")
+
+    open_action(view, "item_effect")
+
+    view
+    |> form("#item-effect-form",
+      item_effect: %{
+        effect_id: effect.id,
+        position: 1,
+        notes: "First discovered effect"
+      }
+    )
+    |> render_submit()
+
+    item_effect = Repo.get_by!(ItemEffect, item_id: ingredient.id)
+
+    assert has_element?(view, "#item-effects", "Restore Health")
+    assert has_element?(view, "#item-effects", "First discovered effect")
+
+    view
+    |> element("button[phx-click='delete_item_effect'][phx-value-id='#{item_effect.id}']")
+    |> render_click()
+
+    refute Repo.get(ItemEffect, item_effect.id)
 
     view
     |> element("button[phx-click='delete_item'][phx-value-id='#{item.id}']")

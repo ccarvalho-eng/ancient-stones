@@ -51,7 +51,11 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                     <.icon name="hero-chevron-right" class="size-3.5" />
                     <span class="stone-heading">{@world.name}</span>
                   </nav>
-                  <details class="group relative mt-0.5">
+                  <details
+                    id="section-menu"
+                    class="group relative mt-0.5"
+                    phx-click-away={JS.remove_attribute("open", to: "#section-menu")}
+                  >
                     <summary class="stone-heading flex cursor-pointer list-none items-center gap-2 text-base font-semibold">
                       {section_label(@section)}
                       <.icon
@@ -1451,31 +1455,56 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                       </div>
 
                       <div
-                        :for={god <- @gods}
-                        class={[
-                          "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
-                          @selected_god && @selected_god.id == god.id && "stone-selected"
-                        ]}
+                        :for={{pantheon, pantheon_gods} <- grouped_gods(@gods)}
+                        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <.link
-                          patch={~p"/worlds/#{@world}/dashboard?section=gods&god_id=#{god.id}"}
-                          class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
-                        >
-                          <div class="truncate text-sm font-semibold text-zinc-800">{god.name}</div>
-                          <p class="mt-1 text-xs font-medium text-zinc-500">
-                            {display_value(god.pantheon)}
-                          </p>
-                        </.link>
-                        <button
-                          type="button"
-                          phx-click="delete_god"
-                          phx-value-id={god.id}
-                          data-confirm={"Delete #{god.name}?"}
-                          class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
-                          aria-label={"Delete #{god.name}"}
-                        >
-                          <.icon name="hero-trash" class="size-4" />
-                        </button>
+                        <details class="group">
+                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
+                            <span class="flex min-w-0 items-center gap-2">
+                              <.icon
+                                name="hero-chevron-right"
+                                class="size-3.5 shrink-0 group-open:hidden"
+                              />
+                              <.icon
+                                name="hero-chevron-down"
+                                class="hidden size-3.5 shrink-0 group-open:inline"
+                              />
+                              <span class="truncate">{display_value(pantheon)}</span>
+                            </span>
+                            <span>{length(pantheon_gods)}</span>
+                          </summary>
+                          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+                            <div
+                              :for={god <- pantheon_gods}
+                              class={[
+                                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                                @selected_god && @selected_god.id == god.id && "stone-selected"
+                              ]}
+                            >
+                              <.link
+                                patch={~p"/worlds/#{@world}/dashboard?section=gods&god_id=#{god.id}"}
+                                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                              >
+                                <div class="truncate text-sm font-semibold text-zinc-800">
+                                  {god.name}
+                                </div>
+                                <p class="mt-1 text-xs font-medium text-zinc-500">
+                                  {display_value(god.domain)}
+                                </p>
+                              </.link>
+                              <button
+                                type="button"
+                                phx-click="delete_god"
+                                phx-value-id={god.id}
+                                data-confirm={"Delete #{god.name}?"}
+                                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Delete #{god.name}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </details>
                       </div>
                     </div>
                   </section>
@@ -2175,31 +2204,59 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                       </div>
 
                       <div
-                        :for={skill <- @skills}
-                        class={[
-                          "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
-                          @selected_skill && @selected_skill.id == skill.id && "stone-selected"
-                        ]}
+                        :for={{category, category_skills} <- grouped_skills(@skills)}
+                        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <.link
-                          patch={~p"/worlds/#{@world}/dashboard?section=skills&skill_id=#{skill.id}"}
-                          class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
-                        >
-                          <div class="truncate text-sm font-semibold text-zinc-800">{skill.name}</div>
-                          <p class="mt-1 text-xs font-medium text-zinc-500">
-                            {display_value(skill.category)}
-                          </p>
-                        </.link>
-                        <button
-                          type="button"
-                          phx-click="delete_skill"
-                          phx-value-id={skill.id}
-                          data-confirm={"Delete #{skill.name}?"}
-                          class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
-                          aria-label={"Delete #{skill.name}"}
-                        >
-                          <.icon name="hero-trash" class="size-4" />
-                        </button>
+                        <details class="group">
+                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
+                            <span class="flex min-w-0 items-center gap-2">
+                              <.icon
+                                name="hero-chevron-right"
+                                class="size-3.5 shrink-0 group-open:hidden"
+                              />
+                              <.icon
+                                name="hero-chevron-down"
+                                class="hidden size-3.5 shrink-0 group-open:inline"
+                              />
+                              <span class="truncate">{display_value(category)}</span>
+                            </span>
+                            <span>{length(category_skills)}</span>
+                          </summary>
+                          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+                            <div
+                              :for={skill <- category_skills}
+                              class={[
+                                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                                @selected_skill && @selected_skill.id == skill.id &&
+                                  "stone-selected"
+                              ]}
+                            >
+                              <.link
+                                patch={
+                                  ~p"/worlds/#{@world}/dashboard?section=skills&skill_id=#{skill.id}"
+                                }
+                                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                              >
+                                <div class="truncate text-sm font-semibold text-zinc-800">
+                                  {skill.name}
+                                </div>
+                                <p class="mt-1 line-clamp-2 text-xs leading-5 text-zinc-500">
+                                  {skill.description || "No description yet."}
+                                </p>
+                              </.link>
+                              <button
+                                type="button"
+                                phx-click="delete_skill"
+                                phx-value-id={skill.id}
+                                data-confirm={"Delete #{skill.name}?"}
+                                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Delete #{skill.name}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </details>
                       </div>
                     </div>
                   </section>
@@ -2530,31 +2587,59 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                       </div>
 
                       <div
-                        :for={spell <- @spells}
-                        class={[
-                          "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
-                          @selected_spell && @selected_spell.id == spell.id && "stone-selected"
-                        ]}
+                        :for={{school, school_spells} <- grouped_spells(@spells)}
+                        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <.link
-                          patch={~p"/worlds/#{@world}/dashboard?section=spells&spell_id=#{spell.id}"}
-                          class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
-                        >
-                          <div class="truncate text-sm font-semibold text-zinc-800">{spell.name}</div>
-                          <p class="mt-1 text-xs font-medium text-zinc-500">
-                            {display_value(spell.school)} / {display_value(spell.level)}
-                          </p>
-                        </.link>
-                        <button
-                          type="button"
-                          phx-click="delete_spell"
-                          phx-value-id={spell.id}
-                          data-confirm={"Delete #{spell.name}?"}
-                          class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
-                          aria-label={"Delete #{spell.name}"}
-                        >
-                          <.icon name="hero-trash" class="size-4" />
-                        </button>
+                        <details class="group">
+                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
+                            <span class="flex min-w-0 items-center gap-2">
+                              <.icon
+                                name="hero-chevron-right"
+                                class="size-3.5 shrink-0 group-open:hidden"
+                              />
+                              <.icon
+                                name="hero-chevron-down"
+                                class="hidden size-3.5 shrink-0 group-open:inline"
+                              />
+                              <span class="truncate">{display_value(school)}</span>
+                            </span>
+                            <span>{length(school_spells)}</span>
+                          </summary>
+                          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+                            <div
+                              :for={spell <- school_spells}
+                              class={[
+                                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                                @selected_spell && @selected_spell.id == spell.id &&
+                                  "stone-selected"
+                              ]}
+                            >
+                              <.link
+                                patch={
+                                  ~p"/worlds/#{@world}/dashboard?section=spells&spell_id=#{spell.id}"
+                                }
+                                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                              >
+                                <div class="truncate text-sm font-semibold text-zinc-800">
+                                  {spell.name}
+                                </div>
+                                <p class="mt-1 text-xs font-medium text-zinc-500">
+                                  {display_value(spell.level)}
+                                </p>
+                              </.link>
+                              <button
+                                type="button"
+                                phx-click="delete_spell"
+                                phx-value-id={spell.id}
+                                data-confirm={"Delete #{spell.name}?"}
+                                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Delete #{spell.name}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </details>
                       </div>
                     </div>
                   </section>
@@ -2702,44 +2787,57 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
                       <div
                         :for={{category, category_items} <- grouped_items(@items)}
-                        class="space-y-1.5"
+                        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <div class="flex items-center justify-between px-2 pt-1 text-[11px] font-semibold uppercase text-zinc-500">
-                          <span>{item_category_label(category)}</span>
-                          <span>{length(category_items)}</span>
-                        </div>
-
-                        <div class="space-y-1.5">
-                          <div
-                            :for={item <- category_items}
-                            class={[
-                              "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
-                              @selected_item && @selected_item.id == item.id && "stone-selected"
-                            ]}
-                          >
-                            <.link
-                              patch={~p"/worlds/#{@world}/dashboard?section=items&item_id=#{item.id}"}
-                              class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                        <details class="group">
+                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
+                            <span class="flex min-w-0 items-center gap-2">
+                              <.icon
+                                name="hero-chevron-right"
+                                class="size-3.5 shrink-0 group-open:hidden"
+                              />
+                              <.icon
+                                name="hero-chevron-down"
+                                class="hidden size-3.5 shrink-0 group-open:inline"
+                              />
+                              <span class="truncate">{item_category_label(category)}</span>
+                            </span>
+                            <span>{length(category_items)}</span>
+                          </summary>
+                          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+                            <div
+                              :for={item <- category_items}
+                              class={[
+                                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                                @selected_item && @selected_item.id == item.id && "stone-selected"
+                              ]}
                             >
-                              <div class="truncate text-sm font-semibold text-zinc-800">
-                                {item.name}
-                              </div>
-                              <p class="mt-1 text-xs font-medium text-zinc-500">
-                                {display_value(item.kind)}
-                              </p>
-                            </.link>
-                            <button
-                              type="button"
-                              phx-click="delete_item"
-                              phx-value-id={item.id}
-                              data-confirm={"Delete #{item.name}?"}
-                              class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
-                              aria-label={"Delete #{item.name}"}
-                            >
-                              <.icon name="hero-trash" class="size-4" />
-                            </button>
+                              <.link
+                                patch={
+                                  ~p"/worlds/#{@world}/dashboard?section=items&item_id=#{item.id}"
+                                }
+                                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                              >
+                                <div class="truncate text-sm font-semibold text-zinc-800">
+                                  {item.name}
+                                </div>
+                                <p class="mt-1 text-xs font-medium text-zinc-500">
+                                  {display_value(item.kind)}
+                                </p>
+                              </.link>
+                              <button
+                                type="button"
+                                phx-click="delete_item"
+                                phx-value-id={item.id}
+                                data-confirm={"Delete #{item.name}?"}
+                                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Delete #{item.name}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        </details>
                       </div>
                     </div>
                   </section>
@@ -2786,6 +2884,48 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                           <.detail label="Weight" value={display_value(@selected_item.weight)} />
                           <.detail label="Value" value={display_value(@selected_item.value)} />
                           <.detail label="Source" value={display_value(@selected_item.source)} />
+                        </div>
+
+                        <div
+                          id="item-effects"
+                          class="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50"
+                        >
+                          <div class="border-b border-zinc-200 bg-white px-3 py-2">
+                            <p class="text-[11px] font-semibold uppercase text-zinc-500">
+                              Effects
+                            </p>
+                          </div>
+                          <div class="flex flex-col divide-y divide-zinc-100 px-3 py-2">
+                            <div
+                              :if={@selected_item_effects == []}
+                              class="py-2 text-sm text-zinc-500"
+                            >
+                              No effects have been added to this item.
+                            </div>
+                            <div
+                              :for={item_effect <- @selected_item_effects}
+                              class="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 py-2 first:pt-0 last:pb-0"
+                            >
+                              <div>
+                                <div class="text-sm font-medium text-zinc-800">
+                                  {item_effect.position}. {record_name(item_effect.effect)}
+                                </div>
+                                <p class="text-xs text-zinc-500">
+                                  {display_value(item_effect.notes)}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                phx-click="delete_item_effect"
+                                phx-value-id={item_effect.id}
+                                data-confirm={"Remove #{record_name(item_effect.effect)}?"}
+                                class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Remove #{record_name(item_effect.effect)}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -2894,6 +3034,67 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                           </.button>
                         </.form>
                       </.action_section>
+
+                      <.action_section
+                        action="effect"
+                        expanded_action={@expanded_action}
+                        icon="hero-beaker"
+                        title="Add Effect"
+                      >
+                        <.form
+                          for={@effect_form}
+                          id="effect-form"
+                          phx-submit="create_effect"
+                          class="space-y-2"
+                        >
+                          <.input field={@effect_form[:name]} type="text" label="Name" required />
+                          <.input field={@effect_form[:category]} type="text" label="Category" />
+                          <.input
+                            field={@effect_form[:description]}
+                            type="textarea"
+                            label="Description"
+                          />
+                          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                            Create
+                          </.button>
+                        </.form>
+                      </.action_section>
+
+                      <.action_section
+                        :if={@selected_item && @effect_options != []}
+                        action="item_effect"
+                        expanded_action={@expanded_action}
+                        icon="hero-link"
+                        title="Add Item Effect"
+                      >
+                        <.form
+                          for={@item_effect_form}
+                          id="item-effect-form"
+                          phx-submit="create_item_effect"
+                          class="space-y-2"
+                        >
+                          <.input
+                            field={@item_effect_form[:effect_id]}
+                            type="select"
+                            label="Effect"
+                            options={@effect_options}
+                          />
+                          <.input
+                            field={@item_effect_form[:position]}
+                            type="number"
+                            label="Position"
+                            required
+                          />
+                          <.input
+                            field={@item_effect_form[:notes]}
+                            type="textarea"
+                            label="Notes"
+                          />
+                          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                            Attach
+                          </.button>
+                        </.form>
+                      </.action_section>
                     </div>
                   </aside>
                 </div>
@@ -2922,38 +3123,59 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                       </div>
 
                       <div
-                        :for={creature <- @creatures}
-                        class={[
-                          "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
-                          @selected_creature && @selected_creature.id == creature.id &&
-                            "bg-zinc-100"
-                        ]}
+                        :for={{creature_type, type_creatures} <- grouped_creatures(@creatures)}
+                        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <.link
-                          patch={
-                            ~p"/worlds/#{@world}/dashboard?section=bestiary&creature_id=#{creature.id}"
-                          }
-                          class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
-                        >
-                          <div class="truncate text-sm font-semibold text-zinc-800">
-                            {creature.name}
+                        <details class="group">
+                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
+                            <span class="flex min-w-0 items-center gap-2">
+                              <.icon
+                                name="hero-chevron-right"
+                                class="size-3.5 shrink-0 group-open:hidden"
+                              />
+                              <.icon
+                                name="hero-chevron-down"
+                                class="hidden size-3.5 shrink-0 group-open:inline"
+                              />
+                              <span class="truncate">{creature_type}</span>
+                            </span>
+                            <span>{length(type_creatures)}</span>
+                          </summary>
+                          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+                            <div
+                              :for={creature <- type_creatures}
+                              class={[
+                                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                                @selected_creature && @selected_creature.id == creature.id &&
+                                  "stone-selected"
+                              ]}
+                            >
+                              <.link
+                                patch={
+                                  ~p"/worlds/#{@world}/dashboard?section=bestiary&creature_id=#{creature.id}"
+                                }
+                                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                              >
+                                <div class="truncate text-sm font-semibold text-zinc-800">
+                                  {creature.name}
+                                </div>
+                                <p class="mt-1 text-xs font-medium text-zinc-500">
+                                  {display_value(creature.danger_level)}
+                                </p>
+                              </.link>
+                              <button
+                                type="button"
+                                phx-click="delete_creature"
+                                phx-value-id={creature.id}
+                                data-confirm={"Delete #{creature.name}?"}
+                                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Delete #{creature.name}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
                           </div>
-                          <p class="mt-1 text-xs font-medium text-zinc-500">
-                            {record_name(creature.creature_type)} / {display_value(
-                              creature.danger_level
-                            )}
-                          </p>
-                        </.link>
-                        <button
-                          type="button"
-                          phx-click="delete_creature"
-                          phx-value-id={creature.id}
-                          data-confirm={"Delete #{creature.name}?"}
-                          class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
-                          aria-label={"Delete #{creature.name}"}
-                        >
-                          <.icon name="hero-trash" class="size-4" />
-                        </button>
+                        </details>
                       </div>
                     </div>
                   </section>
@@ -4100,6 +4322,27 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  def handle_event("create_effect", %{"effect" => params}, socket) do
+    create_and_reload(socket, fn -> Worlds.create_effect(socket.assigns.world, params) end)
+  end
+
+  def handle_event("create_item_effect", %{"item_effect" => params}, socket) do
+    create_and_reload(socket, fn ->
+      with {:ok, item} <- get_selected_item(socket),
+           {:ok, effect} <- get_effect_in_world(socket, params["effect_id"]) do
+        Worlds.create_item_effect(item, effect, params)
+      end
+    end)
+  end
+
+  def handle_event("delete_item_effect", %{"id" => id}, socket) do
+    delete_and_reload(socket, fn ->
+      with {:ok, item_effect} <- get_item_effect_in_selected_item(socket, id) do
+        Worlds.delete_item_effect(item_effect)
+      end
+    end)
+  end
+
   def handle_event("create_inventory_category", %{"inventory_category" => params}, socket) do
     create_and_reload(socket, fn ->
       with {:ok, character} <- get_selected_character(socket) do
@@ -4276,6 +4519,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     creature_types = sorted(world.creature_types)
     creatures = sorted(world.creatures)
     creature_locations = flat_creature_locations(creatures)
+    effects = sorted(world.effects)
     gods = sorted(world.gods)
     guilds = sorted(world.guilds)
     items = sorted(world.items)
@@ -4302,6 +4546,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     selected_god = select_record(gods, params["god_id"]) || first_record(gods)
     selected_guild = select_record(guilds, params["guild_id"]) || first_record(guilds)
     selected_item = select_record(items, params["item_id"]) || first_record(items)
+    selected_item_effects = item_effects(selected_item)
     selected_race = select_record(races, params["race_id"]) || first_record(races)
     selected_skill = select_record(skills, params["skill_id"]) || first_record(skills)
     skill_detail_tab = selected_skill_detail_tab(socket)
@@ -4354,12 +4599,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:creatures, creatures)
     |> assign(:creature_locations, creature_locations)
     |> assign(:selected_creature, selected_creature)
+    |> assign(:effects, effects)
     |> assign(:gods, gods)
     |> assign(:selected_god, selected_god)
     |> assign(:guilds, guilds)
     |> assign(:selected_guild, selected_guild)
     |> assign(:items, items)
     |> assign(:selected_item, selected_item)
+    |> assign(:selected_item_effects, selected_item_effects)
     |> assign(:occupations, occupations)
     |> assign(:races, races)
     |> assign(:selected_race, selected_race)
@@ -4388,6 +4635,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:civilization_options, option_list(civilizations))
     |> assign(:creature_type_options, option_list(creature_types))
     |> assign(:creature_options, option_list(creatures))
+    |> assign(:effect_options, option_list(effects))
     |> assign(:all_location_options, option_list(locations))
     |> assign(:god_options, option_list(gods))
     |> assign(:guild_options, option_list(guilds))
@@ -4512,6 +4760,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:spell_edit_form, data_form(:spell_edit, spell_edit_attrs(selected_spell)))
     |> assign(:item_form, data_form(:item, %{"category" => "weapon", "source" => "Skyrim"}))
     |> assign(:item_edit_form, data_form(:item_edit, item_edit_attrs(selected_item)))
+    |> assign(:effect_form, data_form(:effect, %{"category" => "Alchemy"}))
+    |> assign(
+      :item_effect_form,
+      data_form(:item_effect, %{
+        "effect_id" => first_id(effects),
+        "position" => next_item_effect_position(selected_item)
+      })
+    )
     |> assign(:creature_type_form, data_form(:creature_type))
     |> assign(
       :creature_form,
@@ -4797,6 +5053,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     get_record_in_options(socket.assigns.item_options, item_id, &Worlds.get_item!/1)
   end
 
+  defp get_effect_in_world(socket, effect_id) do
+    get_record_in_options(socket.assigns.effect_options, effect_id, &Worlds.get_effect!/1)
+  end
+
   defp get_political_office_in_world(socket, political_office_id) do
     get_record_in_options(
       socket.assigns.political_office_options,
@@ -4990,6 +5250,15 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
            &(&1.id == inventory_item_id)
          ) do
       {:ok, Worlds.get_inventory_item!(inventory_item_id)}
+    else
+      {:error, :record_outside_scope}
+    end
+  end
+
+  defp get_item_effect_in_selected_item(socket, item_effect_id) do
+    if socket.assigns.selected_item &&
+         Enum.any?(item_effects(socket.assigns.selected_item), &(&1.id == item_effect_id)) do
+      {:ok, Worlds.get_item_effect!(item_effect_id)}
     else
       {:error, :record_outside_scope}
     end
@@ -5286,6 +5555,30 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  defp grouped_gods(gods) do
+    gods
+    |> Enum.group_by(& &1.pantheon)
+    |> Enum.sort_by(fn {pantheon, _pantheon_gods} -> display_value(pantheon) end)
+  end
+
+  defp grouped_spells(spells) do
+    spells
+    |> Enum.group_by(& &1.school)
+    |> Enum.sort_by(fn {school, _school_spells} -> display_value(school) end)
+  end
+
+  defp grouped_skills(skills) do
+    skills
+    |> Enum.group_by(& &1.category)
+    |> Enum.sort_by(fn {category, _category_skills} -> display_value(category) end)
+  end
+
+  defp grouped_creatures(creatures) do
+    creatures
+    |> Enum.group_by(&record_name(&1.creature_type))
+    |> Enum.sort_by(fn {creature_type, _type_creatures} -> creature_type end)
+  end
+
   defp item_category_position(category) do
     item_category_options()
     |> Enum.find_index(fn {_label, value} -> value == category end)
@@ -5550,6 +5843,15 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> Enum.sort_by(&{inventory_category_position(&1), inventory_item_name(&1)})
   end
 
+  defp item_effects(nil) do
+    []
+  end
+
+  defp item_effects(item) do
+    item.item_effects
+    |> Enum.sort_by(&{&1.position, record_name(&1.effect)})
+  end
+
   defp inventory_category_position(%{inventory_category: %{position: position}}) do
     position
   end
@@ -5717,6 +6019,18 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp next_skill_perk_position(skill) do
     skill
     |> skill_tree_perks()
+    |> Enum.map(& &1.position)
+    |> Enum.max(fn -> 0 end)
+    |> Kernel.+(1)
+  end
+
+  defp next_item_effect_position(nil) do
+    1
+  end
+
+  defp next_item_effect_position(item) do
+    item
+    |> item_effects()
     |> Enum.map(& &1.position)
     |> Enum.max(fn -> 0 end)
     |> Kernel.+(1)

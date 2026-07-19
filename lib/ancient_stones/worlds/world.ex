@@ -11,6 +11,7 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
   alias AncientStones.Worlds.Item
+  alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.PoliticalOffice
@@ -36,6 +37,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:gods, God)
     has_many(:guilds, Guild)
     has_many(:items, Item)
+    has_many(:effects, Effect)
     has_many(:location_types, LocationType)
     has_many(:occupations, Occupation)
     has_many(:political_offices, PoliticalOffice)

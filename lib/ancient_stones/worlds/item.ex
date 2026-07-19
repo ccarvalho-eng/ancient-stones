@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.Item do
   import Ecto.Changeset
 
   alias AncientStones.Worlds.CharacterInventoryItem
+  alias AncientStones.Worlds.ItemEffect
   alias AncientStones.Worlds.World
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -22,6 +23,7 @@ defmodule AncientStones.Worlds.Item do
 
     belongs_to(:world, World)
     has_many(:character_inventory_items, CharacterInventoryItem)
+    has_many(:item_effects, ItemEffect)
 
     timestamps(type: :utc_datetime)
   end

@@ -19,6 +19,7 @@ defmodule AncientStones.Templates.Skyrim do
       characters: characters(),
       occupations: occupations(),
       spells: spells(),
+      effects: effects(),
       items: items(),
       skill_trees: skill_trees(),
       skills: skills(),
@@ -368,6 +369,74 @@ defmodule AncientStones.Templates.Skyrim do
       pantheon: pantheon,
       domain: domain,
       description: "#{name} is associated with #{domain}."
+    }
+  end
+
+  defp effects do
+    [
+      effect("Cure Disease", "Alchemy"),
+      effect("Damage Health", "Alchemy"),
+      effect("Damage Magicka", "Alchemy"),
+      effect("Damage Magicka Regen", "Alchemy"),
+      effect("Damage Stamina", "Alchemy"),
+      effect("Damage Stamina Regen", "Alchemy"),
+      effect("Fear", "Alchemy"),
+      effect("Fortify Alteration", "Alchemy"),
+      effect("Fortify Barter", "Alchemy"),
+      effect("Fortify Block", "Alchemy"),
+      effect("Fortify Carry Weight", "Alchemy"),
+      effect("Fortify Conjuration", "Alchemy"),
+      effect("Fortify Destruction", "Alchemy"),
+      effect("Fortify Enchanting", "Alchemy"),
+      effect("Fortify Health", "Alchemy"),
+      effect("Fortify Heavy Armor", "Alchemy"),
+      effect("Fortify Illusion", "Alchemy"),
+      effect("Fortify Light Armor", "Alchemy"),
+      effect("Fortify Lockpicking", "Alchemy"),
+      effect("Fortify Magicka", "Alchemy"),
+      effect("Fortify Marksman", "Alchemy"),
+      effect("Fortify One-handed", "Alchemy"),
+      effect("Fortify Pickpocket", "Alchemy"),
+      effect("Fortify Restoration", "Alchemy"),
+      effect("Fortify Smithing", "Alchemy"),
+      effect("Fortify Sneak", "Alchemy"),
+      effect("Fortify Stamina", "Alchemy"),
+      effect("Fortify Two-handed", "Alchemy"),
+      effect("Frenzy", "Alchemy"),
+      effect("Invisibility", "Alchemy"),
+      effect("Lingering Damage Health", "Alchemy"),
+      effect("Lingering Damage Magicka", "Alchemy"),
+      effect("Lingering Damage Stamina", "Alchemy"),
+      effect("Paralysis", "Alchemy"),
+      effect("Ravage Health", "Alchemy"),
+      effect("Ravage Magicka", "Alchemy"),
+      effect("Ravage Stamina", "Alchemy"),
+      effect("Regenerate Health", "Alchemy"),
+      effect("Regenerate Magicka", "Alchemy"),
+      effect("Regenerate Stamina", "Alchemy"),
+      effect("Resist Fire", "Alchemy"),
+      effect("Resist Frost", "Alchemy"),
+      effect("Resist Magic", "Alchemy"),
+      effect("Resist Poison", "Alchemy"),
+      effect("Resist Shock", "Alchemy"),
+      effect("Restore Health", "Alchemy"),
+      effect("Restore Magicka", "Alchemy"),
+      effect("Restore Stamina", "Alchemy"),
+      effect("Slow", "Alchemy"),
+      effect("Waterbreathing", "Alchemy"),
+      effect("Weakness to Fire", "Alchemy"),
+      effect("Weakness to Frost", "Alchemy"),
+      effect("Weakness to Magic", "Alchemy"),
+      effect("Weakness to Poison", "Alchemy"),
+      effect("Weakness to Shock", "Alchemy")
+    ]
+  end
+
+  defp effect(name, category) do
+    %{
+      name: name,
+      category: category,
+      description: "#{name} is a #{String.downcase(category)} effect."
     }
   end
 
@@ -927,7 +996,7 @@ defmodule AncientStones.Templates.Skyrim do
   end
 
   defp items do
-    weapons() ++ apparel() ++ food()
+    weapons() ++ apparel() ++ food() ++ ingredients()
   end
 
   defp weapons do
@@ -1181,6 +1250,570 @@ defmodule AncientStones.Templates.Skyrim do
       value: value,
       source: "Skyrim",
       description: description
+    }
+  end
+
+  defp ingredients do
+    [
+      ingredient("Abecean Longfin", "00106e1b", "0.5", "15", [
+        "Weakness to Frost",
+        "Fortify Sneak",
+        "Weakness to Poison",
+        "Fortify Restoration"
+      ]),
+      ingredient("Bear Claws", "0006bc02", "0.1", "2", [
+        "Restore Stamina",
+        "Fortify Health",
+        "Fortify One-handed",
+        "Damage Magicka Regen"
+      ]),
+      ingredient("Bee", "000a9195", "0.1", "3", [
+        "Restore Stamina",
+        "Ravage Stamina",
+        "Regenerate Stamina",
+        "Weakness to Shock"
+      ]),
+      ingredient("Beehive Husk", "000a9191", "1", "5", [
+        "Resist Poison",
+        "Fortify Light Armor",
+        "Fortify Sneak",
+        "Fortify Destruction"
+      ]),
+      ingredient("Bleeding Crown", "0004da20", "0.3", "10", [
+        "Weakness to Fire",
+        "Fortify Block",
+        "Weakness to Poison",
+        "Resist Magic"
+      ]),
+      ingredient("Blisterwort", "0004da25", "0.2", "12", [
+        "Damage Stamina",
+        "Frenzy",
+        "Restore Health",
+        "Fortify Smithing"
+      ]),
+      ingredient("Blue Butterfly Wing", "000727de", "0.1", "2", [
+        "Damage Stamina",
+        "Fortify Conjuration",
+        "Damage Magicka Regen",
+        "Fortify Enchanting"
+      ]),
+      ingredient("Blue Dartwing", "000e4f0c", "0.1", "1", [
+        "Resist Shock",
+        "Fortify Pickpocket",
+        "Restore Health",
+        "Fear"
+      ]),
+      ingredient("Blue Mountain Flower", "00077e1c", "0.1", "2", [
+        "Restore Health",
+        "Fortify Conjuration",
+        "Fortify Health",
+        "Damage Magicka Regen"
+      ]),
+      ingredient("Bone Meal", "00034cdd", "0.5", "5", [
+        "Damage Stamina",
+        "Resist Fire",
+        "Fortify Conjuration",
+        "Ravage Stamina"
+      ]),
+      ingredient("Briar Heart", "0003ad61", "0.5", "20", [
+        "Restore Magicka",
+        "Fortify Block",
+        "Paralysis",
+        "Fortify Magicka"
+      ]),
+      ingredient("Butterfly Wing", "000727e0", "0.1", "3", [
+        "Restore Health",
+        "Fortify Barter",
+        "Lingering Damage Stamina",
+        "Damage Magicka"
+      ]),
+      ingredient("Canis Root", "0006abcb", "0.1", "5", [
+        "Damage Stamina",
+        "Fortify One-handed",
+        "Fortify Marksman",
+        "Paralysis"
+      ]),
+      ingredient("Charred Skeever Hide", "00052695", "0.5", "1", [
+        "Restore Stamina",
+        "Cure Disease",
+        "Resist Poison",
+        "Restore Health"
+      ]),
+      ingredient("Chaurus Eggs", "0003ad56", "0.2", "10", [
+        "Weakness to Poison",
+        "Fortify Stamina",
+        "Damage Magicka",
+        "Invisibility"
+      ]),
+      ingredient("Chicken's Egg", "00023d77", "0.5", "2", [
+        "Resist Magic",
+        "Damage Magicka Regen",
+        "Waterbreathing",
+        "Lingering Damage Stamina"
+      ]),
+      ingredient("Creep Cluster", "000b2183", "0.2", "1", [
+        "Restore Magicka",
+        "Damage Stamina Regen",
+        "Fortify Carry Weight",
+        "Weakness to Magic"
+      ]),
+      ingredient("Crimson Nirnroot", "000b701a", "0.2", "10", [
+        "Damage Health",
+        "Damage Stamina",
+        "Invisibility",
+        "Resist Magic"
+      ]),
+      ingredient("Cyrodilic Spadetail", "00106e19", "0.25", "15", [
+        "Damage Stamina",
+        "Fortify Restoration",
+        "Fear",
+        "Ravage Health"
+      ]),
+      ingredient("Daedra Heart", "0003ad5b", "0.5", "250", [
+        "Restore Health",
+        "Damage Stamina Regen",
+        "Damage Magicka",
+        "Fear"
+      ]),
+      ingredient("Deathbell", "000516c8", "0.1", "4", [
+        "Damage Health",
+        "Ravage Stamina",
+        "Slow",
+        "Weakness to Poison"
+      ]),
+      ingredient("Dragon's Tongue", "000889a2", "0.1", "5", [
+        "Resist Fire",
+        "Fortify Barter",
+        "Fortify Illusion",
+        "Fortify Two-handed"
+      ]),
+      ingredient("Dwarven Oil", "000f11c0", "0.25", "15", [
+        "Weakness to Magic",
+        "Fortify Illusion",
+        "Regenerate Magicka",
+        "Restore Magicka"
+      ]),
+      ingredient("Ectoplasm", "0003ad63", "0.1", "25", [
+        "Restore Magicka",
+        "Fortify Destruction",
+        "Fortify Magicka",
+        "Damage Health"
+      ]),
+      ingredient("Elves Ear", "00034d31", "0.1", "10", [
+        "Restore Magicka",
+        "Fortify Marksman",
+        "Weakness to Frost",
+        "Resist Fire"
+      ]),
+      ingredient("Eye of Sabre Cat", "0006bc07", "0.1", "2", [
+        "Restore Stamina",
+        "Ravage Health",
+        "Damage Magicka",
+        "Restore Health"
+      ]),
+      ingredient("Falmer Ear", "0003ad5d", "0.2", "10", [
+        "Damage Health",
+        "Frenzy",
+        "Resist Poison",
+        "Fortify Lockpicking"
+      ]),
+      ingredient("Fire Salts", "0003ad5e", "0.25", "50", [
+        "Weakness to Frost",
+        "Resist Fire",
+        "Restore Magicka",
+        "Regenerate Magicka"
+      ]),
+      ingredient("Fly Amanita", "0004da00", "0.1", "2", [
+        "Resist Fire",
+        "Fortify Two-handed",
+        "Frenzy",
+        "Regenerate Stamina"
+      ]),
+      ingredient("Frost Mirriam", "00034d32", "0.1", "1", [
+        "Resist Frost",
+        "Fortify Sneak",
+        "Ravage Magicka",
+        "Damage Stamina Regen"
+      ]),
+      ingredient("Frost Salts", "0003ad5f", "0.25", "100", [
+        "Weakness to Fire",
+        "Resist Frost",
+        "Restore Magicka",
+        "Fortify Conjuration"
+      ]),
+      ingredient("Garlic", "00034d22", "0.25", "1", [
+        "Resist Poison",
+        "Fortify Stamina",
+        "Regenerate Magicka",
+        "Regenerate Health"
+      ]),
+      ingredient("Giant Lichen", "0007e8c1", "0.25", "5", [
+        "Weakness to Shock",
+        "Ravage Health",
+        "Weakness to Poison",
+        "Restore Magicka"
+      ]),
+      ingredient("Giant's Toe", "0003ad64", "1", "20", [
+        "Damage Stamina",
+        "Fortify Health",
+        "Fortify Carry Weight",
+        "Damage Stamina Regen"
+      ]),
+      ingredient("Glow Dust", "0003ad73", "0.5", "20", [
+        "Damage Magicka",
+        "Damage Magicka Regen",
+        "Fortify Destruction",
+        "Resist Shock"
+      ]),
+      ingredient("Glowing Mushroom", "0007ee01", "0.2", "5", [
+        "Resist Shock",
+        "Fortify Destruction",
+        "Fortify Smithing",
+        "Fortify Health"
+      ]),
+      ingredient("Grass Pod", "00083e64", "0.1", "1", [
+        "Resist Poison",
+        "Ravage Magicka",
+        "Fortify Alteration",
+        "Restore Magicka"
+      ]),
+      ingredient("Hagraven Claw", "0006b689", "0.25", "20", [
+        "Resist Magic",
+        "Lingering Damage Magicka",
+        "Fortify Enchanting",
+        "Fortify Barter"
+      ]),
+      ingredient("Hagraven Feathers", "0003ad66", "0.1", "20", [
+        "Damage Magicka",
+        "Fortify Conjuration",
+        "Frenzy",
+        "Weakness to Shock"
+      ]),
+      ingredient("Hanging Moss", "00057f91", "0.25", "1", [
+        "Damage Magicka",
+        "Fortify Health",
+        "Damage Magicka Regen",
+        "Fortify One-handed"
+      ]),
+      ingredient("Hawk Beak", "000e7ebc", "0.25", "15", [
+        "Restore Stamina",
+        "Resist Frost",
+        "Fortify Carry Weight",
+        "Resist Shock"
+      ]),
+      ingredient("Hawk Feathers", "000e7ed0", "0.1", "15", [
+        "Cure Disease",
+        "Fortify Light Armor",
+        "Fortify One-handed",
+        "Fortify Sneak"
+      ]),
+      ingredient("Histcarp", "00106e18", "0.25", "6", [
+        "Restore Stamina",
+        "Fortify Magicka",
+        "Damage Stamina Regen",
+        "Waterbreathing"
+      ]),
+      ingredient("Honeycomb", "000b08c5", "1", "5", [
+        "Restore Stamina",
+        "Fortify Block",
+        "Fortify Light Armor",
+        "Ravage Stamina"
+      ]),
+      ingredient("Human Flesh", "001016b3", "0.25", "1", [
+        "Damage Health",
+        "Paralysis",
+        "Restore Magicka",
+        "Fortify Sneak"
+      ]),
+      ingredient("Human Heart", "000b18cd", "1", "0", [
+        "Damage Health",
+        "Damage Magicka",
+        "Damage Magicka Regen",
+        "Frenzy"
+      ]),
+      ingredient("Ice Wraith Teeth", "0003ad6a", "0.25", "30", [
+        "Weakness to Frost",
+        "Fortify Heavy Armor",
+        "Invisibility",
+        "Weakness to Fire"
+      ]),
+      ingredient("Imp Stool", "0004da23", "0.3", "0", [
+        "Damage Health",
+        "Lingering Damage Health",
+        "Paralysis",
+        "Restore Health"
+      ]),
+      ingredient("Jazbay Grapes", "0006ac4a", "0.2", "1", [
+        "Weakness to Magic",
+        "Fortify Magicka",
+        "Regenerate Magicka",
+        "Ravage Health"
+      ]),
+      ingredient("Juniper Berries", "0005076e", "0.1", "1", [
+        "Weakness to Fire",
+        "Fortify Marksman",
+        "Regenerate Health",
+        "Damage Stamina Regen"
+      ]),
+      ingredient("Large Antlers", "0006bc0a", "0.1", "2", [
+        "Restore Stamina",
+        "Fortify Stamina",
+        "Slow",
+        "Damage Stamina Regen"
+      ]),
+      ingredient("Lavender", "00045c28", "0.1", "1", [
+        "Resist Magic",
+        "Fortify Stamina",
+        "Ravage Magicka",
+        "Fortify Conjuration"
+      ]),
+      ingredient("Luna Moth Wing", "000727df", "0.1", "5", [
+        "Damage Magicka",
+        "Fortify Light Armor",
+        "Regenerate Health",
+        "Invisibility"
+      ]),
+      ingredient("Moon Sugar", "000d8e3f", "0.25", "50", [
+        "Weakness to Fire",
+        "Resist Frost",
+        "Restore Magicka",
+        "Regenerate Magicka"
+      ]),
+      ingredient("Mora Tapinella", "000ec870", "0.25", "4", [
+        "Restore Magicka",
+        "Lingering Damage Health",
+        "Regenerate Stamina",
+        "Fortify Illusion"
+      ]),
+      ingredient("Mudcrab Chitin", "0006bc00", "0.25", "2", [
+        "Restore Stamina",
+        "Cure Disease",
+        "Resist Poison",
+        "Resist Fire"
+      ]),
+      ingredient("Namira's Rot", "0004da24", "0.25", "0", [
+        "Damage Magicka",
+        "Fortify Lockpicking",
+        "Fear",
+        "Regenerate Health"
+      ]),
+      ingredient("Nightshade", "0002f44c", "0.1", "8", [
+        "Damage Health",
+        "Damage Magicka Regen",
+        "Lingering Damage Stamina",
+        "Fortify Destruction"
+      ]),
+      ingredient("Nirnroot", "00059b86", "0.2", "10", [
+        "Damage Health",
+        "Damage Stamina",
+        "Invisibility",
+        "Resist Magic"
+      ]),
+      ingredient("Nordic Barnacle", "0007edf5", "0.2", "5", [
+        "Damage Magicka",
+        "Waterbreathing",
+        "Regenerate Health",
+        "Fortify Pickpocket"
+      ]),
+      ingredient("Orange Dartwing", "000bb956", "0.1", "1", [
+        "Restore Stamina",
+        "Ravage Magicka",
+        "Fortify Pickpocket",
+        "Lingering Damage Health"
+      ]),
+      ingredient("Pearl", "000854fe", "0.1", "2", [
+        "Restore Stamina",
+        "Fortify Block",
+        "Restore Magicka",
+        "Resist Shock"
+      ]),
+      ingredient("Pine Thrush Egg", "00023d6f", "0.5", "2", [
+        "Restore Stamina",
+        "Fortify Lockpicking",
+        "Weakness to Poison",
+        "Resist Shock"
+      ]),
+      ingredient("Powdered Mammoth Tusk", "0006bc10", "0.1", "2", [
+        "Restore Stamina",
+        "Fortify Sneak",
+        "Weakness to Fire",
+        "Fear"
+      ]),
+      ingredient("Purple Mountain Flower", "00077e1e", "0.1", "2", [
+        "Restore Stamina",
+        "Fortify Sneak",
+        "Lingering Damage Magicka",
+        "Resist Frost"
+      ]),
+      ingredient("Red Mountain Flower", "00077e1d", "0.1", "2", [
+        "Restore Magicka",
+        "Ravage Magicka",
+        "Fortify Magicka",
+        "Damage Health"
+      ]),
+      ingredient("River Betty", "00106e1a", "0.25", "15", [
+        "Damage Health",
+        "Fortify Alteration",
+        "Slow",
+        "Fortify Carry Weight"
+      ]),
+      ingredient("Rock Warbler Egg", "0007e8c8", "0.5", "2", [
+        "Restore Health",
+        "Fortify One-handed",
+        "Damage Stamina",
+        "Weakness to Magic"
+      ]),
+      ingredient("Sabre Cat Tooth", "0006bc04", "0.1", "2", [
+        "Restore Stamina",
+        "Fortify Heavy Armor",
+        "Fortify Smithing",
+        "Weakness to Poison"
+      ]),
+      ingredient("Salt Pile", "00034cdf", "0.2", "2", [
+        "Weakness to Magic",
+        "Fortify Restoration",
+        "Slow",
+        "Regenerate Magicka"
+      ]),
+      ingredient("Scaly Pholiota", "0006f950", "0.25", "4", [
+        "Weakness to Magic",
+        "Fortify Illusion",
+        "Regenerate Stamina",
+        "Fortify Carry Weight"
+      ]),
+      ingredient("Silverside Perch", "00106e1c", "0.25", "15", [
+        "Restore Stamina",
+        "Damage Stamina Regen",
+        "Ravage Health",
+        "Resist Frost"
+      ]),
+      ingredient("Skeever Tail", "0003ad6f", "0.2", "3", [
+        "Damage Stamina Regen",
+        "Ravage Health",
+        "Damage Health",
+        "Fortify Light Armor"
+      ]),
+      ingredient("Slaughterfish Egg", "0007e8c5", "0.2", "3", [
+        "Resist Poison",
+        "Fortify Pickpocket",
+        "Lingering Damage Health",
+        "Fortify Stamina"
+      ]),
+      ingredient("Slaughterfish Scales", "0003ad70", "0.1", "3", [
+        "Resist Frost",
+        "Lingering Damage Health",
+        "Fortify Heavy Armor",
+        "Fortify Block"
+      ]),
+      ingredient("Small Antlers", "0006bc0b", "0.1", "2", [
+        "Weakness to Poison",
+        "Fortify Restoration",
+        "Lingering Damage Stamina",
+        "Damage Health"
+      ]),
+      ingredient("Small Pearl", "00085500", "0.1", "2", [
+        "Restore Stamina",
+        "Fortify One-handed",
+        "Fortify Restoration",
+        "Resist Frost"
+      ]),
+      ingredient("Snowberries", "0001b3bd", "0.1", "4", [
+        "Resist Fire",
+        "Fortify Enchanting",
+        "Resist Frost",
+        "Resist Shock"
+      ]),
+      ingredient("Spider Egg", "0009151b", "0.2", "5", [
+        "Damage Stamina",
+        "Damage Magicka Regen",
+        "Fortify Lockpicking",
+        "Fortify Marksman"
+      ]),
+      ingredient("Spriggan Sap", "00063b5f", "0.2", "15", [
+        "Damage Magicka Regen",
+        "Fortify Enchanting",
+        "Fortify Smithing",
+        "Fortify Alteration"
+      ]),
+      ingredient("Swamp Fungal Pod", "0007e8b7", "0.25", "5", [
+        "Resist Shock",
+        "Lingering Damage Magicka",
+        "Paralysis",
+        "Restore Health"
+      ]),
+      ingredient("Taproot", "0003ad71", "0.5", "15", [
+        "Weakness to Magic",
+        "Fortify Illusion",
+        "Regenerate Magicka",
+        "Restore Magicka"
+      ]),
+      ingredient("Thistle Branch", "000134aa", "0.1", "1", [
+        "Resist Frost",
+        "Ravage Stamina",
+        "Resist Poison",
+        "Fortify Heavy Armor"
+      ]),
+      ingredient("Torchbug Thorax", "0004da73", "0.1", "1", [
+        "Restore Stamina",
+        "Lingering Damage Magicka",
+        "Weakness to Magic",
+        "Fortify Stamina"
+      ]),
+      ingredient("Troll Fat", "0003ad72", "1", "15", [
+        "Resist Poison",
+        "Fortify Two-handed",
+        "Frenzy",
+        "Damage Health"
+      ]),
+      ingredient("Tundra Cotton", "0003f7f8", "0.1", "1", [
+        "Resist Magic",
+        "Fortify Magicka",
+        "Fortify Block",
+        "Fortify Barter"
+      ]),
+      ingredient("Vampire Dust", "0003ad76", "0.2", "25", [
+        "Invisibility",
+        "Restore Magicka",
+        "Regenerate Health",
+        "Cure Disease"
+      ]),
+      ingredient("Void Salts", "0003ad60", "0.2", "125", [
+        "Weakness to Shock",
+        "Resist Magic",
+        "Damage Health",
+        "Fortify Magicka"
+      ]),
+      ingredient("Wheat", "0004b0ba", "0.1", "5", [
+        "Restore Health",
+        "Fortify Health",
+        "Damage Stamina Regen",
+        "Lingering Damage Magicka"
+      ]),
+      ingredient("White Cap", "0004da22", "0.3", "0", [
+        "Weakness to Frost",
+        "Fortify Heavy Armor",
+        "Restore Magicka",
+        "Ravage Magicka"
+      ]),
+      ingredient("Wisp Wrappings", "0006bc0e", "0.1", "2", [
+        "Restore Stamina",
+        "Fortify Destruction",
+        "Fortify Carry Weight",
+        "Resist Magic"
+      ])
+    ]
+  end
+
+  defp ingredient(name, form_id, weight, value, effects) do
+    %{
+      name: name,
+      category: "ingredient",
+      kind: "alchemy ingredient",
+      weight: weight,
+      value: value,
+      source: "Skyrim",
+      effects: effects,
+      description: "#{name} is a Skyrim alchemy ingredient. Form ID: #{form_id}."
     }
   end
 

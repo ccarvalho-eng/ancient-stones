@@ -23,7 +23,8 @@ Current template counts:
 | Creatures | 10 |
 | Civilizations | 4 |
 | Spells | 106 |
-| Items | 132 |
+| Effects | 55 |
+| Items | 223 |
 | Skills | 18 |
 | Skill trees | 18 |
 | Skill perks | 180 |
@@ -62,7 +63,8 @@ The template currently includes:
 - The 18 Skyrim skills.
 - Skill trees and all 180 Skyrim skill perks, with rank counts.
 - A broad Skyrim spell catalog.
-- Weapon, apparel, and food item categories.
+- Weapon, apparel, food, and ingredient item categories.
+- Skyrim alchemy ingredients with four ordered effects each.
 - Basic item stats such as damage, critical damage, weight, value, hands, material, and source.
 - Character inventory categories and starter inventory items for selected characters.
 - A Tamrielic calendar.
@@ -76,7 +78,7 @@ The template is not a complete canonical Skyrim database. Current gaps include:
 - Exact map coordinates and marker positions.
 - Full quest, objective, dialogue, and scene structure.
 - Full NPC roster and exact NPC inventories.
-- Full books, notes, keys, ingredients, potions, poisons, enchantments, crafting recipes, shouts, diseases, blessings, and active effects.
+- Full books, notes, keys, potions, poisons, enchantments, crafting recipes, shouts, diseases, blessings, and active effects.
 - Exact faction ranks and full membership lists.
 - Game-engine behavior such as combat formulas, AI packages, leveled lists, pathing, radiant quests, and encounter zones.
 - Multi-user permissions and publishing workflows.

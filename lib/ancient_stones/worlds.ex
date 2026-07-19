@@ -23,12 +23,14 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.CreatureLocation
   alias AncientStones.Worlds.CreatureType
+  alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
   alias AncientStones.Worlds.GuildInfluence
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.HoldCommerceEntry
   alias AncientStones.Worlds.Item
+  alias AncientStones.Worlds.ItemEffect
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.Occupation
@@ -135,7 +137,8 @@ defmodule AncientStones.Worlds do
       galaxy: [:worlds],
       gods: [],
       guilds: [guild_influences: [:god, :character]],
-      items: [],
+      effects: [],
+      items: [item_effects: [:effect]],
       location_types: [:children],
       occupations: [],
       political_offices: [:character, :province, :hold],
@@ -598,7 +601,9 @@ defmodule AncientStones.Worlds do
   end
 
   def get_item!(id) do
-    Repo.get!(Item, id)
+    Item
+    |> Repo.get!(id)
+    |> Repo.preload(item_effects: [:effect])
   end
 
   def update_item(%Item{} = item, attrs) do
@@ -609,6 +614,36 @@ defmodule AncientStones.Worlds do
 
   def delete_item(%Item{} = item) do
     Repo.delete(item)
+  end
+
+  def create_effect(%World{id: world_id}, attrs) do
+    %Effect{world_id: world_id}
+    |> Effect.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def get_effect!(id) do
+    Repo.get!(Effect, id)
+  end
+
+  def delete_effect(%Effect{} = effect) do
+    Repo.delete(effect)
+  end
+
+  def create_item_effect(%Item{id: item_id}, %Effect{id: effect_id}, attrs) do
+    %ItemEffect{item_id: item_id, effect_id: effect_id}
+    |> ItemEffect.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def get_item_effect!(id) do
+    ItemEffect
+    |> Repo.get!(id)
+    |> Repo.preload([:item, :effect])
+  end
+
+  def delete_item_effect(%ItemEffect{} = item_effect) do
+    Repo.delete(item_effect)
   end
 
   @doc "Deletes a character from a world."
@@ -1413,7 +1448,10 @@ defmodule AncientStones.Worlds do
 
     god_by_name = build_template_gods!(world, Map.get(template_data, :gods, []))
     build_template_spells!(world, Map.get(template_data, :spells, []))
-    item_by_name = build_template_items!(world, Map.get(template_data, :items, []))
+    effect_by_name = build_template_effects!(world, Map.get(template_data, :effects, []))
+
+    item_by_name =
+      build_template_items!(world, Map.get(template_data, :items, []), effect_by_name)
 
     skill_tree_by_name =
       build_template_skill_trees!(world, Map.get(template_data, :skill_trees, []))
@@ -1472,7 +1510,10 @@ defmodule AncientStones.Worlds do
 
     god_by_name = build_template_gods!(world, Map.get(template_data, :gods, []))
     build_template_spells!(world, Map.get(template_data, :spells, []))
-    item_by_name = build_template_items!(world, Map.get(template_data, :items, []))
+    effect_by_name = build_template_effects!(world, Map.get(template_data, :effects, []))
+
+    item_by_name =
+      build_template_items!(world, Map.get(template_data, :items, []), effect_by_name)
 
     skill_tree_by_name =
       build_template_skill_trees!(world, Map.get(template_data, :skill_trees, []))
@@ -1613,14 +1654,39 @@ defmodule AncientStones.Worlds do
     end
   end
 
-  defp build_template_items!(world, items) do
+  defp build_template_effects!(world, effects) do
+    Enum.reduce(effects, %{}, fn effect_data, acc ->
+      effect =
+        world
+        |> create_effect(effect_data)
+        |> unwrap_transaction!()
+
+      Map.put(acc, effect.name, effect)
+    end)
+  end
+
+  defp build_template_items!(world, items, effect_by_name) do
     Enum.reduce(items, %{}, fn item_data, acc ->
       item =
         world
-        |> create_item(item_data)
+        |> create_item(Map.drop(item_data, [:effects]))
         |> unwrap_transaction!()
 
+      build_template_item_effects!(item, Map.get(item_data, :effects, []), effect_by_name)
+
       Map.put(acc, item.name, item)
+    end)
+  end
+
+  defp build_template_item_effects!(item, effects, effect_by_name) do
+    effects
+    |> Enum.with_index(1)
+    |> Enum.each(fn {effect_name, position} ->
+      effect = Map.fetch!(effect_by_name, effect_name)
+
+      item
+      |> create_item_effect(effect, %{position: position})
+      |> unwrap_transaction!()
     end)
   end
 

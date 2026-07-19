@@ -6,7 +6,9 @@ defmodule AncientStones.WorldsTest do
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.Creature
+  alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.Hold
+  alias AncientStones.Worlds.ItemEffect
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.Province
@@ -195,6 +197,21 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(dashboard.items, &(&1.name == "Iron Sword" && &1.category == "weapon"))
     assert Enum.any?(dashboard.items, &(&1.name == "Daedric Armor" && &1.category == "apparel"))
     assert Enum.any?(dashboard.items, &(&1.name == "Sweet Roll" && &1.category == "food"))
+    assert Enum.any?(dashboard.effects, &(&1.name == "Restore Health"))
+    assert dashboard.items |> Enum.filter(&(&1.category == "ingredient")) |> length() == 91
+
+    blue_mountain_flower = Enum.find(dashboard.items, &(&1.name == "Blue Mountain Flower"))
+
+    assert blue_mountain_flower.category == "ingredient"
+
+    assert blue_mountain_flower.item_effects
+           |> Enum.sort_by(& &1.position)
+           |> Enum.map(& &1.effect.name) == [
+             "Restore Health",
+             "Fortify Conjuration",
+             "Fortify Health",
+             "Damage Magicka Regen"
+           ]
 
     ulfric = Enum.find(dashboard.characters, &(&1.name == "Ulfric Stormcloak"))
 
@@ -255,6 +272,25 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(nord.traits, &(&1.name == "Battle Cry" && &1.category == "power"))
     assert Enum.any?(nord.traits, &(&1.name == "Resist Frost" && &1.category == "perk"))
     assert Enum.any?(altmer.traits, &(&1.name == "Highborn" && &1.category == "power"))
+  end
+
+  test "creates reusable effects and attaches them to items" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+
+    {:ok, item} =
+      Worlds.create_item(world, %{name: "Blue Mountain Flower", category: "ingredient"})
+
+    assert {:ok, %Effect{} = effect} =
+             Worlds.create_effect(world, %{name: "Restore Health", category: "Alchemy"})
+
+    assert {:ok, %ItemEffect{} = item_effect} =
+             Worlds.create_item_effect(item, effect, %{position: 1})
+
+    item = Worlds.get_item!(item.id)
+
+    assert [%{effect: %{name: "Restore Health"}, position: 1}] = item.item_effects
+
+    assert {:ok, _item_effect} = Worlds.delete_item_effect(item_effect)
   end
 
   test "creates location type hierarchies and locations" do
