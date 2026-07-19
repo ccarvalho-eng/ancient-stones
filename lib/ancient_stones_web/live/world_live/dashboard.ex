@@ -3515,35 +3515,51 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                           <.detail label="Era" value={display_value(@selected_calendar.era)} />
                         </div>
 
-                        <div class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
-                          <p class="text-[11px] font-semibold uppercase text-zinc-500">Months</p>
-                          <div class="mt-2 flex flex-col divide-y divide-zinc-100">
+                        <div class="rounded-md border border-zinc-200 bg-zinc-50 p-3">
+                          <div class="flex items-center justify-between gap-3">
+                            <p class="text-[11px] font-semibold uppercase text-zinc-500">Months</p>
+                            <span class="rounded border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-500">
+                              {length(calendar_months(@selected_calendar))}
+                            </span>
+                          </div>
+                          <div
+                            id="calendar-month-grid"
+                            class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3"
+                          >
                             <div
                               :if={calendar_months(@selected_calendar) == []}
-                              class="py-2 text-sm text-zinc-500"
+                              class="rounded-md border border-dashed border-zinc-200 bg-white px-3 py-4 text-center text-sm text-zinc-500 sm:col-span-2 xl:col-span-3"
                             >
                               No months have been added.
                             </div>
                             <div
                               :for={month <- calendar_months(@selected_calendar)}
-                              class="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 py-2 first:pt-0 last:pb-0"
+                              id={"calendar-month-#{month.id}"}
+                              class="grid min-h-24 rounded-md border border-zinc-200 bg-white p-3 shadow-sm"
                             >
-                              <div>
-                                <div class="text-sm font-medium text-zinc-800">
-                                  {month.position}. {month.name}
+                              <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0">
+                                  <p class="text-[11px] font-semibold uppercase text-zinc-400">
+                                    Month {month.position}
+                                  </p>
+                                  <h4 class="mt-1 truncate text-base font-semibold text-zinc-800">
+                                    {month.name}
+                                  </h4>
+                                  <p class="mt-2 text-xs font-medium text-zinc-500">
+                                    {month.days} days
+                                  </p>
                                 </div>
-                                <p class="text-xs text-zinc-500">{month.days} days</p>
+                                <button
+                                  type="button"
+                                  phx-click="delete_calendar_month"
+                                  phx-value-id={month.id}
+                                  data-confirm={"Delete #{month.name}?"}
+                                  class="stone-muted inline-flex size-8 shrink-0 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                  aria-label={"Delete #{month.name}"}
+                                >
+                                  <.icon name="hero-trash" class="size-4" />
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                phx-click="delete_calendar_month"
-                                phx-value-id={month.id}
-                                data-confirm={"Delete #{month.name}?"}
-                                class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
-                                aria-label={"Delete #{month.name}"}
-                              >
-                                <.icon name="hero-trash" class="size-4" />
-                              </button>
                             </div>
                           </div>
                         </div>

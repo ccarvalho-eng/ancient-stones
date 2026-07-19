@@ -987,9 +987,12 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     |> render_submit()
 
     calendar = Worlds.get_calendar!(calendar.id)
+    [month] = calendar.months
 
     assert Enum.any?(calendar.months, &(&1.name == "Frostfall"))
     assert has_element?(view, "#calendar-list", "Nordic Reckoning")
+    assert has_element?(view, "#calendar-month-grid")
+    assert has_element?(view, "#calendar-month-#{month.id}", "Frostfall")
   end
 
   test "creates timelines and eras from the timeline section", %{conn: conn} do
