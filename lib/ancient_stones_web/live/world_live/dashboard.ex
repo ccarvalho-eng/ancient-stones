@@ -1753,36 +1753,59 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                       </div>
 
                       <div
-                        :for={character <- @characters}
-                        class={[
-                          "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
-                          @selected_character && @selected_character.id == character.id &&
-                            "bg-zinc-100"
-                        ]}
+                        :for={{race, race_characters} <- grouped_characters(@characters)}
+                        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <.link
-                          patch={
-                            ~p"/worlds/#{@world}/dashboard?section=characters&character_id=#{character.id}"
-                          }
-                          class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
-                        >
-                          <div class="truncate text-sm font-semibold text-zinc-800">
-                            {character.name}
+                        <details class="group">
+                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
+                            <span class="flex min-w-0 items-center gap-2">
+                              <.icon
+                                name="hero-chevron-right"
+                                class="size-3.5 shrink-0 group-open:hidden"
+                              />
+                              <.icon
+                                name="hero-chevron-down"
+                                class="hidden size-3.5 shrink-0 group-open:inline"
+                              />
+                              <span class="truncate">{race}</span>
+                            </span>
+                            <span>{length(race_characters)}</span>
+                          </summary>
+                          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+                            <div
+                              :for={character <- race_characters}
+                              class={[
+                                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                                @selected_character && @selected_character.id == character.id &&
+                                  "stone-selected"
+                              ]}
+                            >
+                              <.link
+                                patch={
+                                  ~p"/worlds/#{@world}/dashboard?section=characters&character_id=#{character.id}"
+                                }
+                                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+                              >
+                                <div class="truncate text-sm font-semibold text-zinc-800">
+                                  {character.name}
+                                </div>
+                                <p class="mt-1 text-xs font-medium text-zinc-500">
+                                  {display_value(character.role)}
+                                </p>
+                              </.link>
+                              <button
+                                type="button"
+                                phx-click="delete_character"
+                                phx-value-id={character.id}
+                                data-confirm={"Delete #{character.name}?"}
+                                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                                aria-label={"Delete #{character.name}"}
+                              >
+                                <.icon name="hero-trash" class="size-4" />
+                              </button>
+                            </div>
                           </div>
-                          <p class="mt-1 text-xs font-medium text-zinc-500">
-                            {display_value(character.role)}
-                          </p>
-                        </.link>
-                        <button
-                          type="button"
-                          phx-click="delete_character"
-                          phx-value-id={character.id}
-                          data-confirm={"Delete #{character.name}?"}
-                          class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
-                          aria-label={"Delete #{character.name}"}
-                        >
-                          <.icon name="hero-trash" class="size-4" />
-                        </button>
+                        </details>
                       </div>
                     </div>
                   </section>
@@ -5553,6 +5576,12 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> Enum.sort_by(fn {category, _category_items} ->
       {item_category_position(category), item_category_label(category)}
     end)
+  end
+
+  defp grouped_characters(characters) do
+    characters
+    |> Enum.group_by(&record_name(&1.race))
+    |> Enum.sort_by(fn {race, _race_characters} -> race end)
   end
 
   defp grouped_gods(gods) do
