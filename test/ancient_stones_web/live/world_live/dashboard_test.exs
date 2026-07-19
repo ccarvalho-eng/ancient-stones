@@ -639,6 +639,20 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#item-list", "Iron Sword")
     assert has_element?(view, "#item-list", "Weapons")
     assert has_element?(view, "#item-details", "Weapons")
+    assert has_element?(view, "#folded-items-weapon:not([open])")
+
+    view
+    |> element("#folded-items-weapon summary")
+    |> render_click()
+
+    assert has_element?(view, "#folded-items-weapon[open]")
+
+    view
+    |> element("a[href='/worlds/#{world.id}/dashboard?section=items&item_id=#{item.id}']")
+    |> render_click()
+
+    assert_patch(view, ~p"/worlds/#{world}/dashboard?section=items&item_id=#{item.id}")
+    assert has_element?(view, "#folded-items-weapon[open]")
 
     open_action(view, "item_edit")
 

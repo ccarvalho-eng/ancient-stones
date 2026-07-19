@@ -7,7 +7,12 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   def mount(_params, _session, socket) do
     {:ok,
-     assign(socket, page_title: "World Details", theme: "light", expanded_action: "continent")}
+     assign(socket,
+       page_title: "World Details",
+       theme: "light",
+       expanded_action: "continent",
+       open_folded_groups: MapSet.new()
+     )}
   end
 
   def handle_params(%{"id" => id} = params, _uri, socket) do
@@ -1458,21 +1463,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                         :for={{pantheon, pantheon_gods} <- grouped_gods(@gods)}
                         class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <details class="group">
-                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
-                            <span class="flex min-w-0 items-center gap-2">
-                              <.icon
-                                name="hero-chevron-right"
-                                class="size-3.5 shrink-0 group-open:hidden"
-                              />
-                              <.icon
-                                name="hero-chevron-down"
-                                class="hidden size-3.5 shrink-0 group-open:inline"
-                              />
-                              <span class="truncate">{display_value(pantheon)}</span>
-                            </span>
-                            <span>{length(pantheon_gods)}</span>
-                          </summary>
+                        <.folded_group
+                          id={folded_group_dom_id("gods", pantheon)}
+                          label={display_value(pantheon)}
+                          count={length(pantheon_gods)}
+                          open={folded_group_open?(@open_folded_groups, "gods", pantheon)}
+                          toggle_key={folded_group_key("gods", pantheon)}
+                        >
                           <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
                             <div
                               :for={god <- pantheon_gods}
@@ -1504,7 +1501,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                               </button>
                             </div>
                           </div>
-                        </details>
+                        </.folded_group>
                       </div>
                     </div>
                   </section>
@@ -1756,21 +1753,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                         :for={{race, race_characters} <- grouped_characters(@characters)}
                         class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <details class="group">
-                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
-                            <span class="flex min-w-0 items-center gap-2">
-                              <.icon
-                                name="hero-chevron-right"
-                                class="size-3.5 shrink-0 group-open:hidden"
-                              />
-                              <.icon
-                                name="hero-chevron-down"
-                                class="hidden size-3.5 shrink-0 group-open:inline"
-                              />
-                              <span class="truncate">{race}</span>
-                            </span>
-                            <span>{length(race_characters)}</span>
-                          </summary>
+                        <.folded_group
+                          id={folded_group_dom_id("characters", race)}
+                          label={race}
+                          count={length(race_characters)}
+                          open={folded_group_open?(@open_folded_groups, "characters", race)}
+                          toggle_key={folded_group_key("characters", race)}
+                        >
                           <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
                             <div
                               :for={character <- race_characters}
@@ -1805,7 +1794,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                               </button>
                             </div>
                           </div>
-                        </details>
+                        </.folded_group>
                       </div>
                     </div>
                   </section>
@@ -2230,21 +2219,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                         :for={{category, category_skills} <- grouped_skills(@skills)}
                         class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <details class="group">
-                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
-                            <span class="flex min-w-0 items-center gap-2">
-                              <.icon
-                                name="hero-chevron-right"
-                                class="size-3.5 shrink-0 group-open:hidden"
-                              />
-                              <.icon
-                                name="hero-chevron-down"
-                                class="hidden size-3.5 shrink-0 group-open:inline"
-                              />
-                              <span class="truncate">{display_value(category)}</span>
-                            </span>
-                            <span>{length(category_skills)}</span>
-                          </summary>
+                        <.folded_group
+                          id={folded_group_dom_id("skills", category)}
+                          label={display_value(category)}
+                          count={length(category_skills)}
+                          open={folded_group_open?(@open_folded_groups, "skills", category)}
+                          toggle_key={folded_group_key("skills", category)}
+                        >
                           <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
                             <div
                               :for={skill <- category_skills}
@@ -2279,7 +2260,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                               </button>
                             </div>
                           </div>
-                        </details>
+                        </.folded_group>
                       </div>
                     </div>
                   </section>
@@ -2613,21 +2594,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                         :for={{school, school_spells} <- grouped_spells(@spells)}
                         class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <details class="group">
-                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
-                            <span class="flex min-w-0 items-center gap-2">
-                              <.icon
-                                name="hero-chevron-right"
-                                class="size-3.5 shrink-0 group-open:hidden"
-                              />
-                              <.icon
-                                name="hero-chevron-down"
-                                class="hidden size-3.5 shrink-0 group-open:inline"
-                              />
-                              <span class="truncate">{display_value(school)}</span>
-                            </span>
-                            <span>{length(school_spells)}</span>
-                          </summary>
+                        <.folded_group
+                          id={folded_group_dom_id("spells", school)}
+                          label={display_value(school)}
+                          count={length(school_spells)}
+                          open={folded_group_open?(@open_folded_groups, "spells", school)}
+                          toggle_key={folded_group_key("spells", school)}
+                        >
                           <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
                             <div
                               :for={spell <- school_spells}
@@ -2662,7 +2635,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                               </button>
                             </div>
                           </div>
-                        </details>
+                        </.folded_group>
                       </div>
                     </div>
                   </section>
@@ -2812,21 +2785,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                         :for={{category, category_items} <- grouped_items(@items)}
                         class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <details class="group">
-                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
-                            <span class="flex min-w-0 items-center gap-2">
-                              <.icon
-                                name="hero-chevron-right"
-                                class="size-3.5 shrink-0 group-open:hidden"
-                              />
-                              <.icon
-                                name="hero-chevron-down"
-                                class="hidden size-3.5 shrink-0 group-open:inline"
-                              />
-                              <span class="truncate">{item_category_label(category)}</span>
-                            </span>
-                            <span>{length(category_items)}</span>
-                          </summary>
+                        <.folded_group
+                          id={folded_group_dom_id("items", category)}
+                          label={item_category_label(category)}
+                          count={length(category_items)}
+                          open={folded_group_open?(@open_folded_groups, "items", category)}
+                          toggle_key={folded_group_key("items", category)}
+                        >
                           <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
                             <div
                               :for={item <- category_items}
@@ -2860,7 +2825,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                               </button>
                             </div>
                           </div>
-                        </details>
+                        </.folded_group>
                       </div>
                     </div>
                   </section>
@@ -3149,21 +3114,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                         :for={{creature_type, type_creatures} <- grouped_creatures(@creatures)}
                         class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                       >
-                        <details class="group">
-                          <summary class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50">
-                            <span class="flex min-w-0 items-center gap-2">
-                              <.icon
-                                name="hero-chevron-right"
-                                class="size-3.5 shrink-0 group-open:hidden"
-                              />
-                              <.icon
-                                name="hero-chevron-down"
-                                class="hidden size-3.5 shrink-0 group-open:inline"
-                              />
-                              <span class="truncate">{creature_type}</span>
-                            </span>
-                            <span>{length(type_creatures)}</span>
-                          </summary>
+                        <.folded_group
+                          id={folded_group_dom_id("bestiary", creature_type)}
+                          label={creature_type}
+                          count={length(type_creatures)}
+                          open={folded_group_open?(@open_folded_groups, "bestiary", creature_type)}
+                          toggle_key={folded_group_key("bestiary", creature_type)}
+                        >
                           <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
                             <div
                               :for={creature <- type_creatures}
@@ -3198,7 +3155,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
                               </button>
                             </div>
                           </div>
-                        </details>
+                        </.folded_group>
                       </div>
                     </div>
                   </section>
@@ -4472,6 +4429,12 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
      )}
   end
 
+  def handle_event("toggle_folded_group", %{"key" => key}, socket) do
+    open_folded_groups = toggle_folded_group(socket.assigns.open_folded_groups, key)
+
+    {:noreply, assign(socket, :open_folded_groups, open_folded_groups)}
+  end
+
   def handle_event("set_skill_detail_tab", %{"tab" => tab}, socket) do
     {:noreply, assign(socket, :skill_detail_tab, normalize_skill_detail_tab(tab))}
   end
@@ -5608,6 +5571,49 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> Enum.sort_by(fn {creature_type, _type_creatures} -> creature_type end)
   end
 
+  defp toggle_folded_group(open_folded_groups, key) do
+    if MapSet.member?(open_folded_groups, key) do
+      MapSet.delete(open_folded_groups, key)
+    else
+      MapSet.put(open_folded_groups, key)
+    end
+  end
+
+  defp folded_group_open?(open_folded_groups, section, value) do
+    MapSet.member?(open_folded_groups, folded_group_key(section, value))
+  end
+
+  defp folded_group_key(section, value) do
+    "#{section}:#{value_key(value)}"
+  end
+
+  defp folded_group_dom_id(section, value) do
+    "folded-#{section}-#{dom_key(value)}"
+  end
+
+  defp value_key(nil) do
+    "none"
+  end
+
+  defp value_key(value) do
+    to_string(value)
+  end
+
+  defp dom_key(value) do
+    value
+    |> value_key()
+    |> String.downcase()
+    |> String.replace(~r/[^a-z0-9]+/, "-")
+    |> String.trim("-")
+    |> case do
+      "" ->
+        "none"
+
+      key ->
+        key
+    end
+  end
+
   defp item_category_position(category) do
     item_category_options()
     |> Enum.find_index(fn {_label, value} -> value == category end)
@@ -6290,6 +6296,33 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         {render_slot(@inner_block)}
       </div>
     </section>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :label, :string, required: true
+  attr :count, :integer, required: true
+  attr :open, :boolean, default: false
+  attr :toggle_key, :string, required: true
+  slot :inner_block, required: true
+
+  defp folded_group(assigns) do
+    ~H"""
+    <details id={@id} class="group" open={@open}>
+      <summary
+        class="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-[11px] font-semibold uppercase text-zinc-500 transition hover:bg-zinc-50"
+        phx-click="toggle_folded_group"
+        phx-value-key={@toggle_key}
+      >
+        <span class="flex min-w-0 items-center gap-2">
+          <.icon name="hero-chevron-right" class="size-3.5 shrink-0 group-open:hidden" />
+          <.icon name="hero-chevron-down" class="hidden size-3.5 shrink-0 group-open:inline" />
+          <span class="truncate">{@label}</span>
+        </span>
+        <span>{@count}</span>
+      </summary>
+      {render_slot(@inner_block)}
+    </details>
     """
   end
 
