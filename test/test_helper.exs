@@ -1,2 +1,2 @@
 ExUnit.start()
-Ecto.Adapters.SQL.Sandbox.mode(AncientStone.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(AncientStones.Repo, :manual)

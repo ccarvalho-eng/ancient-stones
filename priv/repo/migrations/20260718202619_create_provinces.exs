@@ -1,4 +1,4 @@
-defmodule AncientStone.Repo.Migrations.CreateProvinces do
+defmodule AncientStones.Repo.Migrations.CreateProvinces do
   use Ecto.Migration
 
   def change do
@@ -6,8 +6,10 @@ defmodule AncientStone.Repo.Migrations.CreateProvinces do
       add :id, :binary_id, primary_key: true
       add :name, :string, null: false
       add :description, :text
+      add :terrain, :string
+      add :climate, :string
 
-      add :continent_id, references(:continents, on_delete: :nothing, type: :binary_id),
+      add :continent_id, references(:continents, on_delete: :delete_all, type: :binary_id),
         null: false
 
       timestamps(type: :utc_datetime)

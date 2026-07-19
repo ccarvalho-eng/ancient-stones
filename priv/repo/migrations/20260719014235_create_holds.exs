@@ -1,4 +1,4 @@
-defmodule AncientStone.Repo.Migrations.CreateHolds do
+defmodule AncientStones.Repo.Migrations.CreateHolds do
   use Ecto.Migration
 
   def change do
@@ -6,8 +6,11 @@ defmodule AncientStone.Repo.Migrations.CreateHolds do
       add :id, :binary_id, primary_key: true
       add :name, :string, null: false
       add :description, :text
+      add :terrain, :string
+      add :climate, :string
 
-      add :province_id, references(:provinces, on_delete: :nothing, type: :binary_id), null: false
+      add :province_id, references(:provinces, on_delete: :delete_all, type: :binary_id),
+        null: false
 
       timestamps(type: :utc_datetime)
     end

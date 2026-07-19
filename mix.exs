@@ -1,9 +1,9 @@
-defmodule AncientStone.MixProject do
+defmodule AncientStones.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :ancient_stone,
+      app: :ancient_stones,
       version: "0.1.0",
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -20,7 +20,7 @@ defmodule AncientStone.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {AncientStone.Application, []},
+      mod: {AncientStones.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -89,10 +89,10 @@ defmodule AncientStone.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind ancient_stone", "esbuild ancient_stone"],
+      "assets.build": ["compile", "tailwind ancient_stones", "esbuild ancient_stones"],
       "assets.deploy": [
-        "tailwind ancient_stone --minify",
-        "esbuild ancient_stone --minify",
+        "tailwind ancient_stones --minify",
+        "esbuild ancient_stones --minify",
         "phx.digest"
       ],
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]

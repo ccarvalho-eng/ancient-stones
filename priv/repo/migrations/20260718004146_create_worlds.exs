@@ -1,4 +1,4 @@
-defmodule AncientStone.Repo.Migrations.CreateWorlds do
+defmodule AncientStones.Repo.Migrations.CreateWorlds do
   use Ecto.Migration
 
   def change do

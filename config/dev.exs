@@ -1,11 +1,11 @@
 import Config
 
 # Configure your database
-config :ancient_stone, AncientStone.Repo,
+config :ancient_stones, AncientStones.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "ancient_stone_dev",
+  database: "ancient_stones_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
@@ -16,7 +16,7 @@ config :ancient_stone, AncientStone.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :ancient_stone, AncientStoneWeb.Endpoint,
+config :ancient_stones, AncientStonesWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {127, 0, 0, 1}],
@@ -25,8 +25,8 @@ config :ancient_stone, AncientStoneWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "K6BxMp5mLbSPR9yPt86nn6bLitWb4acRIzFYh4IfYnVu73yhD1d2zwkCxsjvL3q9",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:ancient_stone, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:ancient_stone, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:ancient_stones, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:ancient_stones, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -53,7 +53,7 @@ config :ancient_stone, AncientStoneWeb.Endpoint,
 # different ports.
 
 # Enable dev routes for dashboard and mailbox
-config :ancient_stone, dev_routes: true
+config :ancient_stones, dev_routes: true
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
