@@ -14,5 +14,6 @@ defmodule AncientStone.Repo.Migrations.CreateProvinces do
     end
 
     create index(:provinces, [:continent_id])
+    create unique_index(:provinces, [:continent_id, :name])
   end
 end

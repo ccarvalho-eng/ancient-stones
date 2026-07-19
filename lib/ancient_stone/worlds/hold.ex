@@ -1,8 +1,8 @@
-defmodule AncientStone.Worlds.Continents.Provinces.Hold do
+defmodule AncientStone.Worlds.Hold do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias AncientStone.Worlds.Continents.Province
+  alias AncientStone.Worlds.Province
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -18,7 +18,9 @@ defmodule AncientStone.Worlds.Continents.Provinces.Hold do
   @doc false
   def changeset(hold, attrs) do
     hold
-    |> cast(attrs, [:name, :description, :province_id])
+    |> cast(attrs, [:name, :description])
     |> validate_required([:name, :province_id])
+    |> foreign_key_constraint(:province_id)
+    |> unique_constraint(:name, name: :holds_province_id_name_index)
   end
 end

@@ -3,21 +3,30 @@ defmodule AncientStone.Worlds.ContinentTest do
 
   alias AncientStone.Worlds.Continent
 
-  test "changeset/2 builds a valid changeset" do
-    struct = %Continent{}
-    attrs = %{name: "some name", description: "some description", world_id: Ecto.UUID.generate()}
+  test "changeset/2 accepts a named continent" do
+    struct = %Continent{world_id: Ecto.UUID.generate()}
+    attrs = %{name: "some name", description: "some description"}
 
     changeset = Continent.changeset(struct, attrs)
 
     assert changeset.valid?
   end
 
-  test "changeset/2 builds an invalid changeset" do
+  test "changeset/2 requires a name and world" do
     struct = %Continent{}
     attrs = %{name: nil, description: nil}
 
     changeset = Continent.changeset(struct, attrs)
 
     refute changeset.valid?
+  end
+
+  test "changeset/2 keeps the assigned world" do
+    struct = %Continent{world_id: Ecto.UUID.generate()}
+    attrs = %{name: "some name", world_id: Ecto.UUID.generate()}
+
+    changeset = Continent.changeset(struct, attrs)
+
+    assert Ecto.Changeset.get_field(changeset, :world_id) == struct.world_id
   end
 end

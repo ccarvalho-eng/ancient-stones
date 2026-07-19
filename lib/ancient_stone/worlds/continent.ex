@@ -2,7 +2,7 @@ defmodule AncientStone.Worlds.Continent do
   use Ecto.Schema
   import Ecto.Changeset
 
-  alias AncientStone.Worlds.Continents.Province
+  alias AncientStone.Worlds.Province
   alias AncientStone.Worlds.World
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -20,7 +20,9 @@ defmodule AncientStone.Worlds.Continent do
   @doc false
   def changeset(continent, attrs) do
     continent
-    |> cast(attrs, [:name, :description, :world_id])
+    |> cast(attrs, [:name, :description])
     |> validate_required([:name, :world_id])
+    |> foreign_key_constraint(:world_id)
+    |> unique_constraint(:name, name: :continents_world_id_name_index)
   end
 end

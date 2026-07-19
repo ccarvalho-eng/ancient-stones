@@ -12,5 +12,6 @@ defmodule AncientStone.Repo.Migrations.CreateContinents do
     end
 
     create index(:continents, [:world_id])
+    create unique_index(:continents, [:world_id, :name])
   end
 end
