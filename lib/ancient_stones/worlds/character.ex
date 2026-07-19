@@ -1,0 +1,84 @@
+defmodule AncientStones.Worlds.Character do
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias AncientStones.Worlds.CharacterInventoryCategory
+  alias AncientStones.Worlds.CharacterInventoryItem
+  alias AncientStones.Worlds.CharacterOccupation
+  alias AncientStones.Worlds.CharacterSkill
+  alias AncientStones.Worlds.CharacterSpellbookEntry
+  alias AncientStones.Worlds.Guild
+  alias AncientStones.Worlds.GuildInfluence
+  alias AncientStones.Worlds.Location
+  alias AncientStones.Worlds.PoliticalOffice
+  alias AncientStones.Worlds.Race
+  alias AncientStones.Worlds.World
+
+  @primary_key {:id, :binary_id, autogenerate: true}
+  @foreign_key_type :binary_id
+  @statuses ~w(alive dead unknown)
+
+  def statuses do
+    @statuses
+  end
+
+  def status_options do
+    [
+      {"Alive", "alive"},
+      {"Dead", "dead"},
+      {"Unknown", "unknown"}
+    ]
+  end
+
+  schema "characters" do
+    field :name, :string
+    field :title, :string
+    field :role, :string
+    field :politics, :string
+    field :status, :string
+    field :health, :integer
+    field :magicka, :integer
+    field :stamina, :integer
+    field :description, :string
+
+    belongs_to(:world, World)
+    belongs_to(:race, Race)
+    belongs_to(:guild, Guild)
+    belongs_to(:home_location, Location)
+    has_many(:character_occupations, CharacterOccupation)
+    has_many(:character_skills, CharacterSkill)
+    has_many(:inventory_categories, CharacterInventoryCategory)
+    has_many(:inventory_items, CharacterInventoryItem)
+    has_many(:spellbook_entries, CharacterSpellbookEntry)
+    has_many(:guild_influences, GuildInfluence)
+    has_many(:political_offices, PoliticalOffice)
+
+    timestamps(type: :utc_datetime)
+  end
+
+  def changeset(character, attrs) do
+    character
+    |> cast(attrs, [
+      :name,
+      :title,
+      :role,
+      :politics,
+      :status,
+      :health,
+      :magicka,
+      :stamina,
+      :description
+    ])
+    |> validate_required([:name, :world_id])
+    |> validate_inclusion(:status, @statuses)
+    |> validate_number(:health, greater_than_or_equal_to: 0)
+    |> validate_number(:magicka, greater_than_or_equal_to: 0)
+    |> validate_number(:stamina, greater_than_or_equal_to: 0)
+    |> check_constraint(:status, name: :characters_status_valid)
+    |> foreign_key_constraint(:world_id)
+    |> foreign_key_constraint(:race_id)
+    |> foreign_key_constraint(:guild_id)
+    |> foreign_key_constraint(:home_location_id)
+    |> unique_constraint(:name, name: :characters_world_id_name_index)
+  end
+end

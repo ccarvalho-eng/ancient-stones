@@ -2,10 +2,5 @@
 #
 #     mix run priv/repo/seeds.exs
 #
-# Inside the script, you can read and write to any of your
-# repositories directly:
-#
-#     AncientStone.Repo.insert!(%AncientStone.SomeSchema{})
-#
-# We recommend using the bang functions (`insert!`, `update!`
-# and so on) as they will fail if something goes wrong.
+# Seed data is intentionally empty for now. Starter worlds are created
+# from templates through the application UI.

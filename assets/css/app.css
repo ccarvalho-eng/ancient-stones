@@ -2,12 +2,12 @@
    https://tailwindcss.com/docs/configuration */
 
 @import "tailwindcss" source(none);
-@import "phoenix-colocated/ancient_stone/colocated.css";
+@import "phoenix-colocated/ancient_stones/colocated.css";
 @source "../css";
 @source "../js";
-@source "../../lib/ancient_stone_web";
+@source "../../lib/ancient_stones_web";
 /* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
-@source "../../_build/dev/phoenix-colocated/ancient_stone/*/";
+@source "../../_build/dev/phoenix-colocated/ancient_stones/*/";
 
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
    The heroicons installation itself is managed by your mix.exs */
@@ -103,3 +103,335 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+.stone-page {
+  --stone-bg: #f4f4f5;
+  --stone-shell: #ffffff;
+  --stone-surface: #ffffff;
+  --stone-surface-muted: #f8f8f8;
+  --stone-surface-raised: #f4f4f5;
+  --stone-border: #e4e4e7;
+  --stone-border-strong: #d4d4d8;
+  --stone-text: #27272a;
+  --stone-muted: #71717a;
+  --stone-subtle: #a1a1aa;
+  --stone-button: #f4f4f5;
+  --stone-button-hover: #e4e4e7;
+  background: var(--stone-bg);
+  color: var(--stone-text);
+}
+
+.stone-theme-system {
+  color-scheme: light;
+}
+
+.stone-theme-light {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  .stone-theme-system {
+    --stone-bg: #282c34;
+    --stone-shell: #21252b;
+    --stone-surface: #21252b;
+    --stone-surface-muted: #2c313a;
+    --stone-surface-raised: #343a45;
+    --stone-border: #3e4451;
+    --stone-border-strong: #5c6370;
+    --stone-text: #e6e6e8;
+    --stone-muted: #abb2bf;
+    --stone-subtle: #828997;
+    --stone-button: #2c313a;
+    --stone-button-hover: #343a45;
+    color-scheme: dark;
+  }
+}
+
+.stone-theme-dark {
+  --stone-bg: #282c34;
+  --stone-shell: #21252b;
+  --stone-surface: #21252b;
+  --stone-surface-muted: #2c313a;
+  --stone-surface-raised: #343a45;
+  --stone-border: #3e4451;
+  --stone-border-strong: #5c6370;
+  --stone-text: #e6e6e8;
+  --stone-muted: #abb2bf;
+  --stone-subtle: #828997;
+  --stone-button: #2c313a;
+  --stone-button-hover: #343a45;
+  color-scheme: dark;
+}
+
+.stone-shell,
+.stone-panel,
+.stone-topbar {
+  background: var(--stone-surface);
+  border-color: var(--stone-border);
+  color: var(--stone-text);
+}
+
+.stone-shell {
+  background: var(--stone-shell);
+}
+
+.stone-workspace,
+.stone-sidebar,
+.stone-muted-surface,
+.stone-table-head {
+  background: var(--stone-surface-muted);
+  border-color: var(--stone-border);
+}
+
+.stone-panel-muted {
+  background: var(--stone-surface-raised);
+  border-color: var(--stone-border);
+}
+
+.stone-heading,
+.stone-text {
+  color: var(--stone-text);
+}
+
+.stone-muted {
+  color: var(--stone-muted);
+}
+
+.stone-subtle {
+  color: var(--stone-subtle);
+}
+
+.stone-border {
+  border-color: var(--stone-border);
+}
+
+.stone-border-strong {
+  border-color: var(--stone-border-strong);
+}
+
+.stone-row:hover,
+.stone-link-card:hover {
+  background: var(--stone-surface-muted);
+}
+
+.stone-selected {
+  background: var(--stone-surface-raised);
+  border-color: var(--stone-border-strong);
+}
+
+.stone-button {
+  background: var(--stone-button);
+  border-color: var(--stone-border-strong);
+  color: var(--stone-text);
+}
+
+.stone-button:hover {
+  background: var(--stone-button-hover);
+}
+
+.stone-record-card {
+  background: var(--stone-surface);
+  border-color: var(--stone-border);
+  box-shadow: 0 1px 1px color-mix(in srgb, var(--stone-border), transparent 84%);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.stone-record-card:hover {
+  background: var(--stone-surface-muted);
+  border-color: var(--stone-border-strong);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--stone-border), transparent 78%);
+}
+
+.stone-danger-button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--stone-muted);
+}
+
+.stone-danger-button:hover {
+  background: color-mix(in srgb, #dc2626, transparent 92%);
+  border-color: color-mix(in srgb, #dc2626, transparent 72%);
+  color: #b91c1c;
+}
+
+.stone-theme-dark .stone-danger-button:hover,
+.stone-theme-system .stone-danger-button:hover {
+  color: #fca5a5;
+}
+
+.stone-soft-panel {
+  background: var(--stone-surface-muted);
+  border-color: var(--stone-border);
+}
+
+.stone-menu {
+  background: var(--stone-surface);
+  border-color: var(--stone-border);
+  box-shadow: 0 12px 24px color-mix(in srgb, #000000, transparent 88%);
+}
+
+.stone-theme-switcher {
+  align-items: center;
+  background: var(--stone-surface-muted);
+  border: 1px solid var(--stone-border);
+  border-radius: 8px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+}
+
+.stone-theme-button {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--stone-muted);
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+  width: 28px;
+}
+
+.stone-theme-button:hover,
+.stone-theme-button.is-active {
+  background: var(--stone-surface);
+  border-color: var(--stone-border);
+  color: var(--stone-text);
+}
+
+.stone-brand-mark {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--stone-border);
+  border-radius: 8px;
+  color: var(--stone-text);
+  display: inline-flex;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.stone-page .bg-white {
+  background-color: var(--stone-surface);
+}
+
+.stone-page .bg-zinc-50 {
+  background-color: var(--stone-surface-muted);
+}
+
+.stone-page .bg-zinc-100 {
+  background-color: var(--stone-surface-muted);
+}
+
+.stone-page .bg-zinc-200 {
+  background-color: var(--stone-surface-raised);
+}
+
+.stone-page .hover\:bg-white:hover,
+.stone-page .hover\:bg-zinc-50:hover {
+  background-color: var(--stone-surface-raised);
+}
+
+.stone-page .hover\:bg-zinc-100:hover,
+.stone-page .hover\:bg-zinc-200:hover {
+  background-color: var(--stone-surface-raised);
+}
+
+.stone-page .border-zinc-100,
+.stone-page .border-zinc-200,
+.stone-page .border-zinc-300 {
+  border-color: var(--stone-border);
+}
+
+.stone-page .border-zinc-50 {
+  border-color: color-mix(in srgb, var(--stone-border), transparent 35%);
+}
+
+.stone-page .border-zinc-400,
+.stone-page .border-zinc-500 {
+  border-color: var(--stone-border-strong);
+}
+
+.stone-page .divide-zinc-100 > :not(:last-child) {
+  border-color: var(--stone-border);
+}
+
+.stone-page .ring-zinc-200 {
+  --tw-ring-color: var(--stone-border);
+}
+
+.stone-page .text-zinc-400,
+.stone-page .text-zinc-500 {
+  color: var(--stone-muted);
+}
+
+.stone-page .text-zinc-600,
+.stone-page .text-zinc-700 {
+  color: var(--stone-muted);
+}
+
+.stone-page .text-zinc-800 {
+  color: var(--stone-text);
+}
+
+.stone-page .text-zinc-900,
+.stone-page .text-zinc-950 {
+  color: var(--stone-text);
+}
+
+.stone-page .shadow-sm {
+  box-shadow: 0 1px 2px color-mix(in srgb, #000000, transparent 94%);
+}
+
+.stone-page input,
+.stone-page select,
+.stone-page textarea,
+.stone-page .input,
+.stone-page .select,
+.stone-page .textarea {
+  background-color: var(--stone-surface-muted);
+  border-color: var(--stone-border);
+  color: var(--stone-text);
+}
+
+.stone-page input::placeholder,
+.stone-page textarea::placeholder {
+  color: var(--stone-subtle);
+}
+
+.stone-page input:focus,
+.stone-page select:focus,
+.stone-page textarea:focus,
+.stone-page .input:focus,
+.stone-page .select:focus,
+.stone-page .textarea:focus {
+  border-color: var(--stone-border-strong);
+  outline: 2px solid color-mix(in srgb, var(--stone-border-strong), transparent 70%);
+  outline-offset: 0;
+}
+
+.stone-page .label {
+  color: var(--stone-muted);
+}
+
+.stone-page button[aria-label^="Delete"] {
+  color: var(--stone-muted);
+}
+
+.stone-page button[aria-label^="Delete"]:hover {
+  background-color: color-mix(in srgb, #dc2626, transparent 92%);
+  border-color: color-mix(in srgb, #dc2626, transparent 72%);
+  color: #b91c1c;
+}
+
+.stone-theme-dark button[aria-label^="Delete"]:hover,
+.stone-theme-system button[aria-label^="Delete"]:hover {
+  color: #fca5a5;
+}

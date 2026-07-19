@@ -7,19 +7,19 @@
 # General application configuration
 import Config
 
-config :ancient_stone,
-  ecto_repos: [AncientStone.Repo],
+config :ancient_stones,
+  ecto_repos: [AncientStones.Repo],
   generators: [timestamp_type: :utc_datetime, binary_id: true]
 
 # Configure the endpoint
-config :ancient_stone, AncientStoneWeb.Endpoint,
+config :ancient_stones, AncientStonesWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: AncientStoneWeb.ErrorHTML, json: AncientStoneWeb.ErrorJSON],
+    formats: [html: AncientStonesWeb.ErrorHTML, json: AncientStonesWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: AncientStone.PubSub,
+  pubsub_server: AncientStones.PubSub,
   live_view: [signing_salt: "nIwLcJ+a"]
 
 # Configure LiveView
@@ -34,12 +34,12 @@ config :phoenix_live_view,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :ancient_stone, AncientStone.Mailer, adapter: Swoosh.Adapters.Local
+config :ancient_stones, AncientStones.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  ancient_stone: [
+  ancient_stones: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
@@ -49,7 +49,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.3.0",
-  ancient_stone: [
+  ancient_stones: [
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css
