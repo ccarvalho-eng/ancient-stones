@@ -305,23 +305,94 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
   test "creates and deletes races from the races section", %{conn: conn} do
     {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, civilization} = Worlds.create_civilization(world, %{name: "Atmorans"})
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=races")
 
     assert has_element?(view, "#race-form")
+    assert has_element?(view, "#race_civilization_id")
+    assert has_element?(view, "#add-race-trait")
+    assert has_element?(view, "#race_traits_0_category option[value='perk']", "Perk")
+    assert has_element?(view, "#race_traits_0_category option[value='power']", "Power")
+    assert has_element?(view, "#race_traits_0_name")
+
+    view
+    |> element("#add-race-trait")
+    |> render_click()
+
+    view
+    |> element("#add-race-trait")
+    |> render_click()
+
+    view
+    |> element("#add-race-trait")
+    |> render_click()
+
+    assert has_element?(view, "#race-trait-row-1")
+    assert has_element?(view, "#race-trait-row-2")
+    assert has_element?(view, "#race-trait-row-3")
 
     view
     |> form("#race-form",
       race: %{
+        civilization_id: civilization.id,
         name: "Snowborn",
-        description: "People adapted to high mountain winters"
+        description: "People adapted to high mountain winters",
+        traits: %{
+          "0" => %{
+            category: "power",
+            name: "Whiteout",
+            description: "Disappear into heavy snow"
+          },
+          "1" => %{
+            category: "perk",
+            name: "Resist Frost",
+            description: "Shrug off bitter cold"
+          },
+          "2" => %{
+            category: "power",
+            name: "Blizzard Voice",
+            description: "Drive enemies back with winter breath"
+          },
+          "3" => %{
+            category: "perk",
+            name: "Mountain Step",
+            description: "Move confidently on steep rock and ice"
+          }
+        }
       }
     )
     |> render_submit()
 
-    race = Repo.get_by!(Race, name: "Snowborn")
+    dashboard = Worlds.get_world_dashboard!(world.id)
+    race = Enum.find(dashboard.races, &(&1.name == "Snowborn"))
 
     assert has_element?(view, "#race-list", "Snowborn")
+    assert Enum.any?(race.civilization_races, &(&1.civilization.name == "Atmorans"))
+
+    assert Enum.any?(
+             race.traits,
+             &(&1.name == "Whiteout" && &1.category == :power &&
+                 &1.description == "Disappear into heavy snow")
+           )
+
+    assert Enum.any?(
+             race.traits,
+             &(&1.name == "Blizzard Voice" && &1.category == :power &&
+                 &1.description == "Drive enemies back with winter breath")
+           )
+
+    assert Enum.any?(
+             race.traits,
+             &(&1.name == "Resist Frost" && &1.category == :perk &&
+                 &1.description == "Shrug off bitter cold")
+           )
+
+    assert Enum.any?(
+             race.traits,
+             &(&1.name == "Mountain Step" && &1.category == :perk &&
+                 &1.description == "Move confidently on steep rock and ice")
+           )
 
     view
     |> element("button[phx-click='delete_race'][phx-value-id='#{race.id}']")

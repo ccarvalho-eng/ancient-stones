@@ -165,7 +165,30 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   def handle_event("create_race", %{"race" => params}, socket) do
-    create_and_reload(socket, fn -> Worlds.create_race(socket.assigns.world, params) end)
+    create_and_reload(socket, fn ->
+      with {:ok, civilization} <-
+             get_optional_civilization_in_world(socket, params["civilization_id"]) do
+        Worlds.create_race(socket.assigns.world, params, civilization: civilization)
+      end
+    end)
+  end
+
+  def handle_event("validate_race", %{"race" => params}, socket) do
+    {:noreply, assign_race_form(socket, params)}
+  end
+
+  def handle_event("add_race_trait", _params, socket) do
+    params = race_form_attrs(socket.assigns.race_form_params)
+    traits = Map.get(params, "traits", []) ++ [race_trait_attrs()]
+
+    {:noreply, assign_race_form(socket, Map.put(params, "traits", traits))}
+  end
+
+  def handle_event("remove_race_trait", %{"index" => index}, socket) do
+    params = race_form_attrs(socket.assigns.race_form_params)
+    traits = params |> Map.get("traits", []) |> delete_race_trait_at(index)
+
+    {:noreply, assign_race_form(socket, Map.put(params, "traits", traits))}
   end
 
   def handle_event("delete_race", %{"id" => id}, socket) do
@@ -933,7 +956,11 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         political_office_edit_attrs(selected_political_office)
       )
     )
-    |> assign(:race_form, data_form(:race))
+    |> assign(
+      :race_form,
+      data_form(:race, race_form_attrs())
+    )
+    |> assign(:race_form_params, race_form_attrs())
     |> assign(:guild_form, data_form(:guild))
     |> assign(
       :guild_influence_form,
@@ -1852,6 +1879,82 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> to_form(as: name)
   end
 
+  defp assign_race_form(socket, params) do
+    params = race_form_attrs(params)
+
+    socket
+    |> assign(:race_form_params, params)
+    |> assign(:race_form, data_form(:race, params))
+  end
+
+  defp race_form_attrs(attrs \\ %{}) do
+    attrs =
+      attrs
+      |> Map.merge(%{"name" => "", "description" => ""}, fn _key, value, _default -> value end)
+      |> Map.put_new("civilization_id", nil)
+
+    Map.put(
+      attrs,
+      "traits",
+      race_trait_attrs_list(Map.get(attrs, "traits", Map.get(attrs, :traits)))
+    )
+  end
+
+  defp race_trait_attrs_list(nil) do
+    [race_trait_attrs()]
+  end
+
+  defp race_trait_attrs_list(traits) when is_list(traits) do
+    Enum.map(traits, &race_trait_attrs/1)
+  end
+
+  defp race_trait_attrs_list(traits) when is_map(traits) do
+    traits
+    |> Enum.sort_by(fn {index, _attrs} -> sortable_form_index(index) end)
+    |> Enum.map(fn {_index, attrs} -> race_trait_attrs(attrs) end)
+  end
+
+  defp race_trait_attrs_list(_traits) do
+    [race_trait_attrs()]
+  end
+
+  defp race_trait_attrs(category \\ "perk")
+
+  defp race_trait_attrs(category) when category in ["power", "perk", :power, :perk] do
+    %{"category" => category, "name" => "", "description" => ""}
+  end
+
+  defp race_trait_attrs(attrs) when is_map(attrs) do
+    %{
+      "category" => Map.get(attrs, "category", Map.get(attrs, :category, "perk")),
+      "name" => Map.get(attrs, "name", Map.get(attrs, :name, "")),
+      "description" => Map.get(attrs, "description", Map.get(attrs, :description, ""))
+    }
+  end
+
+  defp race_trait_attrs(_attrs) do
+    race_trait_attrs("perk")
+  end
+
+  defp delete_race_trait_at(traits, index) do
+    case Integer.parse(to_string(index)) do
+      {index, ""} when index >= 0 ->
+        List.delete_at(traits, index)
+
+      _other ->
+        traits
+    end
+  end
+
+  defp sortable_form_index(index) do
+    index = to_string(index)
+
+    case Integer.parse(index) do
+      {number, ""} -> {0, number}
+      _other -> {1, index}
+    end
+  end
+
   defp location_edit_attrs(nil, _selected_hold) do
     %{}
   end
@@ -2536,6 +2639,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp race_traits(race, category) do
     race.traits
     |> Enum.filter(&(&1.category == category))
+    |> sorted()
+  end
+
+  defp race_civilizations(race) do
+    race.civilization_races
+    |> Enum.map(& &1.civilization)
+    |> Enum.reject(&is_nil/1)
     |> sorted()
   end
 

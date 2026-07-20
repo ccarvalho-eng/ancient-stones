@@ -6,8 +6,14 @@ defmodule AncientStones.Worlds.RaceTrait do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+
+  @category_options [
+    {"Power", :power},
+    {"Perk", :perk}
+  ]
+
   schema "race_traits" do
-    field :category, :string
+    field :category, Ecto.Enum, values: [:perk, :power]
     field :name, :string
     field :description, :string
 
@@ -20,8 +26,11 @@ defmodule AncientStones.Worlds.RaceTrait do
     race_trait
     |> cast(attrs, [:category, :name, :description])
     |> validate_required([:category, :name, :race_id])
-    |> validate_inclusion(:category, ["perk", "power"])
     |> foreign_key_constraint(:race_id)
     |> unique_constraint(:name, name: :race_traits_race_id_category_name_index)
+  end
+
+  def category_options do
+    @category_options
   end
 end
