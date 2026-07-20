@@ -25,11 +25,113 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ancient_stones"
 import topbar from "../vendor/topbar"
 
+const themeStorageKey = "phx:theme"
+const themes = new Set(["system", "light", "dark"])
+const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)")
+
+const systemTheme = () => systemThemeQuery.matches ? "dark" : "light"
+
+const storedTheme = () => {
+  try {
+    const theme = window.localStorage.getItem(themeStorageKey)
+    return themes.has(theme) ? theme : null
+  } catch (_error) {
+    return null
+  }
+}
+
+const storeTheme = (theme) => {
+  if (!themes.has(theme)) {
+    return
+  }
+
+  try {
+    if (theme === "system") {
+      window.localStorage.removeItem(themeStorageKey)
+    } else {
+      window.localStorage.setItem(themeStorageKey, theme)
+    }
+  } catch (_error) {
+    return
+  }
+}
+
+const applyDocumentTheme = (theme) => {
+  if (theme === "system") {
+    document.documentElement.setAttribute("data-theme", systemTheme())
+    document.documentElement.setAttribute("data-theme-source", "system")
+  } else {
+    document.documentElement.setAttribute("data-theme", theme)
+    document.documentElement.setAttribute("data-theme-source", "user")
+  }
+}
+
+const applyTheme = (theme) => {
+  if (!themes.has(theme)) {
+    return
+  }
+
+  applyDocumentTheme(theme)
+
+  document.querySelectorAll(".stone-page").forEach((page) => {
+    page.classList.remove("stone-theme-system", "stone-theme-light", "stone-theme-dark")
+    page.classList.add(`stone-theme-${theme}`)
+    page.setAttribute("data-theme", theme === "dark" ? "dark" : "light")
+  })
+}
+
+const initialStoredTheme = storedTheme()
+
+if (initialStoredTheme) {
+  applyTheme(initialStoredTheme)
+}
+
+const Hooks = {
+  ...colocatedHooks,
+  AncientStonesTheme: {
+    mounted() {
+      const theme = storedTheme()
+
+      if (theme) {
+        this.pushEvent("set_theme", {theme})
+      }
+    },
+  },
+}
+
+document.addEventListener("click", (event) => {
+  const themeButton =
+    event.target instanceof Element
+      ? event.target.closest("[data-ancient-stones-theme]")
+      : null
+
+  if (!themeButton) {
+    return
+  }
+
+  const theme = themeButton.dataset.ancientStonesTheme
+
+  storeTheme(theme)
+  applyTheme(theme)
+})
+
+window.addEventListener("storage", (event) => {
+  if (event.key === themeStorageKey) {
+    applyTheme(storedTheme() || "system")
+  }
+})
+
+systemThemeQuery.addEventListener("change", () => {
+  if (!storedTheme()) {
+    applyTheme("system")
+  }
+})
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: Hooks,
 })
 
 // Show progress bar on live navigation and form submits
@@ -80,4 +182,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

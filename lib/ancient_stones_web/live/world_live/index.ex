@@ -11,7 +11,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
     {:ok,
      socket
      |> assign(:page_title, "Worlds")
-     |> assign(:theme, "light")
+     |> assign(:theme, "system")
      |> assign_index_records(galaxies)
      |> assign(:galaxy_options, option_list(galaxies))
      |> assign(:current_template, "blank")
@@ -28,6 +28,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
         class={["stone-page min-h-screen px-4 py-5", "stone-theme-#{@theme}"]}
         data-theme={daisy_theme(@theme)}
         id="worlds-dashboard"
+        phx-hook="AncientStonesTheme"
       >
         <div class="stone-shell mx-auto grid max-w-[1400px] overflow-hidden rounded-lg border shadow-sm lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside class="stone-sidebar stone-muted border-r">
@@ -559,7 +560,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
   end
 
   defp normalize_theme(_theme) do
-    "light"
+    "system"
   end
 
   defp daisy_theme("dark") do

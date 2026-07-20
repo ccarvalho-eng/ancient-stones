@@ -9,7 +9,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     {:ok,
      assign(socket,
        page_title: "World Details",
-       theme: "light",
+       theme: "system",
        expanded_action: "continent",
        open_folded_groups: MapSet.new()
      )}
@@ -26,6 +26,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         class={["stone-page min-h-screen px-4 py-5", "stone-theme-#{@theme}"]}
         data-theme={daisy_theme(@theme)}
         id="geography-dashboard"
+        phx-hook="AncientStonesTheme"
       >
         <div class="stone-shell mx-auto max-w-[1500px] overflow-hidden rounded-lg border shadow-sm">
           <div class="stone-topbar stone-border border-b px-5 py-3">
@@ -7289,7 +7290,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp normalize_theme(_theme) do
-    "light"
+    "system"
   end
 
   defp daisy_theme("dark") do

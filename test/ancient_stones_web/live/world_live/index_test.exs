@@ -13,10 +13,12 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
   test "renders the world dashboard", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/")
 
-    assert has_element?(view, "#worlds-dashboard")
+    assert has_element?(view, "#worlds-dashboard.stone-theme-system")
+    assert has_element?(view, "#worlds-dashboard[phx-hook='AncientStonesTheme']")
     assert has_element?(view, "#dashboard-galaxy-form")
     assert has_element?(view, "#dashboard-world-form")
     assert has_element?(view, "#theme-switcher")
+    assert has_element?(view, "button[data-ancient-stones-theme='dark']")
   end
 
   test "shows top-level inventory in the workspace sidebar", %{conn: conn} do

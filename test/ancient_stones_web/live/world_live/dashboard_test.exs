@@ -38,7 +38,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
 
-    assert has_element?(view, "#geography-dashboard")
+    assert has_element?(view, "#geography-dashboard.stone-theme-system")
+    assert has_element?(view, "#geography-dashboard[phx-hook='AncientStonesTheme']")
     assert has_element?(view, "#action-list")
     assert has_element?(view, "#continent-form")
     refute has_element?(view, "#province-form")

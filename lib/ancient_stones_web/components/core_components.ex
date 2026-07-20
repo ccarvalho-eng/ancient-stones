@@ -232,6 +232,8 @@ defmodule AncientStonesWeb.CoreComponents do
       type="button"
       phx-click="set_theme"
       phx-value-theme={@value}
+      data-phx-theme={@value}
+      data-ancient-stones-theme={@value}
       title={@label}
       aria-label={@label}
     >
