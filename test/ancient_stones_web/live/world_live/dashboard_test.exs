@@ -401,6 +401,22 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     refute Repo.get(Race, race.id)
   end
 
+  test "links to civilizations when creating a race without civilization options", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=races")
+
+    assert has_element?(view, "#race-form")
+
+    assert has_element?(
+             view,
+             "#race-civilization-empty a[href='/worlds/#{world.id}/dashboard?section=civilizations']",
+             "Add a civilization"
+           )
+
+    refute has_element?(view, "#race_civilization_id")
+  end
+
   test "renders guild details from the guilds section", %{conn: conn} do
     {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
     dashboard = Worlds.get_world_dashboard!(world.id)

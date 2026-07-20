@@ -1201,12 +1201,25 @@
                     >
                       <.input field={@race_form[:name]} type="text" label="Name" required />
                       <.input
+                        :if={@civilization_options != []}
                         field={@race_form[:civilization_id]}
                         type="select"
                         label="Civilization"
                         prompt="None"
                         options={@civilization_options}
                       />
+                      <div
+                        :if={@civilization_options == []}
+                        id="race-civilization-empty"
+                        class="flex items-center text-sm"
+                      >
+                        <.link
+                          patch={~p"/worlds/#{@world}/dashboard?section=civilizations"}
+                          class="inline-flex items-center gap-1 rounded-md border border-zinc-200 px-2.5 py-1.5 text-sm font-medium text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
+                        >
+                          <.icon name="hero-plus" class="size-3.5" /> Add a civilization
+                        </.link>
+                      </div>
                       <.input
                         field={@race_form[:description]}
                         type="textarea"
