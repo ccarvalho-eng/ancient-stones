@@ -297,9 +297,9 @@ defmodule AncientStones.WorldsTest do
     altmer = Enum.find(dashboard.races, &(&1.name == "Altmer"))
 
     assert nord.description =~ "Northern humans"
-    assert Enum.any?(nord.traits, &(&1.name == "Battle Cry" && &1.category == "power"))
-    assert Enum.any?(nord.traits, &(&1.name == "Resist Frost" && &1.category == "perk"))
-    assert Enum.any?(altmer.traits, &(&1.name == "Highborn" && &1.category == "power"))
+    assert Enum.any?(nord.traits, &(&1.name == "Battle Cry" && &1.category == :power))
+    assert Enum.any?(nord.traits, &(&1.name == "Resist Frost" && &1.category == :perk))
+    assert Enum.any?(altmer.traits, &(&1.name == "Highborn" && &1.category == :power))
   end
 
   test "creates reusable effects and attaches them to items" do

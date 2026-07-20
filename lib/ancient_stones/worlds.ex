@@ -153,7 +153,7 @@ defmodule AncientStones.Worlds do
       location_types: [:children],
       occupations: [],
       political_offices: [:character, :province, :hold],
-      races: [:traits],
+      races: [:traits, civilization_races: [:civilization]],
       lore_connections: [
         :source_character,
         :source_guild,
@@ -1136,16 +1136,162 @@ defmodule AncientStones.Worlds do
     Race.changeset(race, attrs)
   end
 
-  def create_race(%World{id: world_id}, attrs) do
-    %Race{world_id: world_id}
-    |> Race.changeset(attrs)
-    |> Repo.insert()
+  def create_race(%World{id: world_id}, attrs, refs \\ %{}) do
+    Repo.transaction(fn ->
+      race =
+        %Race{world_id: world_id}
+        |> Race.changeset(attrs)
+        |> Repo.insert()
+        |> unwrap_transaction!()
+
+      if refs[:civilization] do
+        refs[:civilization]
+        |> create_civilization_race(race, %{})
+        |> unwrap_transaction!()
+      end
+
+      attrs
+      |> race_traits_from_attrs()
+      |> Enum.each(fn trait_attrs ->
+        race
+        |> create_race_trait(trait_attrs)
+        |> unwrap_transaction!()
+      end)
+
+      race
+    end)
   end
 
   def create_race_trait(%Race{id: race_id}, attrs) do
     %RaceTrait{race_id: race_id}
     |> RaceTrait.changeset(attrs)
     |> Repo.insert()
+  end
+
+  defp race_traits_from_attrs(attrs) do
+    case attr_value(attrs, "traits") do
+      nil ->
+        legacy_race_traits_from_attrs(attrs)
+
+      traits ->
+        traits
+        |> normalize_trait_params()
+        |> Enum.map(&trait_attrs_from_param/1)
+        |> Enum.reject(&is_nil/1)
+    end
+  end
+
+  defp legacy_race_traits_from_attrs(attrs) do
+    power_traits = legacy_trait_attrs_from_names(:power, attr_value(attrs, "power_names"))
+    perk_traits = legacy_trait_attrs_from_names(:perk, attr_value(attrs, "perk_names"))
+
+    power_traits ++ perk_traits
+  end
+
+  defp legacy_trait_attrs_from_names(category, names) do
+    names
+    |> List.wrap()
+    |> Enum.flat_map(&String.split(&1, "\n"))
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(fn name -> %{category: category, name: name} end)
+  end
+
+  defp normalize_trait_params(traits) when is_list(traits) do
+    traits
+  end
+
+  defp normalize_trait_params(traits) when is_map(traits) do
+    traits
+    |> Enum.sort_by(fn {index, _attrs} -> sortable_index(index) end)
+    |> Enum.map(fn {_index, attrs} -> attrs end)
+  end
+
+  defp normalize_trait_params(_traits) do
+    []
+  end
+
+  defp trait_attrs_from_param(attrs) when is_map(attrs) do
+    category = attr_value(attrs, "category")
+    name = attr_value(attrs, "name")
+
+    if category in [nil, ""] || name in [nil, ""] do
+      nil
+    else
+      %{
+        category: category,
+        name: name,
+        description: attr_value(attrs, "description")
+      }
+    end
+  end
+
+  defp trait_attrs_from_param(_attrs) do
+    nil
+  end
+
+  defp attr_value(attrs, "traits") do
+    Map.get(attrs, "traits", Map.get(attrs, :traits))
+  end
+
+  defp attr_value(attrs, "power_names") do
+    attrs
+    |> Map.get("power_names", Map.get(attrs, :power_names) || Map.get(attrs, "power_name"))
+    |> case do
+      nil ->
+        Map.get(attrs, :power_name)
+
+      value ->
+        value
+    end
+    |> normalize_attr_value()
+  end
+
+  defp attr_value(attrs, "perk_names") do
+    attrs
+    |> Map.get("perk_names", Map.get(attrs, :perk_names))
+    |> normalize_attr_value()
+  end
+
+  defp attr_value(attrs, "category") do
+    attrs
+    |> Map.get("category", Map.get(attrs, :category))
+    |> normalize_attr_value()
+  end
+
+  defp attr_value(attrs, "name") do
+    attrs
+    |> Map.get("name", Map.get(attrs, :name))
+    |> normalize_attr_value()
+  end
+
+  defp attr_value(attrs, "description") do
+    attrs
+    |> Map.get("description", Map.get(attrs, :description))
+    |> normalize_attr_value()
+  end
+
+  defp normalize_attr_value(value) when is_binary(value) do
+    value = String.trim(value)
+
+    if value == "" do
+      nil
+    else
+      value
+    end
+  end
+
+  defp normalize_attr_value(value) do
+    value
+  end
+
+  defp sortable_index(index) do
+    index = to_string(index)
+
+    case Integer.parse(index) do
+      {number, ""} -> {0, number}
+      _other -> {1, index}
+    end
   end
 
   @doc "Deletes a race from a world."
@@ -1824,18 +1970,8 @@ defmodule AncientStones.Worlds do
         |> create_race(race_data)
         |> unwrap_transaction!()
 
-      build_template_race_traits!(race, Map.get(race_data, :traits, []))
-
       Map.put(acc, race.name, race)
     end)
-  end
-
-  defp build_template_race_traits!(race, traits) do
-    for trait_data <- traits do
-      race
-      |> create_race_trait(trait_data)
-      |> unwrap_transaction!()
-    end
   end
 
   defp ensure_template_galaxies!(galaxies) do
