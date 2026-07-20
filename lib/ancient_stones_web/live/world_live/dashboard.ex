@@ -244,27 +244,27 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
-  def handle_event("create_relationship", %{"relationship" => params}, socket) do
+  def handle_event("create_lore_connection", %{"lore_connection" => params}, socket) do
     create_and_reload(socket, fn ->
-      with {:ok, refs} <- relationship_refs(socket, params) do
-        Worlds.create_relationship(socket.assigns.world, params, refs)
+      with {:ok, refs} <- lore_connection_refs(socket, params) do
+        Worlds.create_lore_connection(socket.assigns.world, params, refs)
       end
     end)
   end
 
-  def handle_event("update_relationship", %{"relationship_edit" => params}, socket) do
+  def handle_event("update_lore_connection", %{"lore_connection_edit" => params}, socket) do
     update_and_reload(socket, fn ->
-      with {:ok, relationship} <- get_selected_relationship(socket),
-           {:ok, refs} <- relationship_refs(socket, params) do
-        Worlds.update_relationship(relationship, params, refs)
+      with {:ok, lore_connection} <- get_selected_lore_connection(socket),
+           {:ok, refs} <- lore_connection_refs(socket, params) do
+        Worlds.update_lore_connection(lore_connection, params, refs)
       end
     end)
   end
 
-  def handle_event("delete_relationship", %{"id" => id}, socket) do
+  def handle_event("delete_lore_connection", %{"id" => id}, socket) do
     delete_and_reload(socket, fn ->
-      with {:ok, relationship} <- get_relationship_in_world(socket, id) do
-        Worlds.delete_relationship(relationship)
+      with {:ok, lore_connection} <- get_lore_connection_in_world(socket, id) do
+        Worlds.delete_lore_connection(lore_connection)
       end
     end)
   end
@@ -725,7 +725,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     occupations = sorted(world.occupations)
     political_offices = world.political_offices
     races = sorted(world.races)
-    relationships = sorted_relationships(world.relationships)
+    lore_connections = sorted_lore_connections(world.lore_connections)
     skills = sorted(world.skills)
     spells = sorted(world.spells)
     timelines = sorted(world.timelines)
@@ -750,8 +750,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     selected_item_effects = item_effects(selected_item)
     selected_race = select_record(races, params["race_id"]) || first_record(races)
 
-    selected_relationship =
-      select_record(relationships, params["relationship_id"]) || first_record(relationships)
+    selected_lore_connection =
+      select_record(lore_connections, params["connection_id"]) || first_record(lore_connections)
 
     selected_skill = select_record(skills, params["skill_id"]) || first_record(skills)
     skill_detail_tab = selected_skill_detail_tab(socket)
@@ -786,8 +786,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     selected_province_id = selected_or_first_id(selected_path.province, provinces)
     selected_hold_options = option_list(List.wrap(selected_hold))
 
-    relationship_entity_options =
-      relationship_entity_options(
+    lore_connection_entity_options =
+      lore_connection_entity_options(
         characters,
         civilizations,
         continents,
@@ -833,8 +833,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:occupations, occupations)
     |> assign(:races, races)
     |> assign(:selected_race, selected_race)
-    |> assign(:relationships, relationships)
-    |> assign(:selected_relationship, selected_relationship)
+    |> assign(:lore_connections, lore_connections)
+    |> assign(:selected_lore_connection, selected_lore_connection)
     |> assign(:skills, skills)
     |> assign(:selected_skill, selected_skill)
     |> assign(:skill_detail_tab, skill_detail_tab)
@@ -878,8 +878,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:political_office_options, political_office_options(selected_political_offices))
     |> assign(:province_options, option_list(provinces))
     |> assign(:race_options, option_list(races))
-    |> assign(:relationship_entity_options, relationship_entity_options)
-    |> assign(:relationship_options, option_list(relationships, &relationship_name/1))
+    |> assign(:lore_connection_entity_options, lore_connection_entity_options)
+    |> assign(:lore_connection_options, option_list(lore_connections, &lore_connection_name/1))
     |> assign(:skill_options, option_list(skills))
     |> assign(:spell_options, option_list(spells))
     |> assign(:timeline_options, option_list(timelines))
@@ -1062,17 +1062,17 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       data_form(:document_edit, document_edit_attrs(selected_document))
     )
     |> assign(
-      :relationship_form,
-      data_form(:relationship, %{
-        "relationship_type" => "ally",
+      :lore_connection_form,
+      data_form(:lore_connection, %{
+        "connection_type" => "ally",
         "status" => "active",
-        "source_entity" => first_relationship_entity(relationship_entity_options),
-        "target_entity" => first_relationship_entity(relationship_entity_options)
+        "source_entity" => first_lore_connection_entity(lore_connection_entity_options),
+        "target_entity" => first_lore_connection_entity(lore_connection_entity_options)
       })
     )
     |> assign(
-      :relationship_edit_form,
-      data_form(:relationship_edit, relationship_edit_attrs(selected_relationship))
+      :lore_connection_edit_form,
+      data_form(:lore_connection_edit, lore_connection_edit_attrs(selected_lore_connection))
     )
   end
 
@@ -1089,7 +1089,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "document_id" => selected_record_id(socket.assigns[:selected_document]),
       "item_id" => selected_record_id(socket.assigns[:selected_item]),
       "political_office_id" => selected_record_id(socket.assigns[:selected_political_office]),
-      "relationship_id" => selected_record_id(socket.assigns[:selected_relationship]),
+      "connection_id" => selected_record_id(socket.assigns[:selected_lore_connection]),
       "skill_id" => selected_record_id(socket.assigns[:selected_skill]),
       "spell_id" => selected_record_id(socket.assigns[:selected_spell]),
       "civilization_id" => selected_record_id(socket.assigns[:selected_civilization]),
@@ -1214,11 +1214,11 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     )
   end
 
-  defp get_relationship_in_world(socket, relationship_id) do
+  defp get_lore_connection_in_world(socket, lore_connection_id) do
     get_record_in_options(
-      socket.assigns.relationship_options,
-      relationship_id,
-      &Worlds.get_relationship!/1
+      socket.assigns.lore_connection_options,
+      lore_connection_id,
+      &Worlds.get_lore_connection!/1
     )
   end
 
@@ -1462,12 +1462,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     {:error, :document_not_selected}
   end
 
-  defp get_selected_relationship(%{assigns: %{selected_relationship: %{} = relationship}}) do
-    {:ok, relationship}
+  defp get_selected_lore_connection(%{
+         assigns: %{selected_lore_connection: %{} = lore_connection}
+       }) do
+    {:ok, lore_connection}
   end
 
-  defp get_selected_relationship(_socket) do
-    {:error, :relationship_not_selected}
+  defp get_selected_lore_connection(_socket) do
+    {:error, :lore_connection_not_selected}
   end
 
   defp get_parent_location_in_selected_hold(_socket, parent_location_id)
@@ -1638,83 +1640,83 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end
   end
 
-  defp relationship_refs(socket, params) do
-    with {:ok, source} <- relationship_endpoint(socket, params["source_entity"]),
-         {:ok, target} <- relationship_endpoint(socket, params["target_entity"]) do
+  defp lore_connection_refs(socket, params) do
+    with {:ok, source} <- lore_connection_endpoint(socket, params["source_entity"]),
+         {:ok, target} <- lore_connection_endpoint(socket, params["target_entity"]) do
       {:ok, %{source: source, target: target}}
     end
   end
 
-  defp relationship_endpoint(_socket, value) when value in [nil, ""] do
-    {:error, :relationship_endpoint_required}
+  defp lore_connection_endpoint(_socket, value) when value in [nil, ""] do
+    {:error, :lore_connection_endpoint_required}
   end
 
-  defp relationship_endpoint(socket, value) do
+  defp lore_connection_endpoint(socket, value) do
     case String.split(value, ":", parts: 2) do
       [kind, record_id] ->
-        relationship_endpoint_record(socket, kind, record_id)
+        lore_connection_endpoint_record(socket, kind, record_id)
 
       _invalid ->
-        {:error, :invalid_relationship_endpoint}
+        {:error, :invalid_lore_connection_endpoint}
     end
   end
 
-  defp relationship_endpoint_record(socket, "character", record_id) do
+  defp lore_connection_endpoint_record(socket, "character", record_id) do
     with {:ok, record} <- get_character_in_world(socket, record_id) do
       {:ok, {:character, record}}
     end
   end
 
-  defp relationship_endpoint_record(socket, "civilization", record_id) do
+  defp lore_connection_endpoint_record(socket, "civilization", record_id) do
     with {:ok, record} <- get_civilization_in_world(socket, record_id) do
       {:ok, {:civilization, record}}
     end
   end
 
-  defp relationship_endpoint_record(socket, "continent", record_id) do
+  defp lore_connection_endpoint_record(socket, "continent", record_id) do
     with {:ok, record} <- get_continent_in_world(socket, record_id) do
       {:ok, {:continent, record}}
     end
   end
 
-  defp relationship_endpoint_record(socket, "god", record_id) do
+  defp lore_connection_endpoint_record(socket, "god", record_id) do
     with {:ok, record} <- get_god_in_world(socket, record_id) do
       {:ok, {:god, record}}
     end
   end
 
-  defp relationship_endpoint_record(socket, "guild", record_id) do
+  defp lore_connection_endpoint_record(socket, "guild", record_id) do
     with {:ok, record} <- get_guild_in_world(socket, record_id) do
       {:ok, {:guild, record}}
     end
   end
 
-  defp relationship_endpoint_record(socket, "hold", record_id) do
+  defp lore_connection_endpoint_record(socket, "hold", record_id) do
     with {:ok, record} <- get_hold_in_world(socket, record_id) do
       {:ok, {:hold, record}}
     end
   end
 
-  defp relationship_endpoint_record(socket, "location", record_id) do
+  defp lore_connection_endpoint_record(socket, "location", record_id) do
     with {:ok, record} <- get_location_in_world(socket, record_id) do
       {:ok, {:location, record}}
     end
   end
 
-  defp relationship_endpoint_record(socket, "province", record_id) do
+  defp lore_connection_endpoint_record(socket, "province", record_id) do
     with {:ok, record} <- get_province_in_world(socket, record_id) do
       {:ok, {:province, record}}
     end
   end
 
-  defp relationship_endpoint_record(socket, "race", record_id) do
+  defp lore_connection_endpoint_record(socket, "race", record_id) do
     with {:ok, record} <- get_race_in_world(socket, record_id) do
       {:ok, {:race, record}}
     end
   end
 
-  defp relationship_endpoint_record(_socket, _kind, _record_id) do
-    {:error, :invalid_relationship_endpoint}
+  defp lore_connection_endpoint_record(_socket, _kind, _record_id) do
+    {:error, :invalid_lore_connection_endpoint}
   end
 
   defp select_path(_continents, nil, nil, nil) do
@@ -1896,20 +1898,20 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     }
   end
 
-  defp relationship_edit_attrs(nil) do
+  defp lore_connection_edit_attrs(nil) do
     %{}
   end
 
-  defp relationship_edit_attrs(relationship) do
+  defp lore_connection_edit_attrs(lore_connection) do
     %{
-      "name" => relationship.name,
-      "relationship_type" => relationship.relationship_type,
-      "status" => relationship.status,
-      "started_at" => relationship.started_at,
-      "ended_at" => relationship.ended_at,
-      "description" => relationship.description,
-      "source_entity" => relationship_endpoint_value(relationship, :source),
-      "target_entity" => relationship_endpoint_value(relationship, :target)
+      "name" => lore_connection.name,
+      "connection_type" => lore_connection.connection_type,
+      "status" => lore_connection.status,
+      "started_at" => lore_connection.started_at,
+      "ended_at" => lore_connection.ended_at,
+      "description" => lore_connection.description,
+      "source_entity" => lore_connection_endpoint_value(lore_connection, :source),
+      "target_entity" => lore_connection_endpoint_value(lore_connection, :target)
     }
   end
 
@@ -1977,35 +1979,35 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp item_category_options do
     [
-      {"Weapons", "weapon"},
       {"Apparel", "apparel"},
+      {"Books", "book"},
+      {"Crafting Materials", "crafting_material"},
       {"Food", "food"},
       {"Ingredients", "ingredient"},
-      {"Potions", "potion"},
-      {"Poisons", "poison"},
-      {"Books", "book"},
-      {"Scrolls", "scroll"},
       {"Keys", "key"},
+      {"Misc", "misc"},
+      {"Poisons", "poison"},
+      {"Potions", "potion"},
+      {"Scrolls", "scroll"},
       {"Tools", "tool"},
-      {"Crafting Materials", "crafting_material"},
-      {"Misc", "misc"}
+      {"Weapons", "weapon"}
     ]
   end
 
   defp document_kind_options do
     [
       {"Book", "book"},
-      {"Note", "note"},
+      {"Contract", "contract"},
       {"Journal", "journal"},
+      {"Law", "law"},
       {"Letter", "letter"},
       {"Map", "map"},
-      {"Recipe", "recipe"},
-      {"Law", "law"},
-      {"Rumor", "rumor"},
+      {"Note", "note"},
+      {"Other", "other"},
       {"Prophecy", "prophecy"},
+      {"Recipe", "recipe"},
       {"Record", "record"},
-      {"Contract", "contract"},
-      {"Other", "other"}
+      {"Rumor", "rumor"}
     ]
   end
 
@@ -2042,10 +2044,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> Enum.sort_by(fn {kind, _kind_documents} -> display_value(kind) end)
   end
 
-  defp grouped_relationships(relationships) do
-    relationships
-    |> Enum.group_by(&relationship_endpoint_label(&1, :source))
-    |> Enum.sort_by(fn {source, _source_relationships} ->
+  defp grouped_lore_connections(lore_connections) do
+    lore_connections
+    |> Enum.group_by(&lore_connection_endpoint_label(&1, :source))
+    |> Enum.sort_by(fn {source, _source_lore_connections} ->
       source
     end)
   end
@@ -2153,17 +2155,23 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp option_list(records) do
-    Enum.map(records, &{&1.name, &1.id})
+    records
+    |> Enum.map(&{&1.name, &1.id})
+    |> sort_options()
   end
 
   defp option_list(records, label_fun) do
-    Enum.map(records, &{label_fun.(&1), &1.id})
+    records
+    |> Enum.map(&{label_fun.(&1), &1.id})
+    |> sort_options()
   end
 
   defp political_office_options(records) do
-    Enum.map(records, fn political_office ->
+    records
+    |> Enum.map(fn political_office ->
       {political_office_label(political_office), political_office.id}
     end)
+    |> sort_options()
   end
 
   defp political_office_label(%{scope: "province"} = political_office) do
@@ -2174,7 +2182,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     "#{political_office.office} / #{record_name(political_office.hold)}"
   end
 
-  defp relationship_entity_options(
+  defp lore_connection_entity_options(
          characters,
          civilizations,
          continents,
@@ -2186,56 +2194,66 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
          races
        ) do
     [
-      relationship_entity_group("Character", "character", characters),
-      relationship_entity_group("Guild", "guild", guilds),
-      relationship_entity_group("God", "god", gods),
-      relationship_entity_group("Race", "race", races),
-      relationship_entity_group("Civilization", "civilization", civilizations),
-      relationship_entity_group("Location", "location", locations),
-      relationship_entity_group("Hold", "hold", holds),
-      relationship_entity_group("Province", "province", provinces),
-      relationship_entity_group("Continent", "continent", continents)
+      lore_connection_entity_group("Character", "character", characters),
+      lore_connection_entity_group("Guild", "guild", guilds),
+      lore_connection_entity_group("God", "god", gods),
+      lore_connection_entity_group("Race", "race", races),
+      lore_connection_entity_group("Civilization", "civilization", civilizations),
+      lore_connection_entity_group("Location", "location", locations),
+      lore_connection_entity_group("Hold", "hold", holds),
+      lore_connection_entity_group("Province", "province", provinces),
+      lore_connection_entity_group("Continent", "continent", continents)
     ]
     |> List.flatten()
   end
 
-  defp relationship_entity_group(label, kind, records) do
-    Enum.map(records, fn record ->
+  defp lore_connection_entity_group(label, kind, records) do
+    records
+    |> Enum.map(fn record ->
       {"#{label} / #{record.name}", "#{kind}:#{record.id}"}
+    end)
+    |> sort_options()
+  end
+
+  defp sort_options(options) do
+    Enum.sort_by(options, fn {label, _value} ->
+      label
+      |> to_string()
+      |> String.downcase()
     end)
   end
 
-  defp first_relationship_entity([{_label, value} | _options]) do
+  defp first_lore_connection_entity([{_label, value} | _options]) do
     value
   end
 
-  defp first_relationship_entity([]) do
+  defp first_lore_connection_entity([]) do
     nil
   end
 
-  defp relationship_name(relationship) do
-    relationship.name || relationship_label(relationship)
+  defp lore_connection_name(lore_connection) do
+    lore_connection.name || lore_connection_label(lore_connection)
   end
 
-  defp relationship_label(relationship) do
-    "#{relationship_endpoint_label(relationship, :source)} #{relationship.relationship_type} #{relationship_endpoint_label(relationship, :target)}"
+  defp lore_connection_label(lore_connection) do
+    "#{lore_connection_endpoint_label(lore_connection, :source)} #{lore_connection.connection_type} #{lore_connection_endpoint_label(lore_connection, :target)}"
   end
 
-  defp relationship_endpoint_label(relationship, side) do
-    relationship
-    |> relationship_endpoint_record(side)
+  defp lore_connection_endpoint_label(lore_connection, side) do
+    lore_connection
+    |> lore_connection_endpoint_record(side)
     |> case do
       {kind, record} ->
-        "#{relationship_kind_label(kind)} / #{record.name}"
+        "#{lore_connection_kind_label(kind)} / #{record.name}"
 
       nil ->
         "Unassigned"
     end
   end
 
-  defp relationship_endpoint_value(relationship, side) do
-    relationship
-    |> relationship_endpoint_record(side)
+  defp lore_connection_endpoint_value(lore_connection, side) do
+    lore_connection
+    |> lore_connection_endpoint_record(side)
     |> case do
       {kind, record} ->
         "#{kind}:#{record.id}"
@@ -2245,62 +2263,62 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end
   end
 
-  defp relationship_endpoint_record(relationship, :source) do
-    relationship_endpoint_record(relationship, "source")
+  defp lore_connection_endpoint_record(lore_connection, :source) do
+    lore_connection_endpoint_record(lore_connection, "source")
   end
 
-  defp relationship_endpoint_record(relationship, :target) do
-    relationship_endpoint_record(relationship, "target")
+  defp lore_connection_endpoint_record(lore_connection, :target) do
+    lore_connection_endpoint_record(lore_connection, "target")
   end
 
-  defp relationship_endpoint_record(relationship, side) do
+  defp lore_connection_endpoint_record(lore_connection, side) do
     [
-      {:character, Map.get(relationship, :"#{side}_character")},
-      {:guild, Map.get(relationship, :"#{side}_guild")},
-      {:god, Map.get(relationship, :"#{side}_god")},
-      {:race, Map.get(relationship, :"#{side}_race")},
-      {:civilization, Map.get(relationship, :"#{side}_civilization")},
-      {:location, Map.get(relationship, :"#{side}_location")},
-      {:hold, Map.get(relationship, :"#{side}_hold")},
-      {:province, Map.get(relationship, :"#{side}_province")},
-      {:continent, Map.get(relationship, :"#{side}_continent")}
+      {:character, Map.get(lore_connection, :"#{side}_character")},
+      {:guild, Map.get(lore_connection, :"#{side}_guild")},
+      {:god, Map.get(lore_connection, :"#{side}_god")},
+      {:race, Map.get(lore_connection, :"#{side}_race")},
+      {:civilization, Map.get(lore_connection, :"#{side}_civilization")},
+      {:location, Map.get(lore_connection, :"#{side}_location")},
+      {:hold, Map.get(lore_connection, :"#{side}_hold")},
+      {:province, Map.get(lore_connection, :"#{side}_province")},
+      {:continent, Map.get(lore_connection, :"#{side}_continent")}
     ]
     |> Enum.find(fn {_kind, record} -> record end)
   end
 
-  defp relationship_kind_label(:character) do
+  defp lore_connection_kind_label(:character) do
     "Character"
   end
 
-  defp relationship_kind_label(:civilization) do
+  defp lore_connection_kind_label(:civilization) do
     "Civilization"
   end
 
-  defp relationship_kind_label(:continent) do
+  defp lore_connection_kind_label(:continent) do
     "Continent"
   end
 
-  defp relationship_kind_label(:god) do
+  defp lore_connection_kind_label(:god) do
     "God"
   end
 
-  defp relationship_kind_label(:guild) do
+  defp lore_connection_kind_label(:guild) do
     "Guild"
   end
 
-  defp relationship_kind_label(:hold) do
+  defp lore_connection_kind_label(:hold) do
     "Hold"
   end
 
-  defp relationship_kind_label(:location) do
+  defp lore_connection_kind_label(:location) do
     "Location"
   end
 
-  defp relationship_kind_label(:province) do
+  defp lore_connection_kind_label(:province) do
     "Province"
   end
 
-  defp relationship_kind_label(:race) do
+  defp lore_connection_kind_label(:race) do
     "Race"
   end
 
@@ -2333,7 +2351,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp normalize_section(section)
-       when section in ~w(bestiary calendar characters civilizations documents geography gods guilds items races relationships skills spells timeline) do
+       when section in ~w(bestiary calendar characters civilizations connections documents geography gods guilds items races skills spells timeline) do
     section
   end
 
@@ -2381,8 +2399,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     "Documents"
   end
 
-  defp section_label("relationships") do
-    "Relationships"
+  defp section_label("connections") do
+    "Connections"
   end
 
   defp section_label("calendar") do
@@ -2447,8 +2465,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     "document"
   end
 
-  defp default_expanded_action("relationships") do
-    "relationship"
+  defp default_expanded_action("connections") do
+    "lore_connection"
   end
 
   defp default_expanded_action("calendar") do
@@ -2894,8 +2912,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     Enum.sort_by(records, & &1.title)
   end
 
-  defp sorted_relationships(records) do
-    Enum.sort_by(records, &relationship_name/1)
+  defp sorted_lore_connections(records) do
+    Enum.sort_by(records, &lore_connection_name/1)
   end
 
   defp sidebar_continents(continents) do

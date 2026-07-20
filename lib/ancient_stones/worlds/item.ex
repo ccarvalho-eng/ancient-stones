@@ -6,6 +6,13 @@ defmodule AncientStones.Worlds.Item do
   alias AncientStones.Worlds.ItemEffect
   alias AncientStones.Worlds.World
 
+  @hands_options [
+    {"Ammunition", "ammunition"},
+    {"One-Handed", "one-handed"},
+    {"Two-Handed", "two-handed"},
+    {"Worn", "worn"}
+  ]
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "items" do
@@ -47,7 +54,16 @@ defmodule AncientStones.Worlds.Item do
     |> validate_number(:damage, greater_than_or_equal_to: 0)
     |> validate_number(:critical_damage, greater_than_or_equal_to: 0)
     |> validate_number(:value, greater_than_or_equal_to: 0)
+    |> validate_inclusion(:hands, hands_values())
     |> foreign_key_constraint(:world_id)
     |> unique_constraint(:name, name: :items_world_id_name_index)
+  end
+
+  def hands_options do
+    @hands_options
+  end
+
+  defp hands_values do
+    Enum.map(@hands_options, fn {_label, value} -> value end)
   end
 end

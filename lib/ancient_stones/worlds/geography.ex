@@ -61,6 +61,8 @@ defmodule AncientStones.Worlds.Geography do
   end
 
   defp enum_options(values) do
-    Enum.map(values, &{label(&1), &1})
+    values
+    |> Enum.map(&{label(&1), &1})
+    |> Enum.sort_by(fn {label, _value} -> String.downcase(label) end)
   end
 end

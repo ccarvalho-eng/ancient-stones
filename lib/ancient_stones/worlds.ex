@@ -39,7 +39,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.RaceTrait
-  alias AncientStones.Worlds.Relationship
+  alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillLevel
   alias AncientStones.Worlds.SkillTree
@@ -154,7 +154,7 @@ defmodule AncientStones.Worlds do
       occupations: [],
       political_offices: [:character, :province, :hold],
       races: [:traits],
-      relationships: [
+      lore_connections: [
         :source_character,
         :source_guild,
         :source_god,
@@ -537,29 +537,29 @@ defmodule AncientStones.Worlds do
     Repo.delete(document)
   end
 
-  def create_relationship(%World{id: world_id}, attrs, refs) do
-    %Relationship{world_id: world_id}
-    |> Relationship.changeset(attrs)
-    |> put_relationship_refs(refs)
+  def create_lore_connection(%World{id: world_id}, attrs, refs) do
+    %LoreConnection{world_id: world_id}
+    |> LoreConnection.changeset(attrs)
+    |> put_lore_connection_refs(refs)
     |> Repo.insert()
   end
 
-  def get_relationship!(id) do
-    Relationship
+  def get_lore_connection!(id) do
+    LoreConnection
     |> Repo.get!(id)
-    |> Repo.preload(relationship_preloads())
+    |> Repo.preload(lore_connection_preloads())
   end
 
-  def update_relationship(%Relationship{} = relationship, attrs, refs) do
-    relationship
-    |> Relationship.changeset(attrs)
-    |> clear_relationship_refs()
-    |> put_relationship_refs(refs)
+  def update_lore_connection(%LoreConnection{} = lore_connection, attrs, refs) do
+    lore_connection
+    |> LoreConnection.changeset(attrs)
+    |> clear_lore_connection_refs()
+    |> put_lore_connection_refs(refs)
     |> Repo.update()
   end
 
-  def delete_relationship(%Relationship{} = relationship) do
-    Repo.delete(relationship)
+  def delete_lore_connection(%LoreConnection{} = lore_connection) do
+    Repo.delete(lore_connection)
   end
 
   def list_characters(%World{id: world_id}) do
@@ -1034,21 +1034,21 @@ defmodule AncientStones.Worlds do
     |> put_ref(:civilization_id, refs[:civilization])
   end
 
-  defp put_relationship_refs(changeset, refs) do
+  defp put_lore_connection_refs(changeset, refs) do
     changeset
-    |> put_relationship_endpoint(:source, refs[:source])
-    |> put_relationship_endpoint(:target, refs[:target])
+    |> put_lore_connection_endpoint(:source, refs[:source])
+    |> put_lore_connection_endpoint(:target, refs[:target])
   end
 
-  defp put_relationship_endpoint(changeset, _side, nil) do
-    changeset
-  end
-
-  defp put_relationship_endpoint(changeset, _side, {_kind, nil}) do
+  defp put_lore_connection_endpoint(changeset, _side, nil) do
     changeset
   end
 
-  defp put_relationship_endpoint(changeset, side, {kind, %{id: id}})
+  defp put_lore_connection_endpoint(changeset, _side, {_kind, nil}) do
+    changeset
+  end
+
+  defp put_lore_connection_endpoint(changeset, side, {kind, %{id: id}})
        when kind in [
               :character,
               :guild,
@@ -1060,20 +1060,20 @@ defmodule AncientStones.Worlds do
               :province,
               :continent
             ] do
-    Ecto.Changeset.put_change(changeset, relationship_field(side, kind), id)
+    Ecto.Changeset.put_change(changeset, lore_connection_field(side, kind), id)
   end
 
-  defp clear_relationship_refs(changeset) do
-    Enum.reduce(relationship_ref_fields(), changeset, fn field, changeset ->
+  defp clear_lore_connection_refs(changeset) do
+    Enum.reduce(lore_connection_ref_fields(), changeset, fn field, changeset ->
       Ecto.Changeset.put_change(changeset, field, nil)
     end)
   end
 
-  defp relationship_field(side, kind) do
+  defp lore_connection_field(side, kind) do
     :"#{side}_#{kind}_id"
   end
 
-  defp relationship_ref_fields do
+  defp lore_connection_ref_fields do
     for side <- [:source, :target],
         kind <- [
           :character,
@@ -1086,11 +1086,11 @@ defmodule AncientStones.Worlds do
           :province,
           :continent
         ] do
-      relationship_field(side, kind)
+      lore_connection_field(side, kind)
     end
   end
 
-  defp relationship_preloads do
+  defp lore_connection_preloads do
     [
       :source_character,
       :source_guild,
@@ -1716,9 +1716,9 @@ defmodule AncientStones.Worlds do
 
     build_template_documents!(world, Map.get(template_data, :documents, []), template_refs)
 
-    build_template_relationships!(
+    build_template_lore_connections!(
       world,
-      Map.get(template_data, :relationships, []),
+      Map.get(template_data, :lore_connections, []),
       template_refs
     )
 
@@ -1802,9 +1802,9 @@ defmodule AncientStones.Worlds do
 
     build_template_documents!(world, Map.get(template_data, :documents, []), template_refs)
 
-    build_template_relationships!(
+    build_template_lore_connections!(
       world,
-      Map.get(template_data, :relationships, []),
+      Map.get(template_data, :lore_connections, []),
       template_refs
     )
 
@@ -2135,15 +2135,15 @@ defmodule AncientStones.Worlds do
     end
   end
 
-  defp build_template_relationships!(world, relationships, template_refs) do
-    for relationship_data <- relationships do
+  defp build_template_lore_connections!(world, lore_connections, template_refs) do
+    for lore_connection_data <- lore_connections do
       refs = %{
-        source: template_endpoint(template_refs, relationship_data[:source]),
-        target: template_endpoint(template_refs, relationship_data[:target])
+        source: template_endpoint(template_refs, lore_connection_data[:source]),
+        target: template_endpoint(template_refs, lore_connection_data[:target])
       }
 
       world
-      |> create_relationship(relationship_data, refs)
+      |> create_lore_connection(lore_connection_data, refs)
       |> unwrap_transaction!()
     end
   end

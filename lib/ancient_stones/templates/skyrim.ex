@@ -19,7 +19,7 @@ defmodule AncientStones.Templates.Skyrim do
       characters: characters(),
       documents: documents(),
       occupations: occupations(),
-      relationships: relationships(),
+      lore_connections: lore_connections(),
       spells: spells(),
       effects: effects(),
       items: items(),
@@ -2315,17 +2315,17 @@ defmodule AncientStones.Templates.Skyrim do
     ]
   end
 
-  defp relationships do
+  defp lore_connections do
     [
-      relationship(
+      lore_connection(
         "Black-Briar Patronage",
         {:character, "Maven Black-Briar"},
         {:guild, "Thieves Guild"},
         "patron",
         "active",
-        "Maven Black-Briar maintains a powerful patronage relationship with the Thieves Guild in Riften."
+        "Maven Black-Briar maintains a powerful patronage connection with the Thieves Guild in Riften."
       ),
-      relationship(
+      lore_connection(
         "Black-Briar Dark Contacts",
         {:character, "Maven Black-Briar"},
         {:guild, "Dark Brotherhood"},
@@ -2333,7 +2333,7 @@ defmodule AncientStones.Templates.Skyrim do
         "active",
         "Maven is known for using feared criminal contacts to protect her interests."
       ),
-      relationship(
+      lore_connection(
         "Stormcloak Rebellion",
         {:character, "Ulfric Stormcloak"},
         {:guild, "Stormcloaks"},
@@ -2341,7 +2341,7 @@ defmodule AncientStones.Templates.Skyrim do
         "active",
         "Ulfric Stormcloak leads the Stormcloak rebellion from Windhelm."
       ),
-      relationship(
+      lore_connection(
         "Greybeard Teaching",
         {:character, "Arngeir"},
         {:location, "High Hrothgar"},
@@ -2368,12 +2368,12 @@ defmodule AncientStones.Templates.Skyrim do
     }
   end
 
-  defp relationship(name, source, target, relationship_type, status, description) do
+  defp lore_connection(name, source, target, connection_type, status, description) do
     %{
       name: name,
       source: source,
       target: target,
-      relationship_type: relationship_type,
+      connection_type: connection_type,
       status: status,
       description: description
     }

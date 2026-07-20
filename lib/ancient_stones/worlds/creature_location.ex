@@ -5,6 +5,15 @@ defmodule AncientStones.Worlds.CreatureLocation do
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.Location
 
+  @presence_options [
+    {"Common", "common"},
+    {"Lair", "lair"},
+    {"Migration", "migration"},
+    {"Nesting", "nesting"},
+    {"Rare", "rare"},
+    {"Rumored", "rumored"}
+  ]
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "creature_locations" do
@@ -21,8 +30,17 @@ defmodule AncientStones.Worlds.CreatureLocation do
     creature_location
     |> cast(attrs, [:presence, :description])
     |> validate_required([:creature_id, :location_id])
+    |> validate_inclusion(:presence, presence_values())
     |> foreign_key_constraint(:creature_id)
     |> foreign_key_constraint(:location_id)
     |> unique_constraint(:location_id, name: :creature_locations_creature_id_location_id_index)
+  end
+
+  def presence_options do
+    @presence_options
+  end
+
+  defp presence_values do
+    Enum.map(@presence_options, fn {_label, value} -> value end)
   end
 end

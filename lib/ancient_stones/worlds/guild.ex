@@ -3,7 +3,7 @@ defmodule AncientStones.Worlds.Guild do
   import Ecto.Changeset
 
   alias AncientStones.Worlds.GuildInfluence
-  alias AncientStones.Worlds.Relationship
+  alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.World
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -17,8 +17,8 @@ defmodule AncientStones.Worlds.Guild do
 
     belongs_to(:world, World)
     has_many(:guild_influences, GuildInfluence)
-    has_many(:source_relationships, Relationship, foreign_key: :source_guild_id)
-    has_many(:target_relationships, Relationship, foreign_key: :target_guild_id)
+    has_many(:source_lore_connections, LoreConnection, foreign_key: :source_guild_id)
+    has_many(:target_lore_connections, LoreConnection, foreign_key: :target_guild_id)
 
     timestamps(type: :utc_datetime)
   end

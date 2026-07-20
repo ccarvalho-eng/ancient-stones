@@ -78,9 +78,9 @@
                     label="Documents"
                   />
                   <.section_menu_link
-                    patch={~p"/worlds/#{@world}/dashboard?section=relationships"}
-                    selected={@section == "relationships"}
-                    label="Relationships"
+                    patch={~p"/worlds/#{@world}/dashboard?section=connections"}
+                    selected={@section == "connections"}
+                    label="Connections"
                   />
                   <.section_menu_link
                     patch={~p"/worlds/#{@world}/dashboard?section=characters"}
@@ -923,12 +923,7 @@
                     field={@commerce_form[:kind]}
                     type="select"
                     label="Kind"
-                    options={[
-                      {"Income", "income"},
-                      {"Expense", "expense"},
-                      {"Asset", "asset"},
-                      {"Liability", "liability"}
-                    ]}
+                    options={AncientStones.Worlds.HoldCommerceEntry.kind_options()}
                   />
                   <.input field={@commerce_form[:category]} type="text" label="Category" />
                   <.input field={@commerce_form[:amount]} type="number" label="Amount" />
@@ -1702,7 +1697,13 @@
                         options={@timeline_era_options}
                       />
                       <.input field={@civilization_form[:era]} type="text" label="Era Note" />
-                      <.input field={@civilization_form[:status]} type="text" label="Status" />
+                      <.input
+                        field={@civilization_form[:status]}
+                        type="select"
+                        label="Status"
+                        prompt="None"
+                        options={AncientStones.Worlds.Civilization.status_options()}
+                      />
                       <.input
                         field={@civilization_form[:description]}
                         type="textarea"
@@ -2003,82 +2004,82 @@
                 </div>
               </aside>
             </div>
-          <% @section == "relationships" -> %>
+          <% @section == "connections" -> %>
             <div
-              id="relationships-dashboard"
+              id="connections-dashboard"
               class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
                   <div>
-                    <h2 class="text-sm font-semibold text-zinc-800">Relationships</h2>
+                    <h2 class="text-sm font-semibold text-zinc-800">Connections</h2>
                     <p class="text-xs text-zinc-500">
                       Influence, loyalty, patronage, and conflict
                     </p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@relationships)}
+                    {length(@lore_connections)}
                   </span>
                 </div>
 
                 <div
-                  id="relationship-list"
+                  id="connection-list"
                   class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5"
                 >
                   <div
-                    :if={@relationships == []}
+                    :if={@lore_connections == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
                   >
-                    No relationships have been added to this world.
+                    No connections have been added to this world.
                   </div>
 
                   <div
                     :for={
-                      {source, source_relationships} <-
-                        grouped_relationships(@relationships)
+                      {source, source_lore_connections} <-
+                        grouped_lore_connections(@lore_connections)
                     }
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
-                      id={folded_group_dom_id("relationships", source)}
+                      id={folded_group_dom_id("connections", source)}
                       label={source}
-                      count={length(source_relationships)}
-                      open={folded_group_open?(@open_folded_groups, "relationships", source)}
-                      toggle_key={folded_group_key("relationships", source)}
+                      count={length(source_lore_connections)}
+                      open={folded_group_open?(@open_folded_groups, "connections", source)}
+                      toggle_key={folded_group_key("connections", source)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
                         <div
-                          :for={relationship <- source_relationships}
+                          :for={lore_connection <- source_lore_connections}
                           class={[
                             "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
-                            @selected_relationship &&
-                              @selected_relationship.id == relationship.id &&
+                            @selected_lore_connection &&
+                              @selected_lore_connection.id == lore_connection.id &&
                               "stone-selected"
                           ]}
                         >
                           <.link
                             patch={
-                              ~p"/worlds/#{@world}/dashboard?section=relationships&relationship_id=#{relationship.id}"
+                              ~p"/worlds/#{@world}/dashboard?section=connections&connection_id=#{lore_connection.id}"
                             }
                             class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
                           >
                             <div class="truncate text-sm font-semibold text-zinc-800">
-                              {relationship_name(relationship)}
+                              {lore_connection_name(lore_connection)}
                             </div>
                             <p class="mt-1 text-xs font-medium text-zinc-500">
-                              {display_value(relationship.relationship_type)} / {relationship_endpoint_label(
-                                relationship,
+                              {display_value(lore_connection.connection_type)} / {lore_connection_endpoint_label(
+                                lore_connection,
                                 :target
                               )}
                             </p>
                           </.link>
                           <button
                             type="button"
-                            phx-click="delete_relationship"
-                            phx-value-id={relationship.id}
-                            data-confirm={"Delete #{relationship_name(relationship)}?"}
+                            phx-click="delete_lore_connection"
+                            phx-value-id={lore_connection.id}
+                            data-confirm={"Delete #{lore_connection_name(lore_connection)}?"}
                             class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
-                            aria-label={"Delete #{relationship_name(relationship)}"}
+                            aria-label={"Delete #{lore_connection_name(lore_connection)}"}
                           >
                             <.icon name="hero-trash" class="size-4" />
                           </button>
@@ -2094,55 +2095,55 @@
                   <div>
                     <h2 class="text-sm font-semibold text-zinc-800">Details</h2>
                     <p class="text-xs text-zinc-500">
-                      {if @selected_relationship,
-                        do: relationship_name(@selected_relationship),
-                        else: "No relationship selected"}
+                      {if @selected_lore_connection,
+                        do: lore_connection_name(@selected_lore_connection),
+                        else: "No connection selected"}
                     </p>
                   </div>
                 </div>
 
                 <div class="max-h-[720px] overflow-y-auto p-4">
                   <div
-                    :if={is_nil(@selected_relationship)}
+                    :if={is_nil(@selected_lore_connection)}
                     class="py-8 text-center text-sm text-zinc-500"
                   >
-                    Select a relationship to inspect its source, target, and context.
+                    Select a connection to inspect its source, target, and context.
                   </div>
 
-                  <div :if={@selected_relationship} id="relationship-details" class="space-y-4">
+                  <div :if={@selected_lore_connection} id="connection-details" class="space-y-4">
                     <div>
                       <h3 class="text-lg font-semibold text-zinc-800">
-                        {relationship_name(@selected_relationship)}
+                        {lore_connection_name(@selected_lore_connection)}
                       </h3>
                       <p class="mt-1 text-sm leading-6 text-zinc-600">
-                        {@selected_relationship.description || "No description yet."}
+                        {@selected_lore_connection.description || "No description yet."}
                       </p>
                     </div>
 
                     <div class="grid gap-3 text-sm sm:grid-cols-2">
                       <.detail
                         label="Source"
-                        value={relationship_endpoint_label(@selected_relationship, :source)}
+                        value={lore_connection_endpoint_label(@selected_lore_connection, :source)}
                       />
                       <.detail
                         label="Target"
-                        value={relationship_endpoint_label(@selected_relationship, :target)}
+                        value={lore_connection_endpoint_label(@selected_lore_connection, :target)}
                       />
                       <.detail
                         label="Type"
-                        value={display_value(@selected_relationship.relationship_type)}
+                        value={display_value(@selected_lore_connection.connection_type)}
                       />
                       <.detail
                         label="Status"
-                        value={display_value(@selected_relationship.status)}
+                        value={display_value(@selected_lore_connection.status)}
                       />
                       <.detail
                         label="Started"
-                        value={display_value(@selected_relationship.started_at)}
+                        value={display_value(@selected_lore_connection.started_at)}
                       />
                       <.detail
                         label="Ended"
-                        value={display_value(@selected_relationship.ended_at)}
+                        value={display_value(@selected_lore_connection.ended_at)}
                       />
                     </div>
                   </div>
@@ -2152,46 +2153,57 @@
               <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="rounded-md border border-zinc-200 bg-white px-4 py-3">
                   <h2 class="text-sm font-semibold text-zinc-800">Actions</h2>
-                  <p class="mt-1 text-xs text-zinc-500">Create and edit relationship links.</p>
+                  <p class="mt-1 text-xs text-zinc-500">Create and edit lore connections.</p>
                 </div>
 
-                <div id="relationship-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="connection-action-list" class="max-h-[720px] overflow-y-auto">
                   <.action_section
-                    action="relationship"
+                    action="lore_connection"
                     expanded_action={@expanded_action}
                     icon="hero-link"
-                    title="Add Relationship"
+                    title="Add Connection"
                   >
                     <.form
-                      for={@relationship_form}
-                      id="relationship-form"
-                      phx-submit="create_relationship"
+                      for={@lore_connection_form}
+                      id="connection-form"
+                      phx-submit="create_lore_connection"
                       class="space-y-2"
                     >
-                      <.input field={@relationship_form[:name]} type="text" label="Name" />
+                      <.input field={@lore_connection_form[:name]} type="text" label="Name" />
                       <.input
-                        field={@relationship_form[:source_entity]}
+                        field={@lore_connection_form[:source_entity]}
                         type="select"
                         label="Source"
-                        options={@relationship_entity_options}
+                        options={@lore_connection_entity_options}
                       />
                       <.input
-                        field={@relationship_form[:target_entity]}
+                        field={@lore_connection_form[:target_entity]}
                         type="select"
                         label="Target"
-                        options={@relationship_entity_options}
+                        options={@lore_connection_entity_options}
                       />
                       <.input
-                        field={@relationship_form[:relationship_type]}
-                        type="text"
-                        label="Relationship"
+                        field={@lore_connection_form[:connection_type]}
+                        type="select"
+                        label="Connection Type"
+                        options={AncientStones.Worlds.LoreConnection.connection_type_options()}
                         required
                       />
-                      <.input field={@relationship_form[:status]} type="text" label="Status" />
-                      <.input field={@relationship_form[:started_at]} type="text" label="Started" />
-                      <.input field={@relationship_form[:ended_at]} type="text" label="Ended" />
                       <.input
-                        field={@relationship_form[:description]}
+                        field={@lore_connection_form[:status]}
+                        type="select"
+                        label="Status"
+                        prompt="None"
+                        options={AncientStones.Worlds.LoreConnection.status_options()}
+                      />
+                      <.input
+                        field={@lore_connection_form[:started_at]}
+                        type="text"
+                        label="Started"
+                      />
+                      <.input field={@lore_connection_form[:ended_at]} type="text" label="Ended" />
+                      <.input
+                        field={@lore_connection_form[:description]}
                         type="textarea"
                         label="Description"
                       />
@@ -2202,50 +2214,57 @@
                   </.action_section>
 
                   <.action_section
-                    :if={@selected_relationship}
-                    action="relationship_edit"
+                    :if={@selected_lore_connection}
+                    action="lore_connection_edit"
                     expanded_action={@expanded_action}
                     icon="hero-pencil-square"
-                    title="Edit Relationship"
+                    title="Edit Connection"
                   >
                     <.form
-                      for={@relationship_edit_form}
-                      id="relationship-edit-form"
-                      phx-submit="update_relationship"
+                      for={@lore_connection_edit_form}
+                      id="connection-edit-form"
+                      phx-submit="update_lore_connection"
                       class="space-y-2"
                     >
-                      <.input field={@relationship_edit_form[:name]} type="text" label="Name" />
+                      <.input field={@lore_connection_edit_form[:name]} type="text" label="Name" />
                       <.input
-                        field={@relationship_edit_form[:source_entity]}
+                        field={@lore_connection_edit_form[:source_entity]}
                         type="select"
                         label="Source"
-                        options={@relationship_entity_options}
+                        options={@lore_connection_entity_options}
                       />
                       <.input
-                        field={@relationship_edit_form[:target_entity]}
+                        field={@lore_connection_edit_form[:target_entity]}
                         type="select"
                         label="Target"
-                        options={@relationship_entity_options}
+                        options={@lore_connection_entity_options}
                       />
                       <.input
-                        field={@relationship_edit_form[:relationship_type]}
-                        type="text"
-                        label="Relationship"
+                        field={@lore_connection_edit_form[:connection_type]}
+                        type="select"
+                        label="Connection Type"
+                        options={AncientStones.Worlds.LoreConnection.connection_type_options()}
                         required
                       />
-                      <.input field={@relationship_edit_form[:status]} type="text" label="Status" />
                       <.input
-                        field={@relationship_edit_form[:started_at]}
+                        field={@lore_connection_edit_form[:status]}
+                        type="select"
+                        label="Status"
+                        prompt="None"
+                        options={AncientStones.Worlds.LoreConnection.status_options()}
+                      />
+                      <.input
+                        field={@lore_connection_edit_form[:started_at]}
                         type="text"
                         label="Started"
                       />
                       <.input
-                        field={@relationship_edit_form[:ended_at]}
+                        field={@lore_connection_edit_form[:ended_at]}
                         type="text"
                         label="Ended"
                       />
                       <.input
-                        field={@relationship_edit_form[:description]}
+                        field={@lore_connection_edit_form[:description]}
                         type="textarea"
                         label="Description"
                       />
@@ -3228,8 +3247,20 @@
                       class="space-y-2"
                     >
                       <.input field={@spell_form[:name]} type="text" label="Name" required />
-                      <.input field={@spell_form[:school]} type="text" label="School" />
-                      <.input field={@spell_form[:level]} type="text" label="Level" />
+                      <.input
+                        field={@spell_form[:school]}
+                        type="select"
+                        label="School"
+                        prompt="None"
+                        options={AncientStones.Worlds.Spell.school_options()}
+                      />
+                      <.input
+                        field={@spell_form[:level]}
+                        type="select"
+                        label="Level"
+                        prompt="None"
+                        options={AncientStones.Worlds.Spell.level_options()}
+                      />
                       <.input
                         field={@spell_form[:magicka_cost]}
                         type="number"
@@ -3266,8 +3297,20 @@
                         label="Name"
                         required
                       />
-                      <.input field={@spell_edit_form[:school]} type="text" label="School" />
-                      <.input field={@spell_edit_form[:level]} type="text" label="Level" />
+                      <.input
+                        field={@spell_edit_form[:school]}
+                        type="select"
+                        label="School"
+                        prompt="None"
+                        options={AncientStones.Worlds.Spell.school_options()}
+                      />
+                      <.input
+                        field={@spell_edit_form[:level]}
+                        type="select"
+                        label="Level"
+                        prompt="None"
+                        options={AncientStones.Worlds.Spell.level_options()}
+                      />
                       <.input
                         field={@spell_edit_form[:magicka_cost]}
                         type="number"
@@ -3478,7 +3521,13 @@
                       />
                       <.input field={@item_form[:kind]} type="text" label="Kind" />
                       <.input field={@item_form[:material]} type="text" label="Material" />
-                      <.input field={@item_form[:hands]} type="text" label="Hands" />
+                      <.input
+                        field={@item_form[:hands]}
+                        type="select"
+                        label="Hands"
+                        prompt="None"
+                        options={AncientStones.Worlds.Item.hands_options()}
+                      />
                       <.input field={@item_form[:damage]} type="number" label="Damage" />
                       <.input
                         field={@item_form[:critical_damage]}
@@ -3526,7 +3575,13 @@
                       />
                       <.input field={@item_edit_form[:kind]} type="text" label="Kind" />
                       <.input field={@item_edit_form[:material]} type="text" label="Material" />
-                      <.input field={@item_edit_form[:hands]} type="text" label="Hands" />
+                      <.input
+                        field={@item_edit_form[:hands]}
+                        type="select"
+                        label="Hands"
+                        prompt="None"
+                        options={AncientStones.Worlds.Item.hands_options()}
+                      />
                       <.input field={@item_edit_form[:damage]} type="number" label="Damage" />
                       <.input
                         field={@item_edit_form[:critical_damage]}
@@ -3837,13 +3892,17 @@
                       <.input field={@creature_form[:habitat]} type="text" label="Habitat" />
                       <.input
                         field={@creature_form[:temperament]}
-                        type="text"
+                        type="select"
                         label="Temperament"
+                        prompt="None"
+                        options={AncientStones.Worlds.Creature.temperament_options()}
                       />
                       <.input
                         field={@creature_form[:danger_level]}
-                        type="text"
+                        type="select"
                         label="Danger"
+                        prompt="None"
+                        options={AncientStones.Worlds.Creature.danger_level_options()}
                       />
                       <.input
                         field={@creature_form[:description]}
@@ -3885,13 +3944,17 @@
                       <.input field={@creature_edit_form[:habitat]} type="text" label="Habitat" />
                       <.input
                         field={@creature_edit_form[:temperament]}
-                        type="text"
+                        type="select"
                         label="Temperament"
+                        prompt="None"
+                        options={AncientStones.Worlds.Creature.temperament_options()}
                       />
                       <.input
                         field={@creature_edit_form[:danger_level]}
-                        type="text"
+                        type="select"
                         label="Danger"
+                        prompt="None"
+                        options={AncientStones.Worlds.Creature.danger_level_options()}
                       />
                       <.input
                         field={@creature_edit_form[:description]}
@@ -3931,8 +3994,10 @@
                       />
                       <.input
                         field={@creature_location_form[:presence]}
-                        type="text"
+                        type="select"
                         label="Presence"
+                        prompt="None"
+                        options={AncientStones.Worlds.CreatureLocation.presence_options()}
                       />
                       <.input
                         field={@creature_location_form[:description]}

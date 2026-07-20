@@ -184,7 +184,7 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(dashboard.civilizations, &(&1.name == "Dwemer"))
     assert Enum.any?(dashboard.documents, &(&1.title == "The Book of the Dragonborn"))
     assert Enum.any?(dashboard.political_offices, &(&1.office == "High King"))
-    assert Enum.any?(dashboard.relationships, &(&1.name == "Black-Briar Patronage"))
+    assert Enum.any?(dashboard.lore_connections, &(&1.name == "Black-Briar Patronage"))
     assert Enum.any?(dashboard.timelines, &(&1.name == "Tamrielic Timeline"))
     assert Enum.map(dashboard.skills, & &1.name) |> Enum.sort() == skyrim_skill_names()
     assert Enum.any?(dashboard.skill_trees, &(&1.name == "Smithing"))
@@ -223,11 +223,11 @@ defmodule AncientStones.WorldsTest do
              inventory_item.item.name == "Steel Sword" && inventory_item.equipped
            end)
 
-    patronage = Enum.find(dashboard.relationships, &(&1.name == "Black-Briar Patronage"))
+    patronage = Enum.find(dashboard.lore_connections, &(&1.name == "Black-Briar Patronage"))
 
     assert patronage.source_character.name == "Maven Black-Briar"
     assert patronage.target_guild.name == "Thieves Guild"
-    assert patronage.relationship_type == "patron"
+    assert patronage.connection_type == "patron"
 
     document = Enum.find(dashboard.documents, &(&1.title == "Black-Briar Correspondence"))
 

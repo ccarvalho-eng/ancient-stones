@@ -17,7 +17,7 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Race
-  alias AncientStones.Worlds.Relationship
+  alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillTree
   alias AncientStones.Worlds.Spell
@@ -45,7 +45,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:occupations, Occupation)
     has_many(:political_offices, PoliticalOffice)
     has_many(:races, Race)
-    has_many(:relationships, Relationship)
+    has_many(:lore_connections, LoreConnection)
     has_many(:skills, Skill)
     has_many(:skill_trees, SkillTree)
     has_many(:spells, Spell)

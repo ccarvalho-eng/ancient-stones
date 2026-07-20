@@ -1,4 +1,4 @@
-defmodule AncientStones.Worlds.Relationship do
+defmodule AncientStones.Worlds.LoreConnection do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -13,11 +13,36 @@ defmodule AncientStones.Worlds.Relationship do
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.World
 
+  @connection_type_options [
+    {"Ally", "ally"},
+    {"Controls", "controls"},
+    {"Criminal Contact", "criminal contact"},
+    {"Historical Tie", "historical tie"},
+    {"Leader", "leader"},
+    {"Member", "member"},
+    {"Opposes", "opposes"},
+    {"Patron", "patron"},
+    {"Rival", "rival"},
+    {"Serves", "serves"},
+    {"Teacher At", "teacher at"},
+    {"Trade", "trade"},
+    {"Worships", "worships"}
+  ]
+
+  @status_options [
+    {"Active", "active"},
+    {"Broken", "broken"},
+    {"Hidden", "hidden"},
+    {"Historical", "historical"},
+    {"Rumored", "rumored"},
+    {"Tense", "tense"}
+  ]
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
-  schema "relationships" do
+  schema "lore_connections" do
     field :name, :string
-    field :relationship_type, :string
+    field :connection_type, :string
     field :status, :string
     field :started_at, :string
     field :ended_at, :string
@@ -46,14 +71,32 @@ defmodule AncientStones.Worlds.Relationship do
     timestamps(type: :utc_datetime)
   end
 
-  def changeset(relationship, attrs) do
-    relationship
-    |> cast(attrs, [:name, :relationship_type, :status, :started_at, :ended_at, :description])
-    |> validate_required([:relationship_type, :world_id])
+  def changeset(lore_connection, attrs) do
+    lore_connection
+    |> cast(attrs, [:name, :connection_type, :status, :started_at, :ended_at, :description])
+    |> validate_required([:connection_type, :world_id])
+    |> validate_inclusion(:connection_type, connection_type_values())
+    |> validate_inclusion(:status, status_values())
     |> foreign_key_constraint(:world_id)
     |> foreign_key_constraints()
-    |> check_constraint(:source_character_id, name: :relationships_one_source)
-    |> check_constraint(:target_character_id, name: :relationships_one_target)
+    |> check_constraint(:source_character_id, name: :lore_connections_one_source)
+    |> check_constraint(:target_character_id, name: :lore_connections_one_target)
+  end
+
+  def connection_type_options do
+    @connection_type_options
+  end
+
+  def status_options do
+    @status_options
+  end
+
+  defp connection_type_values do
+    Enum.map(@connection_type_options, fn {_label, value} -> value end)
+  end
+
+  defp status_values do
+    Enum.map(@status_options, fn {_label, value} -> value end)
   end
 
   defp foreign_key_constraints(changeset) do

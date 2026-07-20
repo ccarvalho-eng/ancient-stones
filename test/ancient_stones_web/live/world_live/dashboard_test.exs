@@ -26,7 +26,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.Race
-  alias AncientStones.Worlds.Relationship
+  alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillLevel
   alias AncientStones.Worlds.SkillTreePerk
@@ -422,7 +422,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#god-list", "Jhunal")
   end
 
-  test "creates documents and relationships from dashboard sections", %{conn: conn} do
+  test "creates documents and connections from dashboard sections", %{conn: conn} do
     {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
     {:ok, character} = Worlds.create_character(world, %{name: "Maven Black-Briar"})
     {:ok, guild} = Worlds.create_guild(world, %{name: "Thieves Guild"})
@@ -466,37 +466,37 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#folded-documents-note[open]")
     assert has_element?(view, "#document-list", "Black-Briar Correspondence")
 
-    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=relationships")
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=connections")
 
     view
-    |> form("#relationship-form",
-      relationship: %{
+    |> form("#connection-form",
+      lore_connection: %{
         name: "Black-Briar Patronage",
         source_entity: "character:#{character.id}",
         target_entity: "guild:#{guild.id}",
-        relationship_type: "patron",
+        connection_type: "patron",
         status: "active",
         description: "Maven protects and uses the Thieves Guild."
       }
     )
     |> render_submit()
 
-    relationship =
-      Relationship
+    lore_connection =
+      LoreConnection
       |> Repo.get_by!(name: "Black-Briar Patronage")
       |> Repo.preload([:source_character, :target_guild])
 
-    assert relationship.source_character.name == "Maven Black-Briar"
-    assert relationship.target_guild.name == "Thieves Guild"
-    assert relationship.relationship_type == "patron"
-    assert has_element?(view, "#folded-relationships-character-maven-black-briar:not([open])")
+    assert lore_connection.source_character.name == "Maven Black-Briar"
+    assert lore_connection.target_guild.name == "Thieves Guild"
+    assert lore_connection.connection_type == "patron"
+    assert has_element?(view, "#folded-connections-character-maven-black-briar:not([open])")
 
     view
-    |> element("#folded-relationships-character-maven-black-briar summary")
+    |> element("#folded-connections-character-maven-black-briar summary")
     |> render_click()
 
-    assert has_element?(view, "#folded-relationships-character-maven-black-briar[open]")
-    assert has_element?(view, "#relationship-list", "Black-Briar Patronage")
+    assert has_element?(view, "#folded-connections-character-maven-black-briar[open]")
+    assert has_element?(view, "#connection-list", "Black-Briar Patronage")
   end
 
   test "creates characters from the characters section", %{conn: conn} do

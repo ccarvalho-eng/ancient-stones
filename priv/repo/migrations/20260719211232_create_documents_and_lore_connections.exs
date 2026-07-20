@@ -1,4 +1,4 @@
-defmodule AncientStones.Repo.Migrations.CreateDocumentsAndRelationships do
+defmodule AncientStones.Repo.Migrations.CreateDocumentsAndLoreConnections do
   use Ecto.Migration
 
   def change do
@@ -31,7 +31,7 @@ defmodule AncientStones.Repo.Migrations.CreateDocumentsAndRelationships do
     create index(:documents, [:race_id])
     create index(:documents, [:civilization_id])
 
-    create table(:relationships, primary_key: false) do
+    create table(:lore_connections, primary_key: false) do
       add :id, :binary_id, primary_key: true
       add :world_id, references(:worlds, type: :binary_id, on_delete: :delete_all), null: false
 
@@ -62,7 +62,7 @@ defmodule AncientStones.Repo.Migrations.CreateDocumentsAndRelationships do
       add :target_continent_id, references(:continents, type: :binary_id, on_delete: :delete_all)
 
       add :name, :text
-      add :relationship_type, :text, null: false
+      add :connection_type, :text, null: false
       add :status, :text
       add :started_at, :text
       add :ended_at, :text
@@ -71,33 +71,33 @@ defmodule AncientStones.Repo.Migrations.CreateDocumentsAndRelationships do
       timestamps(type: :utc_datetime)
     end
 
-    create index(:relationships, [:world_id])
-    create index(:relationships, [:world_id, :relationship_type])
-    create index(:relationships, [:source_character_id])
-    create index(:relationships, [:source_guild_id])
-    create index(:relationships, [:source_god_id])
-    create index(:relationships, [:source_race_id])
-    create index(:relationships, [:source_civilization_id])
-    create index(:relationships, [:source_location_id])
-    create index(:relationships, [:source_hold_id])
-    create index(:relationships, [:source_province_id])
-    create index(:relationships, [:source_continent_id])
-    create index(:relationships, [:target_character_id])
-    create index(:relationships, [:target_guild_id])
-    create index(:relationships, [:target_god_id])
-    create index(:relationships, [:target_race_id])
-    create index(:relationships, [:target_civilization_id])
-    create index(:relationships, [:target_location_id])
-    create index(:relationships, [:target_hold_id])
-    create index(:relationships, [:target_province_id])
-    create index(:relationships, [:target_continent_id])
+    create index(:lore_connections, [:world_id])
+    create index(:lore_connections, [:world_id, :connection_type])
+    create index(:lore_connections, [:source_character_id])
+    create index(:lore_connections, [:source_guild_id])
+    create index(:lore_connections, [:source_god_id])
+    create index(:lore_connections, [:source_race_id])
+    create index(:lore_connections, [:source_civilization_id])
+    create index(:lore_connections, [:source_location_id])
+    create index(:lore_connections, [:source_hold_id])
+    create index(:lore_connections, [:source_province_id])
+    create index(:lore_connections, [:source_continent_id])
+    create index(:lore_connections, [:target_character_id])
+    create index(:lore_connections, [:target_guild_id])
+    create index(:lore_connections, [:target_god_id])
+    create index(:lore_connections, [:target_race_id])
+    create index(:lore_connections, [:target_civilization_id])
+    create index(:lore_connections, [:target_location_id])
+    create index(:lore_connections, [:target_hold_id])
+    create index(:lore_connections, [:target_province_id])
+    create index(:lore_connections, [:target_continent_id])
 
-    create constraint(:relationships, :relationships_one_source,
+    create constraint(:lore_connections, :lore_connections_one_source,
              check:
                "num_nonnulls(source_character_id, source_guild_id, source_god_id, source_race_id, source_civilization_id, source_location_id, source_hold_id, source_province_id, source_continent_id) = 1"
            )
 
-    create constraint(:relationships, :relationships_one_target,
+    create constraint(:lore_connections, :lore_connections_one_target,
              check:
                "num_nonnulls(target_character_id, target_guild_id, target_god_id, target_race_id, target_civilization_id, target_location_id, target_hold_id, target_province_id, target_continent_id) = 1"
            )
