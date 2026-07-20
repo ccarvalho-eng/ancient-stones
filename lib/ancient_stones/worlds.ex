@@ -48,6 +48,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Templates
   alias AncientStones.Worlds.Timeline
   alias AncientStones.Worlds.TimelineEra
+  alias AncientStones.Worlds.TimelineEvent
   alias AncientStones.Worlds.World
 
   @doc "Lists worlds alphabetically for the geography workspace."
@@ -176,7 +177,7 @@ defmodule AncientStones.Worlds do
       skills: [:levels, skill_tree: [:perks]],
       skill_trees: [:skills, :perks],
       spells: [],
-      timelines: [:eras]
+      timelines: [:events, eras: [:events]]
     )
   end
 
@@ -277,7 +278,7 @@ defmodule AncientStones.Worlds do
   def get_timeline!(id) do
     Timeline
     |> Repo.get!(id)
-    |> Repo.preload(:eras)
+    |> Repo.preload([:events, eras: [:events]])
   end
 
   def delete_timeline(%Timeline{} = timeline) do
@@ -293,11 +294,30 @@ defmodule AncientStones.Worlds do
   def get_timeline_era!(id) do
     TimelineEra
     |> Repo.get!(id)
-    |> Repo.preload(:timeline)
+    |> Repo.preload([:events, :timeline])
   end
 
   def delete_timeline_era(%TimelineEra{} = timeline_era) do
     Repo.delete(timeline_era)
+  end
+
+  def create_timeline_event(%Timeline{id: timeline_id} = timeline, attrs, refs \\ %{}) do
+    with {:ok, timeline_era} <- timeline_event_era(timeline, refs[:timeline_era]) do
+      %TimelineEvent{timeline_id: timeline_id}
+      |> TimelineEvent.changeset(attrs)
+      |> put_optional_ref(:timeline_era_id, timeline_era)
+      |> Repo.insert()
+    end
+  end
+
+  def get_timeline_event!(id) do
+    TimelineEvent
+    |> Repo.get!(id)
+    |> Repo.preload([:timeline, :timeline_era])
+  end
+
+  def delete_timeline_event(%TimelineEvent{} = timeline_event) do
+    Repo.delete(timeline_event)
   end
 
   def create_civilization(%World{id: world_id}, attrs, refs \\ %{}) do
@@ -1524,6 +1544,21 @@ defmodule AncientStones.Worlds do
     |> descendant_ids(location_id)
   end
 
+  defp timeline_event_era(_timeline, nil) do
+    {:ok, nil}
+  end
+
+  defp timeline_event_era(
+         %Timeline{id: timeline_id},
+         %TimelineEra{timeline_id: timeline_id} = era
+       ) do
+    {:ok, era}
+  end
+
+  defp timeline_event_era(%Timeline{}, %TimelineEra{}) do
+    {:error, :timeline_era_outside_timeline}
+  end
+
   defp locations_for_hold(hold_id) do
     Location
     |> where([location], location.hold_id == ^hold_id)
@@ -1818,17 +1853,36 @@ defmodule AncientStones.Worlds do
         |> create_timeline(timeline_data)
         |> unwrap_transaction!()
 
-      timeline_data
-      |> Map.get(:eras, [])
-      |> Enum.reduce(acc, fn era_data, era_acc ->
-        era =
-          timeline
-          |> create_timeline_era(era_data)
-          |> unwrap_transaction!()
+      era_by_name =
+        timeline_data
+        |> Map.get(:eras, [])
+        |> Enum.reduce(acc, fn era_data, era_acc ->
+          era =
+            timeline
+            |> create_timeline_era(era_data)
+            |> unwrap_transaction!()
 
-        Map.put(era_acc, era.name, era)
-      end)
+          Map.put(era_acc, era.name, era)
+        end)
+
+      build_template_timeline_events!(
+        timeline,
+        Map.get(timeline_data, :events, []),
+        era_by_name
+      )
+
+      era_by_name
     end)
+  end
+
+  defp build_template_timeline_events!(timeline, events, era_by_name) do
+    for event_data <- events do
+      refs = %{timeline_era: Map.get(era_by_name, event_data[:timeline_era])}
+
+      timeline
+      |> create_timeline_event(event_data, refs)
+      |> unwrap_transaction!()
+    end
   end
 
   defp build_template_civilizations!(world, civilizations, era_by_name) do

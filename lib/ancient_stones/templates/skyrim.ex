@@ -110,6 +110,78 @@ defmodule AncientStones.Templates.Skyrim do
             "The Septim Empire era ending with the Oblivion Crisis."
           ),
           era(6, "Fourth Era", "4E", 1, nil, "The current era for the events of Skyrim.")
+        ],
+        events: [
+          event(
+            1,
+            "Creation of Mundus",
+            "Dawn Era",
+            nil,
+            "The mortal plane takes shape through mythic sacrifice and divine conflict."
+          ),
+          event(
+            2,
+            "Atmoran Migrations",
+            "Merethic Era",
+            nil,
+            "Human settlers arrive from Atmora and establish early Nordic communities in Skyrim."
+          ),
+          event(
+            3,
+            "Dragon War",
+            "Merethic Era",
+            nil,
+            "Nord rebels overthrow the Dragon Cult and force dragons out of open rule."
+          ),
+          event(
+            4,
+            "Founding of the First Empire",
+            "First Era",
+            243,
+            "Alessia's rebellion creates the first Cyrodilic empire and reshapes human rule in Tamriel."
+          ),
+          event(
+            5,
+            "Battle of Red Mountain",
+            "First Era",
+            700,
+            "The Dwemer disappear after the War of the First Council beneath Red Mountain."
+          ),
+          event(
+            6,
+            "Tiber Septim Unifies Tamriel",
+            "Second Era",
+            896,
+            "Tiber Septim completes the conquest that begins the Third Era."
+          ),
+          event(
+            7,
+            "Oblivion Crisis",
+            "Third Era",
+            433,
+            "Daedric gates open across Tamriel and the Septim dynasty ends."
+          ),
+          event(
+            8,
+            "Red Year",
+            "Fourth Era",
+            5,
+            "The eruption of Red Mountain devastates Morrowind and reshapes regional power."
+          ),
+          event(
+            9,
+            "White-Gold Concordat",
+            "Fourth Era",
+            175,
+            "The Empire accepts harsh terms from the Aldmeri Dominion after the Great War."
+          ),
+          event(
+            10,
+            "Alduin Returns",
+            "Fourth Era",
+            201,
+            "The World-Eater appears in Skyrim as civil war divides the province."
+          )
         ]
       }
     ]
@@ -122,6 +194,16 @@ defmodule AncientStones.Templates.Skyrim do
       abbreviation: abbreviation,
       starts_at_year: starts_at_year,
       ends_at_year: ends_at_year,
+      description: description
+    }
+  end
+
+  defp event(position, name, timeline_era, year, description) do
+    %{
+      position: position,
+      name: name,
+      timeline_era: timeline_era,
+      year: year,
       description: description
     }
   end

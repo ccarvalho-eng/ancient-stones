@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.Timeline do
   import Ecto.Changeset
 
   alias AncientStones.Worlds.TimelineEra
+  alias AncientStones.Worlds.TimelineEvent
   alias AncientStones.Worlds.World
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -13,6 +14,7 @@ defmodule AncientStones.Worlds.Timeline do
 
     belongs_to(:world, World)
     has_many(:eras, TimelineEra)
+    has_many(:events, TimelineEvent)
 
     timestamps(type: :utc_datetime)
   end

@@ -4,6 +4,7 @@ defmodule AncientStones.Worlds.TimelineEra do
 
   alias AncientStones.Worlds.Civilization
   alias AncientStones.Worlds.Timeline
+  alias AncientStones.Worlds.TimelineEvent
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -17,6 +18,7 @@ defmodule AncientStones.Worlds.TimelineEra do
 
     belongs_to(:timeline, Timeline)
     has_many(:civilizations, Civilization)
+    has_many(:events, TimelineEvent)
 
     timestamps(type: :utc_datetime)
   end

@@ -250,6 +250,21 @@ defmodule AncientStones.WorldsTest do
              "Fourth Era"
            ]
 
+    event_names =
+      timeline.events
+      |> Enum.sort_by(& &1.position)
+      |> Enum.map(& &1.name)
+
+    assert "Dragon War" in event_names
+    assert "Alduin Returns" in event_names
+
+    fourth_era = Enum.find(timeline.eras, &(&1.name == "Fourth Era"))
+
+    assert Enum.any?(
+             fourth_era.events,
+             &(&1.name == "Alduin Returns" && &1.year == 201)
+           )
+
     ulfric = Enum.find(dashboard.characters, &(&1.name == "Ulfric Stormcloak"))
 
     assert Enum.any?(

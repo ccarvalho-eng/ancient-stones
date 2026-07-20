@@ -32,6 +32,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.SkillTreePerk
   alias AncientStones.Worlds.Spell
   alias AncientStones.Worlds.Timeline
+  alias AncientStones.Worlds.TimelineEvent
 
   test "renders the geography dashboard", %{conn: conn} do
     world = create_world!()
@@ -1075,7 +1076,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#calendar-month-#{month.id}", "Frostfall")
   end
 
-  test "creates timelines and eras from the timeline section", %{conn: conn} do
+  test "creates timelines, eras, and events from the timeline section", %{conn: conn} do
     {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=timeline")
@@ -1108,9 +1109,37 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     |> render_submit()
 
     timeline = Worlds.get_timeline!(timeline.id)
+    [era] = timeline.eras
 
     assert Enum.any?(timeline.eras, &(&1.name == "First Era"))
     assert has_element?(view, "#timeline-list", "Nordic Reckoning")
+
+    open_action(view, "timeline_event")
+
+    view
+    |> form("#timeline-event-form",
+      timeline_event: %{
+        timeline_id: timeline.id,
+        timeline_era_id: era.id,
+        name: "Battle of Snow-Throat",
+        year: 120,
+        position: 1,
+        description: "A decisive mountain campaign"
+      }
+    )
+    |> render_submit()
+
+    timeline_event = Repo.get_by!(TimelineEvent, name: "Battle of Snow-Throat")
+
+    assert timeline_event.timeline_id == timeline.id
+    assert timeline_event.timeline_era_id == era.id
+    assert has_element?(view, "#timeline-details", "Battle of Snow-Throat")
+
+    view
+    |> element("button[phx-click='delete_timeline_event'][phx-value-id='#{timeline_event.id}']")
+    |> render_click()
+
+    refute Repo.get(TimelineEvent, timeline_event.id)
   end
 
   test "selects a hold and location from the dashboard columns", %{conn: conn} do

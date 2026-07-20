@@ -50,6 +50,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:skill_trees, SkillTree)
     has_many(:spells, Spell)
     has_many(:timelines, Timeline)
+    has_many(:timeline_events, through: [:timelines, :events])
 
     timestamps(type: :utc_datetime)
   end
