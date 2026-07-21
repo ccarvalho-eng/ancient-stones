@@ -12,6 +12,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
      socket
      |> assign(:page_title, "Worlds")
      |> assign(:theme, "system")
+     |> assign(:library_tab, "galaxies")
      |> assign_index_records(galaxies)
      |> assign(:galaxy_options, option_list(galaxies))
      |> assign(:current_template, "blank")
@@ -77,147 +78,202 @@ defmodule AncientStonesWeb.WorldLive.Index do
               <.theme_switcher theme={@theme} />
             </header>
 
-            <main class="grid min-h-[720px] gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <main class="grid min-h-[800px] gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_380px]">
               <section class="grid content-start gap-4">
                 <div class="stone-panel flex flex-col overflow-hidden rounded-md border">
                   <.panel_header
-                    title="Galaxies"
-                    subtitle="Cosmic containers with their nested world records."
-                    count={@inventory.galaxies}
+                    title="Library"
+                    subtitle="Browse galaxy containers and worlds without a galaxy."
+                    count={@inventory.worlds}
                   />
 
                   <div
-                    id="galaxies"
-                    phx-update="stream"
-                    class="grid max-h-[300px] gap-2 overflow-auto p-3"
+                    id="world-library-tabs"
+                    class="stone-border flex flex-wrap items-center gap-2 border-b px-3 py-2"
+                    role="tablist"
+                    aria-label="World library"
                   >
-                    <.empty_stream_state
-                      id="galaxies-empty"
-                      message="No galaxies yet."
-                      class="py-5"
-                    />
-                    <div
-                      :for={{id, galaxy} <- @streams.galaxies}
-                      id={id}
-                      class="stone-record-card rounded-md border p-3"
+                    <button
+                      id="galaxies-tab"
+                      type="button"
+                      phx-click="set_library_tab"
+                      phx-value-tab="galaxies"
+                      role="tab"
+                      aria-controls="galaxies-panel"
+                      aria-selected={@library_tab == "galaxies"}
+                      class={[
+                        "inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium transition",
+                        @library_tab == "galaxies" && "stone-selected",
+                        @library_tab != "galaxies" && "stone-button"
+                      ]}
                     >
-                      <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                          <div class="flex items-center gap-2">
-                            <span class="stone-panel-muted inline-flex size-7 items-center justify-center rounded-md border">
-                              <.icon name="hero-sparkles" class="size-4" />
-                            </span>
-                            <h4 class="stone-heading truncate text-sm font-semibold">
-                              {galaxy.name}
-                            </h4>
-                          </div>
-                          <p class="stone-muted mt-2 line-clamp-2 text-sm">
-                            {galaxy.description || "No description yet."}
-                          </p>
-                        </div>
-                        <.danger_icon_button
-                          phx-click="delete_galaxy"
-                          phx-value-id={galaxy.id}
-                          data-confirm={"Delete #{galaxy.name}?"}
-                          label={"Delete #{galaxy.name}"}
-                        />
-                      </div>
-                      <div class="stone-border mt-3 flex items-center justify-between border-t pt-3 text-xs">
-                        <span class="stone-muted flex items-center gap-1.5">
-                          <.icon name="hero-globe-alt" class="size-3.5" /> World children
-                        </span>
-                        <strong class="stone-heading font-semibold">{world_count(galaxy)}</strong>
-                      </div>
+                      <.icon name="hero-sparkles" class="size-3.5" /> Galaxies
+                      <span class="stone-muted text-[11px] font-semibold">
+                        {@inventory.galaxies}
+                      </span>
+                    </button>
+
+                    <button
+                      id="unassigned-worlds-tab"
+                      type="button"
+                      phx-click="set_library_tab"
+                      phx-value-tab="unassigned_worlds"
+                      role="tab"
+                      aria-controls="unassigned-worlds-panel"
+                      aria-selected={@library_tab == "unassigned_worlds"}
+                      class={[
+                        "inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium transition",
+                        @library_tab == "unassigned_worlds" && "stone-selected",
+                        @library_tab != "unassigned_worlds" && "stone-button"
+                      ]}
+                    >
+                      <.icon name="hero-globe-alt" class="size-3.5" /> Unassigned Worlds
+                      <span class="stone-muted text-[11px] font-semibold">
+                        {@unassigned_world_count}
+                      </span>
+                    </button>
+                  </div>
+
+                  <div
+                    id="galaxies-panel"
+                    role="tabpanel"
+                    aria-labelledby="galaxies-tab"
+                    class={[@library_tab != "galaxies" && "hidden"]}
+                  >
+                    <div
+                      id="galaxies"
+                      phx-update="stream"
+                      class="grid max-h-[760px] gap-2 overflow-auto p-3"
+                    >
+                      <.empty_stream_state
+                        id="galaxies-empty"
+                        message="No galaxies yet."
+                        class="py-7"
+                      />
                       <div
-                        :if={world_count(galaxy) > 0}
-                        class="stone-border mt-3 grid gap-2 border-t pt-3"
+                        :for={{id, galaxy} <- @streams.galaxies}
+                        id={id}
+                        class="stone-record-card rounded-md border p-3"
                       >
-                        <div
-                          :for={world <- sorted_worlds(galaxy.worlds)}
-                          class="stone-soft-panel rounded-md border px-3 py-2"
-                        >
-                          <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                              <div class="stone-heading truncate text-sm font-medium">
-                                {world.name}
-                              </div>
-                              <p class="stone-muted mt-1 line-clamp-2 text-xs leading-5">
-                                {world.description || "No description yet."}
-                              </p>
-                              <.world_geography_stats counts={world_counts(@world_counts, world)} />
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                              <span class="stone-panel-muted inline-flex size-7 items-center justify-center rounded-md border">
+                                <.icon name="hero-sparkles" class="size-4" />
+                              </span>
+                              <h4 class="stone-heading truncate text-sm font-semibold">
+                                {galaxy.name}
+                              </h4>
                             </div>
-                            <div class="flex shrink-0 items-center gap-1.5">
-                              <.danger_icon_button
-                                phx-click="delete_world"
-                                phx-value-id={world.id}
-                                data-confirm={"Delete #{world.name} and its geography?"}
-                                label={"Delete #{world.name}"}
-                                class="size-7"
-                              />
-                              <.link
-                                navigate={~p"/worlds/#{world}/dashboard"}
-                                class="stone-button inline-flex size-7 items-center justify-center rounded-md border transition"
-                                aria-label={"Open #{world.name}"}
-                                title={"Open #{world.name}"}
-                              >
-                                <.icon name="hero-arrow-right" class="size-3.5" />
-                              </.link>
+                            <p class="stone-muted mt-2 line-clamp-2 text-sm">
+                              {galaxy.description || "No description yet."}
+                            </p>
+                          </div>
+                          <.danger_icon_button
+                            phx-click="delete_galaxy"
+                            phx-value-id={galaxy.id}
+                            data-confirm={"Delete #{galaxy.name}?"}
+                            label={"Delete #{galaxy.name}"}
+                          />
+                        </div>
+                        <div class="stone-border mt-3 flex items-center justify-between border-t pt-3 text-xs">
+                          <span class="stone-muted flex items-center gap-1.5">
+                            <.icon name="hero-globe-alt" class="size-3.5" /> World children
+                          </span>
+                          <strong class="stone-heading font-semibold">{world_count(galaxy)}</strong>
+                        </div>
+                        <div
+                          :if={world_count(galaxy) > 0}
+                          class="stone-border mt-3 grid gap-2 border-t pt-3"
+                        >
+                          <div
+                            :for={world <- sorted_worlds(galaxy.worlds)}
+                            class="stone-soft-panel rounded-md border px-3 py-2"
+                          >
+                            <div class="flex items-start justify-between gap-3">
+                              <div class="min-w-0">
+                                <div class="stone-heading truncate text-sm font-medium">
+                                  {world.name}
+                                </div>
+                                <p class="stone-muted mt-1 line-clamp-2 text-xs leading-5">
+                                  {world.description || "No description yet."}
+                                </p>
+                                <.world_geography_stats counts={world_counts(@world_counts, world)} />
+                              </div>
+                              <div class="flex shrink-0 items-center gap-1.5">
+                                <.danger_icon_button
+                                  phx-click="delete_world"
+                                  phx-value-id={world.id}
+                                  data-confirm={"Delete #{world.name} and its geography?"}
+                                  label={"Delete #{world.name}"}
+                                  class="size-7"
+                                />
+                                <.link
+                                  navigate={~p"/worlds/#{world}/dashboard"}
+                                  class="stone-button inline-flex size-7 items-center justify-center rounded-md border transition"
+                                  aria-label={"Open #{world.name}"}
+                                  title={"Open #{world.name}"}
+                                >
+                                  <.icon name="hero-arrow-right" class="size-3.5" />
+                                </.link>
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-
-                <div class="stone-panel flex flex-col overflow-hidden rounded-md border">
-                  <.panel_header
-                    title="Unassigned Worlds"
-                    subtitle="World records that are not associated with a galaxy."
-                    count={@unassigned_world_count}
-                  />
 
                   <div
-                    id="worlds"
-                    phx-update="stream"
-                    class="grid max-h-[680px] gap-2 overflow-auto p-3"
+                    id="unassigned-worlds-panel"
+                    role="tabpanel"
+                    aria-labelledby="unassigned-worlds-tab"
+                    class={[@library_tab != "unassigned_worlds" && "hidden"]}
                   >
-                    <.empty_stream_state
-                      id="worlds-empty"
-                      message="No unassigned worlds."
-                      class="py-7"
-                    />
                     <div
-                      :for={{id, world} <- @streams.worlds}
-                      id={id}
-                      class="stone-record-card rounded-md border p-3"
+                      id="worlds"
+                      phx-update="stream"
+                      class="grid max-h-[760px] gap-2 overflow-auto p-3"
                     >
-                      <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                        <div class="min-w-0">
-                          <div class="flex flex-wrap items-center gap-2">
-                            <h4 class="stone-heading truncate text-sm font-semibold">{world.name}</h4>
-                            <span class="stone-panel-muted stone-muted inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs">
-                              <.icon name="hero-sparkles" class="size-3" /> No galaxy
-                            </span>
+                      <.empty_stream_state
+                        id="worlds-empty"
+                        message="No unassigned worlds."
+                        class="py-7"
+                      />
+                      <div
+                        :for={{id, world} <- @streams.worlds}
+                        id={id}
+                        class="stone-record-card rounded-md border p-3"
+                      >
+                        <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                          <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                              <h4 class="stone-heading truncate text-sm font-semibold">
+                                {world.name}
+                              </h4>
+                              <span class="stone-panel-muted stone-muted inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs">
+                                <.icon name="hero-sparkles" class="size-3" /> No galaxy
+                              </span>
+                            </div>
+                            <p class="stone-muted mt-2 line-clamp-2 text-sm">
+                              {world.description || "No description yet."}
+                            </p>
+                            <.world_geography_stats counts={world_counts(@world_counts, world)} />
                           </div>
-                          <p class="stone-muted mt-2 line-clamp-2 text-sm">
-                            {world.description || "No description yet."}
-                          </p>
-                          <.world_geography_stats counts={world_counts(@world_counts, world)} />
-                        </div>
-                        <div class="flex items-start justify-end gap-2">
-                          <.danger_icon_button
-                            phx-click="delete_world"
-                            phx-value-id={world.id}
-                            data-confirm={"Delete #{world.name} and its geography?"}
-                            label={"Delete #{world.name}"}
-                          />
-                          <.link
-                            navigate={~p"/worlds/#{world}/dashboard"}
-                            class="stone-button inline-flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs font-medium transition"
-                          >
-                            Open <.icon name="hero-arrow-right" class="size-3.5" />
-                          </.link>
+                          <div class="flex items-start justify-end gap-2">
+                            <.danger_icon_button
+                              phx-click="delete_world"
+                              phx-value-id={world.id}
+                              data-confirm={"Delete #{world.name} and its geography?"}
+                              label={"Delete #{world.name}"}
+                            />
+                            <.link
+                              navigate={~p"/worlds/#{world}/dashboard"}
+                              class="stone-button inline-flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs font-medium transition"
+                            >
+                              Open <.icon name="hero-arrow-right" class="size-3.5" />
+                            </.link>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -309,17 +365,24 @@ defmodule AncientStonesWeb.WorldLive.Index do
                       rows="5"
                     />
                     <div class="grid gap-3 sm:grid-cols-3">
-                      <.input field={@world_form[:primary_star_name]} type="text" label="Star" />
+                      <.input
+                        field={@world_form[:primary_star_name]}
+                        type="text"
+                        label="Star"
+                        tooltip="Primary star or sun the world orbits."
+                      />
                       <.input
                         field={@world_form[:orbital_period_days]}
                         type="number"
                         label="Orbit Days"
+                        tooltip="Number of days in one full orbit around the primary star."
                       />
                       <.input
                         field={@world_form[:axial_tilt_degrees]}
                         type="number"
                         label="Axial Tilt"
                         step="0.01"
+                        tooltip="Planet tilt in degrees. Earth is about 23.5 degrees."
                       />
                     </div>
                     <.button
@@ -452,6 +515,10 @@ defmodule AncientStonesWeb.WorldLive.Index do
     {:noreply, assign(socket, :theme, normalize_theme(theme))}
   end
 
+  def handle_event("set_library_tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, :library_tab, normalize_library_tab(tab))}
+  end
+
   attr :counts, :map, required: true
 
   defp world_geography_stats(assigns) do
@@ -567,6 +634,14 @@ defmodule AncientStonesWeb.WorldLive.Index do
 
   defp sorted_worlds(worlds) do
     Enum.sort_by(worlds, & &1.name)
+  end
+
+  defp normalize_library_tab(tab) when tab in ~w(galaxies unassigned_worlds) do
+    tab
+  end
+
+  defp normalize_library_tab(_tab) do
+    "galaxies"
   end
 
   defp normalize_theme(theme) when theme in ~w(system light dark) do

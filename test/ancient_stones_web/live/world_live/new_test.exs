@@ -12,6 +12,12 @@ defmodule AncientStonesWeb.WorldLive.NewTest do
     assert has_element?(view, "#world-form")
     assert has_element?(view, "#world-form input[name='world[name]']")
     assert has_element?(view, "#world-form textarea[name='world[description]']")
+
+    assert has_element?(
+             view,
+             "#world-form [title='Planet tilt in degrees. Earth is about 23.5 degrees.']"
+           )
+
     assert has_element?(view, "#create-world-button")
   end
 
