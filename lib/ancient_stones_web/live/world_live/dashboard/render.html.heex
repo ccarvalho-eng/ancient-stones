@@ -129,7 +129,7 @@
       </div>
 
       <%= if @section == "geography" do %>
-        <div class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[260px_300px_minmax(0,1fr)_340px]">
+        <div class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_300px_minmax(0,1fr)_340px]">
           <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
             <div class="border-b border-zinc-200 px-4 py-3">
               <h2 class="text-sm font-semibold text-zinc-800">Geography</h2>
@@ -186,6 +186,10 @@
                         <div class="mt-0.5 truncate text-sm font-medium text-zinc-800">
                           {province.name}
                         </div>
+                        <.geography_badges
+                          id={"province-geography-#{province.id}"}
+                          record={province}
+                        />
                       </.link>
                       <button
                         type="button"
@@ -237,10 +241,7 @@
                               {hold.capital_location.name}
                             </span>
                           </div>
-                          <div class="mt-1 flex gap-1 text-[11px] text-zinc-500">
-                            <span :if={hold.terrain}>{Geography.label(hold.terrain)}</span>
-                            <span :if={hold.climate}>/ {Geography.label(hold.climate)}</span>
-                          </div>
+                          <.geography_badges id={"hold-geography-#{hold.id}"} record={hold} />
                         </.link>
                         <button
                           type="button"
@@ -339,7 +340,7 @@
                 </div>
               </div>
 
-              <div class="max-h-[720px] overflow-y-auto p-4">
+              <div class="max-h-[720px] overflow-y-auto p-3">
                 <div
                   :if={
                     is_nil(@selected_path.continent) && is_nil(@selected_hold) &&
@@ -402,10 +403,12 @@
                     <.detail
                       label="Terrain"
                       value={Geography.label(@selected_path.province.terrain)}
+                      icon={terrain_icon(@selected_path.province.terrain)}
                     />
                     <.detail
                       label="Climate"
                       value={Geography.label(@selected_path.province.climate)}
+                      icon={climate_icon(@selected_path.province.climate)}
                     />
                     <.detail
                       label="Holds"
@@ -436,8 +439,16 @@
 
                   <div class="grid gap-3 text-sm sm:grid-cols-2">
                     <.detail label="Region" value={selected_path(@selected_path)} />
-                    <.detail label="Terrain" value={Geography.label(@selected_hold.terrain)} />
-                    <.detail label="Climate" value={Geography.label(@selected_hold.climate)} />
+                    <.detail
+                      label="Terrain"
+                      value={Geography.label(@selected_hold.terrain)}
+                      icon={terrain_icon(@selected_hold.terrain)}
+                    />
+                    <.detail
+                      label="Climate"
+                      value={Geography.label(@selected_hold.climate)}
+                      icon={climate_icon(@selected_hold.climate)}
+                    />
                     <.detail
                       label="Province Capital"
                       value={
@@ -681,12 +692,14 @@
                 action="continent"
                 expanded_action={@expanded_action}
                 icon="hero-globe-alt"
-                title="Add Continent"
+                title={if(@selected_path.continent, do: "Edit Continent", else: "Add Continent")}
               >
                 <.form
                   for={@continent_form}
                   id="continent-form"
-                  phx-submit="create_continent"
+                  phx-submit={
+                    if(@selected_path.continent, do: "update_continent", else: "create_continent")
+                  }
                   class="space-y-2"
                 >
                   <.input field={@continent_form[:name]} type="text" label="Name" required />
@@ -696,7 +709,7 @@
                     label="Description"
                   />
                   <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
-                    Create
+                    {if @selected_path.continent, do: "Save", else: "Create"}
                   </.button>
                 </.form>
               </.action_section>

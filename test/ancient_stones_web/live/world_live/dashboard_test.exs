@@ -109,6 +109,21 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     [hold] = province.holds
 
     assert hold.name == "Whiterun"
+
+    assert has_element?(
+             view,
+             "#province-geography-#{province.id}.grid-cols-2"
+           )
+
+    assert has_element?(
+             view,
+             "#province-geography-#{province.id}-terrain .hero-arrow-trending-up"
+           )
+
+    assert has_element?(view, "#province-geography-#{province.id}-climate .hero-cloud")
+    assert has_element?(view, "#hold-geography-#{hold.id}.grid-cols-2")
+    assert has_element?(view, "#hold-geography-#{hold.id}-terrain .hero-minus")
+    assert has_element?(view, "#hold-geography-#{hold.id}-climate .hero-sun")
   end
 
   test "clears geography create forms after creation", %{conn: conn} do
@@ -174,9 +189,26 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
     {:ok, hold} = Worlds.create_hold(province, %{name: "Whiterun"})
 
-    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?province_id=#{province.id}")
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?continent_id=#{continent.id}")
 
-    open_action(view, "province")
+    assert has_element?(view, "#continent-form button", "Save")
+    assert has_element?(view, "#continent_name[value='Tamriel']")
+
+    view
+    |> form("#continent-form",
+      continent: %{
+        name: "Greater Tamriel",
+        description: "Edited continent"
+      }
+    )
+    |> render_submit()
+
+    continent = Repo.get!(Continent, continent.id)
+
+    assert continent.name == "Greater Tamriel"
+    assert continent.description == "Edited continent"
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?province_id=#{province.id}")
 
     assert has_element?(view, "#province-form button", "Save")
     assert has_element?(view, "#province_name[value='Skyrim']")
@@ -199,8 +231,6 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert province.description == "Edited province"
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?hold_id=#{hold.id}")
-
-    open_action(view, "hold")
 
     assert has_element?(view, "#hold-form button", "Save")
     assert has_element?(view, "#hold_name[value='Whiterun']")
@@ -233,8 +263,6 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     {:ok, hold} = Worlds.create_hold(province, %{name: "Whiterun"})
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?hold_id=#{hold.id}")
-
-    open_action(view, "hold")
 
     assert has_element?(view, "#hold_province_capital")
 
@@ -273,6 +301,48 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     province = Repo.get!(Province, province.id)
 
     refute province.capital_hold_id
+  end
+
+  test "selecting geography records expands the matching action form", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Whiterun"})
+    {:ok, city} = Worlds.create_location_type(world, %{name: "City"})
+    {:ok, whiterun} = Worlds.create_location(hold, city, %{name: "Whiterun"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
+
+    assert has_element?(view, "#continent-form")
+
+    view
+    |> element("a[href='#{~p"/worlds/#{world}/dashboard?continent_id=#{continent.id}"}']")
+    |> render_click()
+
+    assert has_element?(view, "#continent-form button", "Save")
+
+    view
+    |> element("a[href='#{~p"/worlds/#{world}/dashboard?province_id=#{province.id}"}']")
+    |> render_click()
+
+    assert has_element?(view, "#province-form button", "Save")
+    refute has_element?(view, "#continent-form")
+
+    view
+    |> element("a[href='#{~p"/worlds/#{world}/dashboard?hold_id=#{hold.id}"}']")
+    |> render_click()
+
+    assert has_element?(view, "#hold-form button", "Save")
+    refute has_element?(view, "#province-form")
+
+    view
+    |> element(
+      "a[href='#{~p"/worlds/#{world}/dashboard?hold_id=#{hold.id}&location_id=#{whiterun.id}"}']"
+    )
+    |> render_click()
+
+    assert has_element?(view, "#location-edit-form button", "Save")
+    refute has_element?(view, "#hold-form")
   end
 
   test "creates location types and capital locations", %{conn: conn} do
@@ -412,8 +482,6 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     {:ok, view, _html} =
       live(conn, ~p"/worlds/#{world}/dashboard?hold_id=#{whiterun.id}&location_id=#{capital.id}")
-
-    open_action(view, "location_edit")
 
     view
     |> form("#location-edit-form",

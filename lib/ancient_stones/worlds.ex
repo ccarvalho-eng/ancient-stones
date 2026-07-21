@@ -270,6 +270,12 @@ defmodule AncientStones.Worlds do
     |> Repo.insert()
   end
 
+  def update_continent(%Continent{} = continent, attrs) do
+    continent
+    |> Continent.changeset(attrs)
+    |> Repo.update()
+  end
+
   def create_timeline(%World{id: world_id}, attrs) do
     %Timeline{world_id: world_id}
     |> Timeline.changeset(attrs)

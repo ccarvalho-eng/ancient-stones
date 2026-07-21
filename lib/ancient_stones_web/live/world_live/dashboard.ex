@@ -17,13 +17,21 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   def handle_params(%{"id" => id} = params, _uri, socket) do
-    {:noreply, assign_dashboard(socket, id, params)}
+    {:noreply, assign_dashboard(socket, id, params, select_action: true)}
   end
 
   embed_templates "dashboard/*"
 
   def handle_event("create_continent", %{"continent" => params}, socket) do
     create_and_reload(socket, fn -> Worlds.create_continent(socket.assigns.world, params) end)
+  end
+
+  def handle_event("update_continent", %{"continent" => params}, socket) do
+    update_and_reload(socket, fn ->
+      with {:ok, continent} <- get_selected_continent(socket) do
+        Worlds.update_continent(continent, params)
+      end
+    end)
   end
 
   def handle_event("create_province", %{"province" => params}, socket) do
@@ -745,10 +753,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end
   end
 
-  defp assign_dashboard(socket, world_id, params) do
+  defp assign_dashboard(socket, world_id, params, opts \\ []) do
     world = Worlds.get_world_dashboard!(world_id)
     section = normalize_section(params["section"])
-    expanded_action = selected_expanded_action(socket, section)
+    expanded_action = selected_expanded_action(socket, section, params, opts)
     continents = sorted(world.continents)
     civilizations = sorted(world.civilizations)
     provinces = flat_provinces(continents)
@@ -932,7 +940,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:selected_hold_options, selected_hold_options)
     |> assign(:location_type_options, option_list(location_types))
     |> assign(:location_options, option_list(selected_hold_locations))
-    |> assign(:continent_form, data_form(:continent))
+    |> assign(
+      :continent_form,
+      data_form(:continent, continent_form_attrs(selected_path.continent))
+    )
     |> assign(
       :province_form,
       data_form(:province, province_form_attrs(selected_path.province, selected_continent_id))
@@ -1468,6 +1479,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     {:error, :hold_not_selected}
   end
 
+  defp get_selected_continent(%{assigns: %{selected_path: %{continent: %{} = continent}}}) do
+    {:ok, continent}
+  end
+
+  defp get_selected_continent(_socket) do
+    {:error, :continent_not_selected}
+  end
+
   defp get_selected_province(%{assigns: %{selected_path: %{province: %{} = province}}}) do
     {:ok, province}
   end
@@ -1936,6 +1955,17 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     attrs
     |> Map.merge(%{"name" => "", "description" => ""}, fn _key, value, _default -> value end)
     |> to_form(as: name)
+  end
+
+  defp continent_form_attrs(nil) do
+    %{}
+  end
+
+  defp continent_form_attrs(continent) do
+    %{
+      "name" => continent.name,
+      "description" => continent.description
+    }
   end
 
   defp province_form_attrs(nil, continent_id) do
@@ -2614,14 +2644,52 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     "Geography"
   end
 
-  defp selected_expanded_action(socket, section) do
-    case socket.assigns[:section] do
-      ^section ->
+  defp selected_expanded_action(socket, section, params, opts) do
+    selected_record_action = selected_record_action(section, params, opts)
+
+    cond do
+      selected_record_action ->
+        selected_record_action
+
+      socket.assigns[:section] == section ->
         socket.assigns[:expanded_action]
 
-      _previous_section ->
+      true ->
         default_expanded_action(section)
     end
+  end
+
+  defp selected_record_action("geography", params, opts) do
+    if Keyword.get(opts, :select_action, false) do
+      geography_record_action(params)
+    end
+  end
+
+  defp selected_record_action(_section, _params, _opts) do
+    nil
+  end
+
+  defp geography_record_action(%{"location_id" => location_id})
+       when location_id not in [nil, ""] do
+    "location_edit"
+  end
+
+  defp geography_record_action(%{"hold_id" => hold_id}) when hold_id not in [nil, ""] do
+    "hold"
+  end
+
+  defp geography_record_action(%{"province_id" => province_id})
+       when province_id not in [nil, ""] do
+    "province"
+  end
+
+  defp geography_record_action(%{"continent_id" => continent_id})
+       when continent_id not in [nil, ""] do
+    "continent"
+  end
+
+  defp geography_record_action(_params) do
+    nil
   end
 
   defp default_expanded_action("races") do
@@ -3220,6 +3288,44 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     Enum.filter(locations, &(&1.parent_location_id == location.id))
   end
 
+  defp terrain_icon(nil) do
+    nil
+  end
+
+  defp terrain_icon(value) do
+    case to_string(value) do
+      "coast" -> "hero-globe-alt"
+      "forest" -> "hero-squares-2x2"
+      "highlands" -> "hero-arrow-trending-up"
+      "marsh" -> "hero-cloud-arrow-down"
+      "mountain" -> "hero-arrow-trending-up"
+      "plains" -> "hero-minus"
+      "riverlands" -> "hero-arrow-path"
+      "snowfield" -> "hero-sparkles"
+      "tundra" -> "hero-globe-alt"
+      "volcanic" -> "hero-fire"
+      "wetlands" -> "hero-cloud-arrow-down"
+      _value -> "hero-map"
+    end
+  end
+
+  defp climate_icon(nil) do
+    nil
+  end
+
+  defp climate_icon(value) do
+    case to_string(value) do
+      "arctic" -> "hero-sparkles"
+      "coastal" -> "hero-globe-alt"
+      "cold" -> "hero-cloud"
+      "dry" -> "hero-sun"
+      "temperate" -> "hero-sun"
+      "volcanic" -> "hero-fire"
+      "wet" -> "hero-cloud-arrow-down"
+      _value -> "hero-cloud"
+    end
+  end
+
   defp normalize_theme(theme) when theme in ~w(system light dark) do
     theme
   end
@@ -3317,13 +3423,55 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     """
   end
 
+  attr :id, :string, required: true
+  attr :record, :map, required: true
+
+  defp geography_badges(assigns) do
+    ~H"""
+    <div
+      :if={@record.terrain || @record.climate}
+      id={@id}
+      class={[
+        "mt-1 grid min-w-0 gap-1",
+        @record.terrain && @record.climate && "grid-cols-2",
+        !(@record.terrain && @record.climate) && "grid-cols-1"
+      ]}
+    >
+      <span
+        :if={@record.terrain}
+        id={@id <> "-terrain"}
+        class="inline-flex min-w-0 items-center gap-1 rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600"
+        title={"Terrain: #{Geography.label(@record.terrain)}"}
+        aria-label={"Terrain: #{Geography.label(@record.terrain)}"}
+      >
+        <.icon name={terrain_icon(@record.terrain)} class="size-3 shrink-0" />
+        <span class="truncate">{Geography.label(@record.terrain)}</span>
+      </span>
+      <span
+        :if={@record.climate}
+        id={@id <> "-climate"}
+        class="inline-flex min-w-0 items-center gap-1 rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-zinc-600"
+        title={"Climate: #{Geography.label(@record.climate)}"}
+        aria-label={"Climate: #{Geography.label(@record.climate)}"}
+      >
+        <.icon name={climate_icon(@record.climate)} class="size-3 shrink-0" />
+        <span class="truncate">{Geography.label(@record.climate)}</span>
+      </span>
+    </div>
+    """
+  end
+
   attr :label, :string, required: true
   attr :value, :string, required: true
+  attr :icon, :string, default: nil
 
   defp detail(assigns) do
     ~H"""
     <div class="stone-panel-muted rounded-md border px-3 py-2">
-      <p class="stone-muted text-[11px] font-semibold uppercase">{@label}</p>
+      <p class="stone-muted flex items-center gap-1.5 text-[11px] font-semibold uppercase">
+        <.icon :if={@icon} name={@icon} class="size-3.5 shrink-0" />
+        <span>{@label}</span>
+      </p>
       <p class="stone-heading mt-1 text-sm font-medium">{@value}</p>
     </div>
     """
