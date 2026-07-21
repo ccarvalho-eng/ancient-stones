@@ -357,6 +357,39 @@ defmodule AncientStones.WorldsTest do
     assert chamber.parent_location_id == barrow.id
   end
 
+  test "rejects overlapping location map coordinates within a hold" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, whiterun} = Worlds.create_hold(province, %{name: "Whiterun"})
+    {:ok, eastmarch} = Worlds.create_hold(province, %{name: "Eastmarch"})
+    {:ok, city} = Worlds.create_location_type(world, %{name: "City"})
+
+    assert {:ok, _location} =
+             Worlds.create_location(whiterun, city, %{
+               name: "Whiterun",
+               map_x: 4,
+               map_y: 12
+             })
+
+    assert {:error, changeset} =
+             Worlds.create_location(whiterun, city, %{
+               name: "Riverwood",
+               map_x: 4,
+               map_y: 12
+             })
+
+    assert %{map_x: ["coordinates already used by another location in this hold"]} =
+             errors_on(changeset)
+
+    assert {:ok, _location} =
+             Worlds.create_location(eastmarch, city, %{
+               name: "Windhelm",
+               map_x: 4,
+               map_y: 12
+             })
+  end
+
   test "creates characters with selected occupation and skill relationships" do
     {:ok, world} = Worlds.create_world(%{name: "Nirn"})
     {:ok, occupation} = Worlds.create_occupation(world, %{name: "Blacksmith"})

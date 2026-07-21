@@ -42,5 +42,9 @@ defmodule AncientStones.Worlds.Location do
     |> foreign_key_constraint(:location_type_id)
     |> unique_constraint(:name, name: :locations_hold_id_name_root_index)
     |> unique_constraint(:name, name: :locations_hold_id_parent_location_id_name_index)
+    |> unique_constraint(:map_x,
+      name: :locations_hold_id_map_coordinates_index,
+      message: "coordinates already used by another location in this hold"
+    )
   end
 end
