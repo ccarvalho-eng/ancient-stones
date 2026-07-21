@@ -14,6 +14,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.CharacterInventoryCategory
   alias AncientStones.Worlds.CharacterInventoryItem
   alias AncientStones.Worlds.CharacterOccupation
+  alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.CharacterSkill
   alias AncientStones.Worlds.CharacterSpellbookEntry
   alias AncientStones.Worlds.Civilization
@@ -106,6 +107,7 @@ defmodule AncientStones.Worlds do
     |> Repo.get!(id)
     |> Repo.preload(
       characters: [
+        :character_role,
         :race,
         :guild,
         :home_location,
@@ -115,6 +117,7 @@ defmodule AncientStones.Worlds do
         character_skills: [:skill],
         spellbook_entries: [:spell]
       ],
+      character_roles: [],
       civilizations: [
         :timeline_era,
         civilization_locations: [:location],
@@ -665,6 +668,7 @@ defmodule AncientStones.Worlds do
     |> order_by([character], asc: character.name)
     |> Repo.all()
     |> Repo.preload([
+      :character_role,
       :race,
       :guild,
       :home_location,
@@ -677,6 +681,7 @@ defmodule AncientStones.Worlds do
     Character
     |> Repo.get!(id)
     |> Repo.preload([
+      :character_role,
       :race,
       :guild,
       :home_location,
@@ -690,6 +695,7 @@ defmodule AncientStones.Worlds do
       character =
         %Character{world_id: world_id}
         |> Character.changeset(attrs)
+        |> put_optional_ref(:character_role_id, refs[:character_role])
         |> put_optional_ref(:race_id, refs[:race])
         |> put_optional_ref(:guild_id, refs[:guild])
         |> put_optional_ref(:home_location_id, refs[:home_location])
@@ -711,10 +717,25 @@ defmodule AncientStones.Worlds do
   def update_character(%Character{} = character, attrs, refs \\ %{}) do
     character
     |> Character.changeset(attrs)
+    |> put_ref(:character_role_id, refs[:character_role])
     |> put_ref(:race_id, refs[:race])
     |> put_ref(:guild_id, refs[:guild])
     |> put_ref(:home_location_id, refs[:home_location])
     |> Repo.update()
+  end
+
+  def create_character_role(%World{id: world_id}, attrs) do
+    %CharacterRole{world_id: world_id}
+    |> CharacterRole.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def get_character_role!(id) do
+    Repo.get!(CharacterRole, id)
+  end
+
+  def delete_character_role(%CharacterRole{} = character_role) do
+    Repo.delete(character_role)
   end
 
   def create_creature_type(%World{id: world_id}, attrs) do
@@ -1916,7 +1937,13 @@ defmodule AncientStones.Worlds do
     attrs = normalize_world_attrs(attrs)
 
     template_data
-    |> Map.take([:name, :description])
+    |> Map.take([
+      :name,
+      :description,
+      :primary_star_name,
+      :orbital_period_days,
+      :axial_tilt_degrees
+    ])
     |> Map.merge(attrs)
   end
 
@@ -1924,6 +1951,15 @@ defmodule AncientStones.Worlds do
     %{}
     |> maybe_put_attr(:name, attrs[:name] || attrs["name"])
     |> maybe_put_attr(:description, attrs[:description] || attrs["description"])
+    |> maybe_put_attr(:primary_star_name, attrs[:primary_star_name] || attrs["primary_star_name"])
+    |> maybe_put_attr(
+      :orbital_period_days,
+      attrs[:orbital_period_days] || attrs["orbital_period_days"]
+    )
+    |> maybe_put_attr(
+      :axial_tilt_degrees,
+      attrs[:axial_tilt_degrees] || attrs["axial_tilt_degrees"]
+    )
   end
 
   defp maybe_put_attr(attrs, _key, nil) do
@@ -1974,6 +2010,9 @@ defmodule AncientStones.Worlds do
     era_by_name = build_template_timelines!(world, Map.get(template_data, :timelines, []))
     race_by_name = build_template_races!(world, Map.get(template_data, :races, []))
 
+    character_role_by_name =
+      build_template_character_roles!(world, Map.get(template_data, :characters, []))
+
     civilization_by_name =
       build_template_civilizations!(
         world,
@@ -1988,7 +2027,8 @@ defmodule AncientStones.Worlds do
         world,
         Map.get(template_data, :characters, []),
         race_by_name,
-        guild_by_name
+        guild_by_name,
+        character_role_by_name
       )
 
     build_template_political_offices!(
@@ -2060,6 +2100,9 @@ defmodule AncientStones.Worlds do
     era_by_name = build_template_timelines!(world, Map.get(template_data, :timelines, []))
     race_by_name = build_template_races!(world, Map.get(template_data, :races, []))
 
+    character_role_by_name =
+      build_template_character_roles!(world, Map.get(template_data, :characters, []))
+
     civilization_by_name =
       build_template_civilizations!(
         world,
@@ -2074,7 +2117,8 @@ defmodule AncientStones.Worlds do
         world,
         Map.get(template_data, :characters, []),
         race_by_name,
-        guild_by_name
+        guild_by_name,
+        character_role_by_name
       )
 
     build_template_political_offices!(
@@ -2338,11 +2382,36 @@ defmodule AncientStones.Worlds do
     end)
   end
 
-  defp build_template_characters!(world, characters, race_by_name, guild_by_name) do
+  defp build_template_character_roles!(world, characters) do
+    characters
+    |> Enum.map(&Map.get(&1, :role))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.reduce(%{}, fn role_name, acc ->
+      role =
+        world
+        |> create_character_role(%{
+          name: role_name,
+          description: "Imported template character role for #{role_name}."
+        })
+        |> unwrap_transaction!()
+
+      Map.put(acc, role.name, role)
+    end)
+  end
+
+  defp build_template_characters!(
+         world,
+         characters,
+         race_by_name,
+         guild_by_name,
+         character_role_by_name
+       ) do
     location_by_name = locations_by_name(world)
 
     Enum.reduce(characters, %{}, fn character_data, acc ->
       refs = %{
+        character_role: Map.get(character_role_by_name, character_data[:role]),
         race: Map.get(race_by_name, character_data[:race]),
         guild: Map.get(guild_by_name, character_data[:guild]),
         home_location: Map.get(location_by_name, character_data[:home_location])

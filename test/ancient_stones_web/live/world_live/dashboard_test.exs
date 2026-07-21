@@ -18,6 +18,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.GuildInfluence
   alias AncientStones.Worlds.CharacterInventoryCategory
   alias AncientStones.Worlds.CharacterInventoryItem
+  alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.ContinentCurrency
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.HoldCommerceEntry
@@ -64,13 +65,19 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     |> form("#continent-form",
       continent: %{
         name: "Tamriel",
-        description: "A vast continent"
+        description: "A vast continent",
+        map_x: -20,
+        map_y: 35,
+        visibility: "known"
       }
     )
     |> render_submit()
 
     world = Worlds.get_world_dashboard!(world.id)
     [continent] = world.continents
+    assert continent.map_x == -20
+    assert continent.map_y == 35
+    assert continent.visibility == :known
 
     open_action(view, "province")
 
@@ -81,7 +88,10 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         name: "Skyrim",
         terrain: "mountain",
         climate: "cold",
-        description: "A cold northern province"
+        description: "A cold northern province",
+        map_x: -12,
+        map_y: 42,
+        visibility: "rumored"
       }
     )
     |> render_submit()
@@ -89,6 +99,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     world = Worlds.get_world_dashboard!(world.id)
     [continent] = world.continents
     [province] = continent.provinces
+    assert province.map_x == -12
+    assert province.map_y == 42
+    assert province.visibility == :rumored
 
     open_action(view, "hold")
 
@@ -99,7 +112,10 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         name: "Whiterun",
         terrain: "plains",
         climate: "temperate",
-        description: "Central open tundra"
+        description: "Central open tundra",
+        map_x: 4,
+        map_y: 18,
+        visibility: "hidden"
       }
     )
     |> render_submit()
@@ -110,6 +126,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     [hold] = province.holds
 
     assert hold.name == "Whiterun"
+    assert hold.map_x == 4
+    assert hold.map_y == 18
+    assert hold.visibility == :hidden
 
     assert has_element?(
              view,
@@ -200,6 +219,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
       continent: %{
         name: "Greater Tamriel",
         description: "Edited continent",
+        map_x: -30,
+        map_y: 45,
+        visibility: "lost",
         currency_name: "Frostmarks",
         currency_description: "Stamped silver rings traded by weight"
       }
@@ -211,9 +233,14 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert continent.name == "Greater Tamriel"
     assert continent.description == "Edited continent"
+    assert continent.map_x == -30
+    assert continent.map_y == 45
+    assert continent.visibility == :lost
     assert currency.name == "Frostmarks"
     assert currency.description == "Stamped silver rings traded by weight"
     assert has_element?(view, "#continent-details", "Frostmarks")
+    assert has_element?(view, "#continent-details", "X -30, Y 45")
+    assert has_element?(view, "#continent-details", "Lost")
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?province_id=#{province.id}")
 
@@ -227,7 +254,10 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         name: "Northern Skyrim",
         terrain: "mountain",
         climate: "cold",
-        description: "Edited province"
+        description: "Edited province",
+        map_x: -11,
+        map_y: 39,
+        visibility: "rumored"
       }
     )
     |> render_submit()
@@ -236,6 +266,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert province.name == "Northern Skyrim"
     assert province.description == "Edited province"
+    assert province.map_x == -11
+    assert province.map_y == 39
+    assert province.visibility == :rumored
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?hold_id=#{hold.id}")
 
@@ -250,6 +283,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         terrain: "plains",
         climate: "temperate",
         description: "Edited hold",
+        map_x: 8,
+        map_y: 16,
+        visibility: "hidden",
         province_capital: "false"
       }
     )
@@ -259,6 +295,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert hold.name == "Greater Whiterun"
     assert hold.description == "Edited hold"
+    assert hold.map_x == 8
+    assert hold.map_y == 16
+    assert hold.visibility == :hidden
   end
 
   test "shows province politics in province and continent details", %{conn: conn} do
@@ -450,6 +489,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         parent_location_id: "",
         name: "Whiterun",
         description: "The hold capital",
+        map_x: 6,
+        map_y: 17,
+        visibility: "known",
         capital: "true"
       }
     )
@@ -461,6 +503,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     [hold] = province.holds
 
     assert hold.capital_location.name == "Whiterun"
+    assert hold.capital_location.map_x == 6
+    assert hold.capital_location.map_y == 17
+    assert hold.capital_location.visibility == :known
   end
 
   test "does not create child location types under another world", %{conn: conn} do
@@ -562,6 +607,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         location_type_id: capital.location_type_id,
         name: "Whiterun",
         description: "Major trade city",
+        map_x: 12,
+        map_y: -3,
+        visibility: "rumored",
         capital: "false"
       }
     )
@@ -572,6 +620,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     refute hold.capital_location_id
     assert location.description == "Major trade city"
+    assert location.map_x == 12
+    assert location.map_y == -3
+    assert location.visibility == :rumored
   end
 
   test "nested locations render once in the selected hold list", %{conn: conn} do
@@ -896,6 +947,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
     {:ok, race} = Worlds.create_race(world, %{name: "Nord"})
     {:ok, guild} = Worlds.create_guild(world, %{name: "Stormcloaks"})
+    {:ok, character_role} = Worlds.create_character_role(world, %{name: "Jarl"})
     {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
     {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
     {:ok, hold} = Worlds.create_hold(province, %{name: "Eastmarch"})
@@ -945,7 +997,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         name: "Ulfric Stormcloak",
         gender: "male",
         title: "Jarl of Windhelm",
-        role: "Jarl",
+        character_role_id: character_role.id,
         politics: "Stormcloak",
         status: "alive",
         race_id: race.id,
@@ -968,6 +1020,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
       ])
 
     assert character.home_location.name == "Windhelm"
+    assert character.character_role_id == character_role.id
+    assert character.role == "Jarl"
     assert character.gender == "male"
     assert Enum.any?(character.character_occupations, &(&1.occupation.name == "Jarl"))
     assert Enum.any?(character.character_skills, &(&1.skill.name == "Speech"))
@@ -978,6 +1032,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
     {:ok, nord} = Worlds.create_race(world, %{name: "Nord"})
     {:ok, breton} = Worlds.create_race(world, %{name: "Breton"})
+    {:ok, ruler} = Worlds.create_character_role(world, %{name: "Ruler"})
+    {:ok, high_king} = Worlds.create_character_role(world, %{name: "High King"})
     {:ok, guild} = Worlds.create_guild(world, %{name: "Crown Moot"})
     {:ok, continent} = Worlds.create_continent(world, %{name: "Tysttind"})
     {:ok, province} = Worlds.create_province(continent, %{name: "Frostgard"})
@@ -992,12 +1048,11 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
           name: "Eirik Frost-Crowned",
           gender: "male",
           title: "High King",
-          role: "Ruler",
           politics: "Crown Moot",
           status: "alive",
           description: "An oath-bound king"
         },
-        %{race: nord}
+        %{race: nord, character_role: ruler}
       )
 
     {:ok, view, _html} =
@@ -1012,7 +1067,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         name: "Eirik Ring-Keeper",
         gender: "male",
         title: "High King of Frostgard",
-        role: "High King",
+        character_role_id: high_king.id,
         politics: "Crown Moot",
         status: "alive",
         race_id: breton.id,
@@ -1033,12 +1088,84 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert character.name == "Eirik Ring-Keeper"
     assert character.gender == "male"
     assert character.title == "High King of Frostgard"
+    assert character.character_role_id == high_king.id
     assert character.role == "High King"
     assert character.politics == "Crown Moot"
     assert character.description == "Bearer of the Frostmark oath"
     assert character.race.name == "Breton"
     assert character.guild.name == "Crown Moot"
     assert character.home_location.name == "High Hall"
+  end
+
+  test "creates character roles from the characters section", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=characters")
+
+    open_action(view, "character_role")
+
+    view
+    |> form("#character-role-form",
+      character_role: %{
+        name: "Housecarl",
+        description: "Sworn shield of a jarl"
+      }
+    )
+    |> render_submit()
+
+    character_role = Repo.get_by!(CharacterRole, name: "Housecarl")
+
+    open_action(view, "character")
+
+    assert has_element?(view, "#character_character_role_id option[value='#{character_role.id}']")
+  end
+
+  test "groups characters without a role without using their names as roles", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, _character} = Worlds.create_character(world, %{name: "Nameless Wanderer"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=characters")
+
+    assert has_element?(view, "#character-list summary", "No Race")
+    refute has_element?(view, "#character-list summary", "Nameless Wanderer")
+  end
+
+  test "groups characters by race and orders characters by role", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, alfar} = Worlds.create_race(world, %{name: "Alfar"})
+    {:ok, fjordborn} = Worlds.create_race(world, %{name: "Fjordborn"})
+    {:ok, jarl} = Worlds.create_character_role(world, %{name: "Jarl"})
+    {:ok, lawspeaker} = Worlds.create_character_role(world, %{name: "Lawspeaker"})
+
+    {:ok, _character} =
+      Worlds.create_character(world, %{name: "Zara"}, %{race: fjordborn, character_role: jarl})
+
+    {:ok, _character} =
+      Worlds.create_character(world, %{name: "Asta"}, %{race: alfar, character_role: lawspeaker})
+
+    {:ok, _character} =
+      Worlds.create_character(world, %{name: "Bryn"}, %{race: alfar, character_role: jarl})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=characters")
+
+    group_labels =
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#character-list summary")
+      |> Enum.map(&LazyHTML.text/1)
+
+    assert group_labels == ["Alfar2", "Fjordborn1"]
+
+    alfar_names =
+      view
+      |> render()
+      |> LazyHTML.from_fragment()
+      |> LazyHTML.query("#folded-characters-alfar a")
+      |> Enum.map(&LazyHTML.text/1)
+      |> Enum.map(&String.replace(&1, ~r/\s+/, ""))
+
+    assert alfar_names == ["BrynJarl", "AstaLawspeaker"]
   end
 
   test "creates edits and deletes skills from the skills section", %{conn: conn} do
@@ -1500,7 +1627,14 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   end
 
   test "creates calendars and months from the calendar section", %{conn: conn} do
-    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, world} =
+      Worlds.create_world_from_template(:blank, %{
+        name: "Eldoria",
+        primary_star_name: "Solka",
+        orbital_period_days: 31,
+        axial_tilt_degrees: "23.5"
+      })
+
     {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=calendar")
@@ -1512,12 +1646,16 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         name: "Nordic Reckoning",
         days_per_week: 7,
         era: "Fourth Era",
+        year_start_angle: "270.0",
+        perihelion_day: 12,
         description: "A local calendar"
       }
     )
     |> render_submit()
 
     calendar = Repo.get_by!(Calendar, name: "Nordic Reckoning")
+    assert Decimal.equal?(calendar.year_start_angle, Decimal.new("270.0"))
+    assert calendar.perihelion_day == 12
 
     open_action(view, "calendar_month")
 
@@ -1536,6 +1674,10 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert Enum.any?(calendar.months, &(&1.name == "Frostfall"))
     assert has_element?(view, "#calendar-list", "Nordic Reckoning")
+    assert has_element?(view, "#calendar-details", "Solka")
+    assert has_element?(view, "#calendar-details", "31 days")
+    assert has_element?(view, "#calendar-details", "Aligned")
+    assert has_element?(view, "#calendar-details", "270.0 deg")
     assert has_element?(view, "#calendar-month-grid")
     assert has_element?(view, "#calendar-month-#{month.id}", "Frostfall")
   end

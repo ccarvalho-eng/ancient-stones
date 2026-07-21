@@ -181,6 +181,9 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(dashboard.creature_types, &(&1.name == "Dragon"))
     assert Enum.any?(dashboard.creatures, &(&1.name == "Frost Troll"))
     assert dashboard.galaxy.name == "Mundus"
+    assert dashboard.primary_star_name == "Magnus"
+    assert dashboard.orbital_period_days == 365
+    assert Decimal.equal?(dashboard.axial_tilt_degrees, Decimal.new("23.5"))
     assert Enum.any?(dashboard.civilizations, &(&1.name == "Dwemer"))
     assert Enum.any?(dashboard.documents, &(&1.title == "The Book of the Dragonborn"))
     assert Enum.any?(dashboard.political_offices, &(&1.office == "High King"))
@@ -217,6 +220,8 @@ defmodule AncientStones.WorldsTest do
 
     ulfric = Enum.find(dashboard.characters, &(&1.name == "Ulfric Stormcloak"))
 
+    assert ulfric.role == "Jarl"
+    assert ulfric.character_role.name == "Jarl"
     assert Enum.any?(ulfric.inventory_categories, &(&1.name == "Weapons"))
 
     assert Enum.any?(ulfric.inventory_items, fn inventory_item ->
@@ -286,6 +291,9 @@ defmodule AncientStones.WorldsTest do
       |> Enum.find(&(&1.name == "Tamrielic Calendar"))
 
     assert calendar.days_per_week == 7
+    assert Decimal.equal?(calendar.year_start_angle, Decimal.new("270.0"))
+    assert calendar.perihelion_day == 1
+    assert calendar.months |> Enum.map(& &1.days) |> Enum.sum() == dashboard.orbital_period_days
     assert Enum.any?(calendar.months, &(&1.name == "Frostfall" && &1.position == 10))
 
     smithing = Enum.find(dashboard.skills, &(&1.name == "Smithing"))

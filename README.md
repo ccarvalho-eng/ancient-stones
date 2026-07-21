@@ -1,8 +1,8 @@
 # Ancient Stones
 
-Ancient Stones is a Phoenix and LiveView world-building dashboard for creating RPG settings, campaign references, and fiction worlds.
+Ancient Stones is a Phoenix and LiveView world-building dashboard for creating RPG settings, campaign references, and fiction worlds. It models a world as editable lore, geography, politics, commerce, calendars, characters, documents, inventories, skills, creatures, and relationships instead of treating setting notes as flat text.
 
-The current app focuses on a Skyrim-inspired framework: worlds, galaxies, continents, provinces, holds, locations, races, guilds, gods, civilizations, characters, politics, calendars, timelines, creatures, skills, spells, items, inventories, and local commerce. You can start from a Nordic fantasy template or create a blank world and define your own structure.
+The current app focuses on a Nordic fantasy framework: worlds, galaxies, continents, provinces, holds, locations, races, character roles, guilds, gods, civilizations, politics, calendars, timelines, creatures, skills, spells, items, inventories, local commerce, coordinates, and discovered or hidden places. You can start from a Skyrim-inspired template or create a blank world and define your own structure.
 
 Ancient Stones is a project, not a packaged library.
 
@@ -11,8 +11,9 @@ Ancient Stones is a project, not a packaged library.
 - Create worlds from a blank canvas or the Skyrim-inspired template.
 - Organize geography from galaxy and world down to continent, province, hold, and location.
 - Browse and edit world-building records from a compact dashboard.
-- Track races, guilds, gods, civilizations, calendars, timelines, characters, politics, creatures, skills, spells, items, and character inventories.
-- Model regional details such as terrain, climate, capitals, political offices, local commerce, and location types.
+- Track races, character roles, guilds, gods, civilizations, calendars, timelines, characters, politics, creatures, skills, spells, items, and character inventories.
+- Model regional details such as terrain, climate, capitals, political offices, local commerce, location types, map coordinates, and visibility.
+- Keep calendars aligned to a planet's orbital year while allowing different eras to use different month structures.
 - Use a starter data set inspired by Skyrim as a reference structure for RPGs, games, or book settings.
 
 ## Status

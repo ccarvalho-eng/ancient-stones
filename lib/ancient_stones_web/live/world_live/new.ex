@@ -52,6 +52,16 @@ defmodule AncientStonesWeb.WorldLive.New do
                   label="Description"
                   rows="5"
                 />
+                <div class="grid gap-3 sm:grid-cols-3">
+                  <.input field={@form[:primary_star_name]} type="text" label="Star" />
+                  <.input field={@form[:orbital_period_days]} type="number" label="Orbit Days" />
+                  <.input
+                    field={@form[:axial_tilt_degrees]}
+                    type="number"
+                    label="Axial Tilt"
+                    step="0.01"
+                  />
+                </div>
 
                 <.button
                   id="create-world-button"

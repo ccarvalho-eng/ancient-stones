@@ -379,6 +379,16 @@
                       value={continent_location_count(@selected_path.continent)}
                     />
                     <.detail
+                      label="Coordinates"
+                      value={map_coordinate_label(@selected_path.continent)}
+                      icon="hero-map-pin"
+                    />
+                    <.detail
+                      label="Visibility"
+                      value={visibility_label(@selected_path.continent.visibility)}
+                      icon={visibility_icon(@selected_path.continent.visibility)}
+                    />
+                    <.detail
                       label="Coin"
                       value={display_value(continent_currency_name(@selected_path.continent))}
                       icon="hero-circle-stack"
@@ -465,6 +475,16 @@
                       value={display_value(continent_currency_name(@selected_path.continent))}
                       icon="hero-circle-stack"
                     />
+                    <.detail
+                      label="Coordinates"
+                      value={map_coordinate_label(@selected_path.province)}
+                      icon="hero-map-pin"
+                    />
+                    <.detail
+                      label="Visibility"
+                      value={visibility_label(@selected_path.province.visibility)}
+                      icon={visibility_icon(@selected_path.province.visibility)}
+                    />
                   </div>
 
                   <.political_office_group
@@ -518,6 +538,16 @@
                       label="Coin"
                       value={display_value(continent_currency_name(@selected_path.continent))}
                       icon="hero-circle-stack"
+                    />
+                    <.detail
+                      label="Coordinates"
+                      value={map_coordinate_label(@selected_hold)}
+                      icon="hero-map-pin"
+                    />
+                    <.detail
+                      label="Visibility"
+                      value={visibility_label(@selected_hold.visibility)}
+                      icon={visibility_icon(@selected_hold.visibility)}
                     />
                   </div>
                 </div>
@@ -629,6 +659,16 @@
                       label="Parent"
                       value={parent_location_name(@selected_location, @selected_hold_locations)}
                     />
+                    <.detail
+                      label="Coordinates"
+                      value={map_coordinate_label(@selected_location)}
+                      icon="hero-map-pin"
+                    />
+                    <.detail
+                      label="Visibility"
+                      value={visibility_label(@selected_location.visibility)}
+                      icon={visibility_icon(@selected_location.visibility)}
+                    />
                   </div>
 
                   <div
@@ -697,6 +737,16 @@
                     type="textarea"
                     label="Description"
                   />
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input field={@continent_form[:map_x]} type="number" label="Map X" />
+                    <.input field={@continent_form[:map_y]} type="number" label="Map Y" />
+                  </div>
+                  <.input
+                    field={@continent_form[:visibility]}
+                    type="select"
+                    label="Visibility"
+                    options={Geography.visibility_options()}
+                  />
                   <.input field={@continent_form[:currency_name]} type="text" label="Coin" />
                   <.input
                     field={@continent_form[:currency_description]}
@@ -750,6 +800,16 @@
                     type="textarea"
                     label="Description"
                   />
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input field={@province_form[:map_x]} type="number" label="Map X" />
+                    <.input field={@province_form[:map_y]} type="number" label="Map Y" />
+                  </div>
+                  <.input
+                    field={@province_form[:visibility]}
+                    type="select"
+                    label="Visibility"
+                    options={Geography.visibility_options()}
+                  />
                   <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
                     {if @selected_path.province, do: "Save", else: "Create"}
                   </.button>
@@ -791,6 +851,16 @@
                     options={Geography.climate_options()}
                   />
                   <.input field={@hold_form[:description]} type="textarea" label="Description" />
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input field={@hold_form[:map_x]} type="number" label="Map X" />
+                    <.input field={@hold_form[:map_y]} type="number" label="Map Y" />
+                  </div>
+                  <.input
+                    field={@hold_form[:visibility]}
+                    type="select"
+                    label="Visibility"
+                    options={Geography.visibility_options()}
+                  />
                   <.input
                     :if={@selected_hold}
                     field={@hold_form[:province_capital]}
@@ -897,6 +967,16 @@
                     type="textarea"
                     label="Description"
                   />
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input field={@location_form[:map_x]} type="number" label="Map X" />
+                    <.input field={@location_form[:map_y]} type="number" label="Map Y" />
+                  </div>
+                  <.input
+                    field={@location_form[:visibility]}
+                    type="select"
+                    label="Visibility"
+                    options={Geography.visibility_options()}
+                  />
                   <.input
                     field={@location_form[:capital]}
                     type="checkbox"
@@ -932,6 +1012,16 @@
                     field={@location_edit_form[:description]}
                     type="textarea"
                     label="Description"
+                  />
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input field={@location_edit_form[:map_x]} type="number" label="Map X" />
+                    <.input field={@location_edit_form[:map_y]} type="number" label="Map Y" />
+                  </div>
+                  <.input
+                    field={@location_edit_form[:visibility]}
+                    type="select"
+                    label="Visibility"
+                    options={Geography.visibility_options()}
                   />
                   <.input
                     field={@location_edit_form[:capital]}
@@ -2470,7 +2560,7 @@
                               {character.name}
                             </div>
                             <p class="mt-1 text-xs font-medium text-zinc-500">
-                              {display_value(character.role)}
+                              {display_value(character_role_name(character))}
                             </p>
                           </.link>
                           <button
@@ -2526,7 +2616,10 @@
                         value={character_gender_label(@selected_character.gender)}
                       />
                       <.detail label="Title" value={display_value(@selected_character.title)} />
-                      <.detail label="Role" value={display_value(@selected_character.role)} />
+                      <.detail
+                        label="Role"
+                        value={display_value(character_role_name(@selected_character))}
+                      />
                       <.detail
                         label="Politics"
                         value={display_value(@selected_character.politics)}
@@ -2695,7 +2788,13 @@
                         options={Character.gender_options()}
                       />
                       <.input field={@character_form[:title]} type="text" label="Title" />
-                      <.input field={@character_form[:role]} type="text" label="Role" />
+                      <.input
+                        field={@character_form[:character_role_id]}
+                        type="select"
+                        label="Role"
+                        prompt="None"
+                        options={@character_role_options}
+                      />
                       <.input
                         field={@character_form[:politics]}
                         type="text"
@@ -2749,6 +2848,35 @@
                       />
                       <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
                         {if @selected_character, do: "Save", else: "Create"}
+                      </.button>
+                    </.form>
+                  </.action_section>
+
+                  <.action_section
+                    action="character_role"
+                    expanded_action={@expanded_action}
+                    icon="hero-identification"
+                    title="Add Character Role"
+                  >
+                    <.form
+                      for={@character_role_form}
+                      id="character-role-form"
+                      phx-submit="create_character_role"
+                      class="space-y-2"
+                    >
+                      <.input
+                        field={@character_role_form[:name]}
+                        type="text"
+                        label="Name"
+                        required
+                      />
+                      <.input
+                        field={@character_role_form[:description]}
+                        type="textarea"
+                        label="Description"
+                      />
+                      <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                        Create
                       </.button>
                     </.form>
                   </.action_section>
@@ -4263,6 +4391,31 @@
                         value={to_string(@selected_calendar.days_per_week)}
                       />
                       <.detail label="Era" value={display_value(@selected_calendar.era)} />
+                      <.detail label="Star" value={display_value(@world.primary_star_name)} />
+                      <.detail
+                        label="Orbital Year"
+                        value={calendar_days_label(@world.orbital_period_days)}
+                      />
+                      <.detail
+                        label="Month Total"
+                        value={calendar_days_label(calendar_month_days(@selected_calendar))}
+                      />
+                      <.detail
+                        label="Orbit Match"
+                        value={calendar_orbit_match_label(@selected_calendar, @world)}
+                      />
+                      <.detail
+                        label="Year Start"
+                        value={calendar_degrees_label(@selected_calendar.year_start_angle)}
+                      />
+                      <.detail
+                        label="Perihelion"
+                        value={calendar_day_label(@selected_calendar.perihelion_day)}
+                      />
+                      <.detail
+                        label="Axial Tilt"
+                        value={calendar_degrees_label(@world.axial_tilt_degrees)}
+                      />
                     </div>
 
                     <div class="rounded-md border border-zinc-200 bg-zinc-50 p-3">
@@ -4350,6 +4503,17 @@
                       />
                       <.input field={@calendar_form[:era]} type="text" label="Era" />
                       <.input
+                        field={@calendar_form[:year_start_angle]}
+                        type="number"
+                        label="Year Start Degrees"
+                        step="0.01"
+                      />
+                      <.input
+                        field={@calendar_form[:perihelion_day]}
+                        type="number"
+                        label="Perihelion Day"
+                      />
+                      <.input
                         field={@calendar_form[:description]}
                         type="textarea"
                         label="Description"
@@ -4385,6 +4549,17 @@
                         label="Days Per Week"
                       />
                       <.input field={@calendar_edit_form[:era]} type="text" label="Era" />
+                      <.input
+                        field={@calendar_edit_form[:year_start_angle]}
+                        type="number"
+                        label="Year Start Degrees"
+                        step="0.01"
+                      />
+                      <.input
+                        field={@calendar_edit_form[:perihelion_day]}
+                        type="number"
+                        label="Perihelion Day"
+                      />
                       <.input
                         field={@calendar_edit_form[:description]}
                         type="textarea"

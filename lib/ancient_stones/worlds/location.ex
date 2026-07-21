@@ -4,6 +4,7 @@ defmodule AncientStones.Worlds.Location do
 
   alias AncientStones.Worlds.CivilizationLocation
   alias AncientStones.Worlds.CreatureLocation
+  alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
@@ -14,6 +15,9 @@ defmodule AncientStones.Worlds.Location do
   schema "locations" do
     field :name, :string
     field :description, :string
+    field :map_x, :integer
+    field :map_y, :integer
+    field :visibility, Ecto.Enum, values: Geography.visibility_values(), default: :known
 
     belongs_to(:hold, Hold)
     belongs_to(:parent_location, Location)
@@ -31,7 +35,7 @@ defmodule AncientStones.Worlds.Location do
 
   def changeset(location, attrs) do
     location
-    |> cast(attrs, [:name, :description])
+    |> cast(attrs, [:name, :description, :map_x, :map_y, :visibility])
     |> validate_required([:name, :hold_id, :location_type_id])
     |> foreign_key_constraint(:hold_id)
     |> foreign_key_constraint(:parent_location_id)

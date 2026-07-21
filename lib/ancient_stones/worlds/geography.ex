@@ -27,6 +27,13 @@ defmodule AncientStones.Worlds.Geography do
     :wet
   ]
 
+  @visibility_values [
+    :known,
+    :rumored,
+    :hidden,
+    :lost
+  ]
+
   def terrain_values do
     @terrain_values
   end
@@ -35,12 +42,20 @@ defmodule AncientStones.Worlds.Geography do
     @climate_values
   end
 
+  def visibility_values do
+    @visibility_values
+  end
+
   def terrain_options do
     enum_options(@terrain_values)
   end
 
   def climate_options do
     enum_options(@climate_values)
+  end
+
+  def visibility_options do
+    enum_options(@visibility_values)
   end
 
   def label(nil) do

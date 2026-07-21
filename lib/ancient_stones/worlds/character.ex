@@ -5,6 +5,7 @@ defmodule AncientStones.Worlds.Character do
   alias AncientStones.Worlds.CharacterInventoryCategory
   alias AncientStones.Worlds.CharacterInventoryItem
   alias AncientStones.Worlds.CharacterOccupation
+  alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.CharacterSkill
   alias AncientStones.Worlds.CharacterSpellbookEntry
   alias AncientStones.Worlds.Guild
@@ -52,6 +53,7 @@ defmodule AncientStones.Worlds.Character do
     field :description, :string
 
     belongs_to(:world, World)
+    belongs_to(:character_role, CharacterRole)
     belongs_to(:race, Race)
     belongs_to(:guild, Guild)
     belongs_to(:home_location, Location)
@@ -91,6 +93,7 @@ defmodule AncientStones.Worlds.Character do
     |> check_constraint(:status, name: :characters_status_valid)
     |> check_constraint(:gender, name: :characters_gender_valid)
     |> foreign_key_constraint(:world_id)
+    |> foreign_key_constraint(:character_role_id)
     |> foreign_key_constraint(:race_id)
     |> foreign_key_constraint(:guild_id)
     |> foreign_key_constraint(:home_location_id)

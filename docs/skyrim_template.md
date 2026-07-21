@@ -2,7 +2,7 @@
 
 Ancient Stones includes a Skyrim-inspired starter template for exercising the world-building framework with concrete RPG data.
 
-The template creates a world named Nirn in the Mundus galaxy, then builds out Tamriel, Skyrim, its holds, capitals, regional locations, races, guilds, gods, characters, politics, skills, spells, items, creatures, calendars, and timeline records.
+The template creates a world named Nirn in the Mundus galaxy, then builds out Tamriel, Skyrim, its holds, capitals, regional locations, races, character roles, guilds, gods, characters, politics, skills, spells, items, creatures, calendars, and timeline records.
 
 ## Current Coverage
 
@@ -18,6 +18,7 @@ Current template counts:
 | Guilds | 11 |
 | Gods | 37 |
 | Characters | 46 |
+| Character roles | 18 |
 | Political offices | 34 |
 | Creature types | 6 |
 | Creatures | 10 |
@@ -29,6 +30,7 @@ Current template counts:
 | Skill trees | 18 |
 | Skill perks | 180 |
 | Timelines | 1 |
+| Calendar month days | 365 |
 
 ## Geography
 
@@ -36,6 +38,7 @@ The template models:
 
 - Mundus as the galaxy for Nirn.
 - Nirn as the world.
+- Magnus as the primary star, with a 365-day orbital period and axial tilt metadata.
 - Tamriel, Akavir, Atmora, Aldmeris, Pyandonea, Thras, and Yokuda as known continents.
 - The nine provinces of Tamriel.
 - Akavir's named kingdoms and Yokuda's named islands as known region records.
@@ -53,6 +56,7 @@ The template also includes:
 - Divines, Daedric Princes, and other gods or cult figures.
 - Civilizations such as Atmorans, Dwemer, Snow Elves, and Ancient Nords.
 - Key characters, jarls, stewards, court wizards, housecarls, generals, and the High King office.
+- Distinct character-role records linked to imported characters while preserving their plain text titles.
 - Guild relationships to gods where appropriate.
 - Character occupations, selected skills, and starter inventory examples.
 
@@ -68,6 +72,7 @@ The template currently includes:
 - Basic item stats such as damage, critical damage, weight, value, hands, material, and source.
 - Character inventory categories and starter inventory items for selected characters.
 - A Tamrielic calendar.
+- Calendar orbital alignment fields, with the twelve Tamrielic months totaling Nirn's 365-day orbit.
 - A Tamrielic timeline with eras.
 - Hold commerce entries for local income and expenses.
 

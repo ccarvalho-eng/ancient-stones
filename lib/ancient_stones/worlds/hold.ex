@@ -15,6 +15,9 @@ defmodule AncientStones.Worlds.Hold do
     field :description, :string
     field :terrain, Ecto.Enum, values: Geography.terrain_values()
     field :climate, Ecto.Enum, values: Geography.climate_values()
+    field :map_x, :integer
+    field :map_y, :integer
+    field :visibility, Ecto.Enum, values: Geography.visibility_values(), default: :known
 
     belongs_to(:province, Province)
     belongs_to(:capital_location, Location)
@@ -27,7 +30,7 @@ defmodule AncientStones.Worlds.Hold do
 
   def changeset(hold, attrs) do
     hold
-    |> cast(attrs, [:name, :description, :terrain, :climate])
+    |> cast(attrs, [:name, :description, :terrain, :climate, :map_x, :map_y, :visibility])
     |> validate_required([:name, :province_id])
     |> foreign_key_constraint(:province_id)
     |> foreign_key_constraint(:capital_location_id)

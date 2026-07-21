@@ -9,6 +9,9 @@ defmodule AncientStones.Templates.Skyrim do
       description:
         "The mortal world where myth, empire, wilderness, and old magic shape the lives of its peoples.",
       galaxy: "Mundus",
+      primary_star_name: "Magnus",
+      orbital_period_days: 365,
+      axial_tilt_degrees: "23.5",
       galaxies: galaxies(),
       timelines: timelines(),
       civilizations: civilizations(),
@@ -347,6 +350,8 @@ defmodule AncientStones.Templates.Skyrim do
       description: "The common Tamrielic calendar with twelve named months and a seven-day week.",
       days_per_week: 7,
       era: "Fourth Era",
+      year_start_angle: "270.0",
+      perihelion_day: 1,
       months: [
         month(1, "Morning Star", 31),
         month(2, "Sun's Dawn", 28),

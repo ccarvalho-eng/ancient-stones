@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.World do
   import Ecto.Changeset
 
   alias AncientStones.Worlds.Character
+  alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.Civilization
   alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.Creature
@@ -28,10 +29,14 @@ defmodule AncientStones.Worlds.World do
   schema "worlds" do
     field :name, :string
     field :description, :string
+    field :primary_star_name, :string
+    field :orbital_period_days, :integer
+    field :axial_tilt_degrees, :decimal
 
     belongs_to(:galaxy, Galaxy)
 
     has_many(:characters, Character)
+    has_many(:character_roles, CharacterRole)
     has_many(:civilizations, Civilization)
     has_many(:continents, Continent)
     has_many(:creature_types, CreatureType)
@@ -57,8 +62,19 @@ defmodule AncientStones.Worlds.World do
 
   def changeset(world, attrs) do
     world
-    |> cast(attrs, [:name, :description])
+    |> cast(attrs, [
+      :name,
+      :description,
+      :primary_star_name,
+      :orbital_period_days,
+      :axial_tilt_degrees
+    ])
     |> validate_required([:name])
+    |> validate_number(:orbital_period_days, greater_than: 0)
+    |> validate_number(:axial_tilt_degrees,
+      greater_than_or_equal_to: 0,
+      less_than_or_equal_to: 90
+    )
     |> foreign_key_constraint(:galaxy_id)
   end
 end

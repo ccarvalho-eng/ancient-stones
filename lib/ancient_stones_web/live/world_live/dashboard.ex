@@ -3,6 +3,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Character
+  alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.Province
@@ -398,13 +399,16 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   def handle_event("create_character", %{"character" => params}, socket) do
     create_and_reload(socket, fn ->
-      with {:ok, race} <- get_optional_race_in_world(socket, params["race_id"]),
+      with {:ok, character_role} <-
+             get_optional_character_role_in_world(socket, params["character_role_id"]),
+           {:ok, race} <- get_optional_race_in_world(socket, params["race_id"]),
            {:ok, guild} <- get_optional_guild_in_world(socket, params["guild_id"]),
            {:ok, occupation} <- get_optional_occupation_in_world(socket, params["occupation_id"]),
            {:ok, skill} <- get_optional_skill_in_world(socket, params["skill_id"]),
            {:ok, home_location} <-
              get_optional_location_in_world(socket, params["home_location_id"]) do
-        Worlds.create_character(socket.assigns.world, params,
+        Worlds.create_character(socket.assigns.world, character_attrs(params, character_role),
+          character_role: character_role,
           race: race,
           guild: guild,
           occupation: occupation,
@@ -418,17 +422,24 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   def handle_event("update_character", %{"character" => params}, socket) do
     update_and_reload(socket, fn ->
       with {:ok, character} <- get_selected_character(socket),
+           {:ok, character_role} <-
+             get_optional_character_role_in_world(socket, params["character_role_id"]),
            {:ok, race} <- get_optional_race_in_world(socket, params["race_id"]),
            {:ok, guild} <- get_optional_guild_in_world(socket, params["guild_id"]),
            {:ok, home_location} <-
              get_optional_location_in_world(socket, params["home_location_id"]) do
-        Worlds.update_character(character, params,
+        Worlds.update_character(character, character_attrs(params, character_role),
+          character_role: character_role,
           race: race,
           guild: guild,
           home_location: home_location
         )
       end
     end)
+  end
+
+  def handle_event("create_character_role", %{"character_role" => params}, socket) do
+    create_and_reload(socket, fn -> Worlds.create_character_role(socket.assigns.world, params) end)
   end
 
   def handle_event("create_occupation", %{"occupation" => params}, socket) do
@@ -793,6 +804,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     locations = flat_locations(holds)
     calendars = flat_calendars(continents)
     characters = sorted(world.characters)
+    character_roles = sorted(world.character_roles)
     creature_types = sorted(world.creature_types)
     creatures = sorted(world.creatures)
     creature_locations = flat_creature_locations(creatures)
@@ -892,6 +904,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:calendars, calendars)
     |> assign(:selected_calendar, selected_calendar)
     |> assign(:characters, characters)
+    |> assign(:character_roles, character_roles)
     |> assign(:selected_character, selected_character)
     |> assign(:selected_character_inventory_categories, selected_character_inventory_categories)
     |> assign(:selected_character_inventory_items, selected_character_inventory_items)
@@ -941,6 +954,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:continent_options, option_list(continents))
     |> assign(:calendar_options, option_list(calendars))
     |> assign(:character_options, option_list(characters))
+    |> assign(:character_role_options, option_list(character_roles))
     |> assign(
       :character_inventory_category_options,
       option_list(selected_character_inventory_categories)
@@ -1046,6 +1060,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       })
     )
     |> assign(:god_form, data_form(:god))
+    |> assign(:character_role_form, data_form(:character_role))
     |> assign(
       :character_form,
       data_form(:character, character_form_attrs(selected_character))
@@ -1355,6 +1370,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       socket.assigns.character_options,
       character_id,
       &Worlds.get_character!/1
+    )
+  end
+
+  defp get_optional_character_role_in_world(socket, character_role_id) do
+    get_optional_record_in_options(
+      socket.assigns.character_role_options,
+      character_role_id,
+      &Worlds.get_character_role!/1
     )
   end
 
@@ -2002,25 +2025,30 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp data_form(name, attrs \\ %{}) do
     attrs
-    |> Map.merge(%{"name" => "", "description" => ""}, fn _key, value, _default -> value end)
+    |> Map.merge(%{"name" => "", "description" => "", "visibility" => "known"}, fn
+      _key, value, _default -> value
+    end)
     |> to_form(as: name)
   end
 
   defp continent_form_attrs(nil) do
-    %{}
+    %{"visibility" => "known"}
   end
 
   defp continent_form_attrs(continent) do
     %{
       "name" => continent.name,
       "description" => continent.description,
+      "map_x" => continent.map_x,
+      "map_y" => continent.map_y,
+      "visibility" => continent.visibility,
       "currency_name" => continent_currency_name(continent),
       "currency_description" => continent_currency_description(continent)
     }
   end
 
   defp continent_attrs(params) do
-    Map.take(params, ["name", "description"])
+    Map.take(params, ["name", "description", "map_x", "map_y", "visibility"])
   end
 
   defp continent_currency_attrs(params) do
@@ -2031,7 +2059,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp province_form_attrs(nil, continent_id) do
-    %{"continent_id" => continent_id}
+    %{"continent_id" => continent_id, "visibility" => "known"}
   end
 
   defp province_form_attrs(province, _continent_id) do
@@ -2040,12 +2068,15 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "name" => province.name,
       "terrain" => province.terrain,
       "climate" => province.climate,
+      "map_x" => province.map_x,
+      "map_y" => province.map_y,
+      "visibility" => province.visibility,
       "description" => province.description
     }
   end
 
   defp hold_form_attrs(nil, _selected_province, province_id) do
-    %{"province_id" => province_id}
+    %{"province_id" => province_id, "visibility" => "known"}
   end
 
   defp hold_form_attrs(hold, selected_province, _province_id) do
@@ -2054,6 +2085,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "name" => hold.name,
       "terrain" => hold.terrain,
       "climate" => hold.climate,
+      "map_x" => hold.map_x,
+      "map_y" => hold.map_y,
+      "visibility" => hold.visibility,
       "description" => hold.description,
       "province_capital" => to_string(province_capital_hold?(selected_province, hold))
     }
@@ -2061,6 +2095,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp character_form_attrs(nil) do
     %{
+      "character_role_id" => nil,
       "race_id" => nil,
       "gender" => nil,
       "guild_id" => nil,
@@ -2074,6 +2109,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp character_form_attrs(character) do
     %{
       "name" => character.name,
+      "character_role_id" => character.character_role_id,
       "gender" => character.gender,
       "title" => character.title,
       "role" => character.role,
@@ -2086,6 +2122,19 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "skill_id" => nil,
       "description" => character.description
     }
+  end
+
+  defp character_attrs(params, character_role) do
+    params
+    |> Map.drop([
+      "character_role_id",
+      "race_id",
+      "guild_id",
+      "home_location_id",
+      "occupation_id",
+      "skill_id"
+    ])
+    |> Map.put("role", character_role_name(character_role))
   end
 
   defp province_capital_hold?(%{capital_hold_id: hold_id}, %{id: hold_id}) do
@@ -2180,6 +2229,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     %{
       "name" => location.name,
       "description" => location.description,
+      "map_x" => location.map_x,
+      "map_y" => location.map_y,
+      "visibility" => location.visibility,
       "location_type_id" => location.location_type_id,
       "capital" => to_string(selected_hold && selected_hold.capital_location_id == location.id)
     }
@@ -2194,7 +2246,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "name" => calendar.name,
       "description" => calendar.description,
       "days_per_week" => calendar.days_per_week,
-      "era" => calendar.era
+      "era" => calendar.era,
+      "year_start_angle" => calendar.year_start_angle,
+      "perihelion_day" => calendar.perihelion_day
     }
   end
 
@@ -2354,8 +2408,32 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp grouped_characters(characters) do
     characters
-    |> Enum.group_by(&record_name(&1.race))
-    |> Enum.sort_by(fn {race, _race_characters} -> race end)
+    |> Enum.group_by(&character_race_group_name/1)
+    |> Enum.sort_by(fn {race, _characters} -> String.downcase(race) end)
+    |> Enum.map(fn {race, characters} -> {race, sorted_characters_by_role(characters)} end)
+  end
+
+  defp character_race_group_name(%{race: %{name: name}}) when name not in [nil, ""] do
+    name
+  end
+
+  defp character_race_group_name(_character) do
+    "No Race"
+  end
+
+  defp sorted_characters_by_role(characters) do
+    Enum.sort_by(characters, fn character ->
+      {String.downcase(character_role_sort_value(character)), String.downcase(character.name)}
+    end)
+  end
+
+  defp character_role_sort_value(character) do
+    character
+    |> character_role_name()
+    |> case do
+      nil -> ""
+      role -> role
+    end
   end
 
   defp grouped_documents(documents) do
@@ -2458,6 +2536,22 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         label
       end
     end)
+  end
+
+  defp character_role_name(%{character_role: %{name: name}}) do
+    name
+  end
+
+  defp character_role_name(%CharacterRole{name: name}) do
+    name
+  end
+
+  defp character_role_name(%{role: role}) do
+    role
+  end
+
+  defp character_role_name(_character_or_role) do
+    nil
   end
 
   defp character_gender_label(gender) do
@@ -3245,6 +3339,54 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     to_string(value)
   end
 
+  defp calendar_days_label(nil) do
+    "None"
+  end
+
+  defp calendar_days_label(days) do
+    "#{days} days"
+  end
+
+  defp calendar_month_days(nil) do
+    0
+  end
+
+  defp calendar_month_days(calendar) do
+    calendar
+    |> calendar_months()
+    |> Enum.reduce(0, fn month, total -> total + month.days end)
+  end
+
+  defp calendar_orbit_match_label(_calendar, %{orbital_period_days: nil}) do
+    "No orbit set"
+  end
+
+  defp calendar_orbit_match_label(calendar, %{orbital_period_days: orbit_days}) do
+    month_days = calendar_month_days(calendar)
+
+    if month_days == orbit_days do
+      "Aligned"
+    else
+      "#{month_days - orbit_days} days"
+    end
+  end
+
+  defp calendar_day_label(nil) do
+    "None"
+  end
+
+  defp calendar_day_label(day) do
+    "Day #{day}"
+  end
+
+  defp calendar_degrees_label(nil) do
+    "None"
+  end
+
+  defp calendar_degrees_label(degrees) do
+    "#{degrees} deg"
+  end
+
   defp continent_currency_name(%{currency: %{name: name}}) do
     if present?(name) do
       name
@@ -3435,6 +3577,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> display_value()
   end
 
+  defp map_coordinate_label(%{map_x: nil, map_y: nil}) do
+    "Unmapped"
+  end
+
+  defp map_coordinate_label(%{map_x: map_x, map_y: map_y}) do
+    "X #{display_value(map_x)}, Y #{display_value(map_y)}"
+  end
+
   defp child_locations(location, locations) do
     Enum.filter(locations, &(&1.parent_location_id == location.id))
   end
@@ -3475,6 +3625,28 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "wet" -> "hero-cloud-arrow-down"
       _value -> "hero-cloud"
     end
+  end
+
+  defp visibility_icon(nil) do
+    "hero-eye"
+  end
+
+  defp visibility_icon(value) do
+    case to_string(value) do
+      "known" -> "hero-eye"
+      "rumored" -> "hero-chat-bubble-left-ellipsis"
+      "hidden" -> "hero-eye-slash"
+      "lost" -> "hero-question-mark-circle"
+      _value -> "hero-map"
+    end
+  end
+
+  defp visibility_label(nil) do
+    "Known"
+  end
+
+  defp visibility_label(value) do
+    Geography.label(value)
   end
 
   defp normalize_theme(theme) when theme in ~w(system light dark) do

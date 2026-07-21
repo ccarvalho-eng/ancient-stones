@@ -5,6 +5,8 @@ defmodule AncientStones.MixProject do
     [
       app: :ancient_stones,
       version: "0.1.0",
+      description:
+        "A Phoenix and LiveView world-building dashboard for RPG settings, campaign references, and fiction worlds.",
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

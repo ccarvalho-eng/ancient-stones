@@ -308,6 +308,20 @@ defmodule AncientStonesWeb.WorldLive.Index do
                       label="Description"
                       rows="5"
                     />
+                    <div class="grid gap-3 sm:grid-cols-3">
+                      <.input field={@world_form[:primary_star_name]} type="text" label="Star" />
+                      <.input
+                        field={@world_form[:orbital_period_days]}
+                        type="number"
+                        label="Orbit Days"
+                      />
+                      <.input
+                        field={@world_form[:axial_tilt_degrees]}
+                        type="number"
+                        label="Axial Tilt"
+                        step="0.01"
+                      />
+                    </div>
                     <.button
                       id="dashboard-create-world-button"
                       class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition"
