@@ -122,6 +122,7 @@ defmodule AncientStones.Worlds do
       continents: [
         calendars: [:months],
         provinces: [
+          :capital_hold,
           political_offices: [:character],
           holds: [
             :capital_location,
@@ -398,6 +399,13 @@ defmodule AncientStones.Worlds do
     |> Repo.insert()
   end
 
+  def update_province(%Province{} = province, %Continent{id: continent_id}, attrs) do
+    province
+    |> Province.changeset(attrs)
+    |> Ecto.Changeset.put_change(:continent_id, continent_id)
+    |> Repo.update()
+  end
+
   @doc "Deletes a province and all nested holds and locations."
   def delete_province(%Province{id: province_id} = province) do
     Repo.transaction(fn ->
@@ -431,6 +439,27 @@ defmodule AncientStones.Worlds do
     %Hold{province_id: province_id}
     |> Hold.changeset(attrs)
     |> Repo.insert()
+  end
+
+  def update_hold(%Hold{} = hold, %Province{id: province_id}, attrs, opts \\ []) do
+    capital_location = Keyword.get(opts, :capital_location, :unchanged)
+    province_capital? = Keyword.get(opts, :province_capital, false)
+
+    with :ok <- validate_hold_capital_location(hold, capital_location) do
+      Repo.transaction(fn ->
+        updated_hold =
+          hold
+          |> Hold.changeset(attrs)
+          |> Ecto.Changeset.put_change(:province_id, province_id)
+          |> maybe_put_capital_location(capital_location)
+          |> Repo.update()
+          |> unwrap_transaction!()
+
+        sync_province_capital_hold(hold, updated_hold, province_capital?)
+
+        updated_hold
+      end)
+    end
   end
 
   @doc "Deletes a hold and all locations inside it."
@@ -1520,6 +1549,58 @@ defmodule AncientStones.Worlds do
 
   defp sync_location_capital(%Hold{}, %Location{}, false) do
     {:ok, :capital_unchanged}
+  end
+
+  defp sync_province_capital_hold(
+         %Hold{id: hold_id},
+         %Hold{province_id: province_id},
+         true
+       ) do
+    Province
+    |> where([province], province.capital_hold_id == ^hold_id and province.id != ^province_id)
+    |> Repo.update_all(set: [capital_hold_id: nil])
+
+    Province
+    |> where([province], province.id == ^province_id)
+    |> Repo.update_all(set: [capital_hold_id: hold_id])
+
+    :ok
+  end
+
+  defp sync_province_capital_hold(%Hold{id: hold_id}, %Hold{}, false) do
+    Province
+    |> where([province], province.capital_hold_id == ^hold_id)
+    |> Repo.update_all(set: [capital_hold_id: nil])
+
+    :ok
+  end
+
+  defp maybe_put_capital_location(changeset, :unchanged) do
+    changeset
+  end
+
+  defp maybe_put_capital_location(changeset, nil) do
+    Ecto.Changeset.put_change(changeset, :capital_location_id, nil)
+  end
+
+  defp maybe_put_capital_location(changeset, %Location{id: location_id}) do
+    Ecto.Changeset.put_change(changeset, :capital_location_id, location_id)
+  end
+
+  defp validate_hold_capital_location(_hold, :unchanged) do
+    :ok
+  end
+
+  defp validate_hold_capital_location(_hold, nil) do
+    :ok
+  end
+
+  defp validate_hold_capital_location(%Hold{id: hold_id}, %Location{hold_id: hold_id}) do
+    :ok
+  end
+
+  defp validate_hold_capital_location(%Hold{}, %Location{}) do
+    {:error, :capital_location_outside_hold}
   end
 
   defp validate_location_type_world(%Hold{} = hold, %LocationType{

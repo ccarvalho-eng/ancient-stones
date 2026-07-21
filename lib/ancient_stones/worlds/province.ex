@@ -16,6 +16,7 @@ defmodule AncientStones.Worlds.Province do
     field :climate, Ecto.Enum, values: Geography.climate_values()
 
     belongs_to(:continent, Continent)
+    belongs_to(:capital_hold, Hold)
     has_many(:holds, Hold)
     has_many(:political_offices, PoliticalOffice)
 
@@ -27,6 +28,7 @@ defmodule AncientStones.Worlds.Province do
     |> cast(attrs, [:name, :description, :terrain, :climate])
     |> validate_required([:name, :continent_id])
     |> foreign_key_constraint(:continent_id)
+    |> foreign_key_constraint(:capital_hold_id)
     |> unique_constraint(:name, name: :provinces_continent_id_name_index)
   end
 end

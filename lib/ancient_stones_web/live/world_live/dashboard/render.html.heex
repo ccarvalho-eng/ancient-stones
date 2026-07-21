@@ -225,6 +225,12 @@
                               {hold.name}
                             </span>
                             <span
+                              :if={province_capital_hold?(province, hold)}
+                              class="shrink-0 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-medium text-zinc-600"
+                            >
+                              Capital
+                            </span>
+                            <span
                               :if={hold.capital_location}
                               class="shrink-0 text-xs text-zinc-500"
                             >
@@ -406,6 +412,10 @@
                       value={display_value(length(@selected_path.province.holds))}
                     />
                     <.detail
+                      label="Capital"
+                      value={record_name(@selected_path.province.capital_hold)}
+                    />
+                    <.detail
                       label="Locations"
                       value={province_location_count(@selected_path.province)}
                     />
@@ -429,7 +439,15 @@
                     <.detail label="Terrain" value={Geography.label(@selected_hold.terrain)} />
                     <.detail label="Climate" value={Geography.label(@selected_hold.climate)} />
                     <.detail
-                      label="Capital"
+                      label="Province Capital"
+                      value={
+                        if province_capital_hold?(@selected_path.province, @selected_hold),
+                          do: "Yes",
+                          else: "No"
+                      }
+                    />
+                    <.detail
+                      label="Capital Location"
                       value={record_name(@selected_hold.capital_location)}
                     />
                   </div>
@@ -688,12 +706,14 @@
                 action="province"
                 expanded_action={@expanded_action}
                 icon="hero-map"
-                title="Add Province"
+                title={if(@selected_path.province, do: "Edit Province", else: "Add Province")}
               >
                 <.form
                   for={@province_form}
                   id="province-form"
-                  phx-submit="create_province"
+                  phx-submit={
+                    if(@selected_path.province, do: "update_province", else: "create_province")
+                  }
                   class="space-y-2"
                 >
                   <.input
@@ -723,7 +743,7 @@
                     label="Description"
                   />
                   <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
-                    Create
+                    {if @selected_path.province, do: "Save", else: "Create"}
                   </.button>
                 </.form>
               </.action_section>
@@ -733,9 +753,14 @@
                 action="hold"
                 expanded_action={@expanded_action}
                 icon="hero-building-office-2"
-                title="Add Hold"
+                title={if(@selected_hold, do: "Edit Hold", else: "Add Hold")}
               >
-                <.form for={@hold_form} id="hold-form" phx-submit="create_hold" class="space-y-2">
+                <.form
+                  for={@hold_form}
+                  id="hold-form"
+                  phx-submit={if(@selected_hold, do: "update_hold", else: "create_hold")}
+                  class="space-y-2"
+                >
                   <.input
                     field={@hold_form[:province_id]}
                     type="select"
@@ -758,8 +783,14 @@
                     options={Geography.climate_options()}
                   />
                   <.input field={@hold_form[:description]} type="textarea" label="Description" />
+                  <.input
+                    :if={@selected_hold}
+                    field={@hold_form[:province_capital]}
+                    type="checkbox"
+                    label="Capital of province"
+                  />
                   <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
-                    Create
+                    {if @selected_hold, do: "Save", else: "Create"}
                   </.button>
                 </.form>
               </.action_section>

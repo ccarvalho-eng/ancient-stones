@@ -34,10 +34,30 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  def handle_event("update_province", %{"province" => params}, socket) do
+    update_and_reload(socket, fn ->
+      with {:ok, province} <- get_selected_province(socket),
+           {:ok, continent} <- get_continent_in_world(socket, params["continent_id"]) do
+        Worlds.update_province(province, continent, params)
+      end
+    end)
+  end
+
   def handle_event("create_hold", %{"hold" => params}, socket) do
     create_and_reload(socket, fn ->
       with {:ok, province} <- get_province_in_world(socket, params["province_id"]) do
         Worlds.create_hold(province, params)
+      end
+    end)
+  end
+
+  def handle_event("update_hold", %{"hold" => params}, socket) do
+    update_and_reload(socket, fn ->
+      with {:ok, hold} <- get_selected_hold(socket),
+           {:ok, province} <- get_province_in_world(socket, params["province_id"]) do
+        Worlds.update_hold(hold, province, params,
+          province_capital: params["province_capital"] == "true"
+        )
       end
     end)
   end
@@ -913,8 +933,17 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:location_type_options, option_list(location_types))
     |> assign(:location_options, option_list(selected_hold_locations))
     |> assign(:continent_form, data_form(:continent))
-    |> assign(:province_form, data_form(:province, %{"continent_id" => selected_continent_id}))
-    |> assign(:hold_form, data_form(:hold, %{"province_id" => selected_province_id}))
+    |> assign(
+      :province_form,
+      data_form(:province, province_form_attrs(selected_path.province, selected_continent_id))
+    )
+    |> assign(
+      :hold_form,
+      data_form(
+        :hold,
+        hold_form_attrs(selected_hold, selected_path.province, selected_province_id)
+      )
+    )
     |> assign(:location_type_form, data_form(:location_type))
     |> assign(
       :location_type_delete_form,
@@ -1106,6 +1135,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp reload_params(socket) do
     %{
       "section" => socket.assigns.section,
+      "continent_id" => selected_continent_id(socket),
+      "province_id" => selected_province_id(socket),
       "hold_id" => selected_hold_id(socket),
       "location_id" => selected_location_id(socket),
       "race_id" => selected_record_id(socket.assigns[:selected_race]),
@@ -1123,6 +1154,26 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "timeline_id" => selected_record_id(socket.assigns[:selected_timeline]),
       "calendar_id" => selected_record_id(socket.assigns[:selected_calendar])
     }
+  end
+
+  defp selected_continent_id(socket) do
+    case socket.assigns[:selected_path] do
+      %{continent: %{id: continent_id}} ->
+        continent_id
+
+      _path ->
+        nil
+    end
+  end
+
+  defp selected_province_id(socket) do
+    case socket.assigns[:selected_path] do
+      %{province: %{id: province_id}} ->
+        province_id
+
+      _path ->
+        nil
+    end
   end
 
   defp selected_hold_id(socket) do
@@ -1415,6 +1466,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp get_selected_hold(_socket) do
     {:error, :hold_not_selected}
+  end
+
+  defp get_selected_province(%{assigns: %{selected_path: %{province: %{} = province}}}) do
+    {:ok, province}
+  end
+
+  defp get_selected_province(_socket) do
+    {:error, :province_not_selected}
   end
 
   defp get_location_type_in_world(socket, location_type_id) do
@@ -1877,6 +1936,43 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     attrs
     |> Map.merge(%{"name" => "", "description" => ""}, fn _key, value, _default -> value end)
     |> to_form(as: name)
+  end
+
+  defp province_form_attrs(nil, continent_id) do
+    %{"continent_id" => continent_id}
+  end
+
+  defp province_form_attrs(province, _continent_id) do
+    %{
+      "continent_id" => province.continent_id,
+      "name" => province.name,
+      "terrain" => province.terrain,
+      "climate" => province.climate,
+      "description" => province.description
+    }
+  end
+
+  defp hold_form_attrs(nil, _selected_province, province_id) do
+    %{"province_id" => province_id}
+  end
+
+  defp hold_form_attrs(hold, selected_province, _province_id) do
+    %{
+      "province_id" => hold.province_id,
+      "name" => hold.name,
+      "terrain" => hold.terrain,
+      "climate" => hold.climate,
+      "description" => hold.description,
+      "province_capital" => to_string(province_capital_hold?(selected_province, hold))
+    }
+  end
+
+  defp province_capital_hold?(%{capital_hold_id: hold_id}, %{id: hold_id}) do
+    true
+  end
+
+  defp province_capital_hold?(_province, _hold) do
+    false
   end
 
   defp assign_race_form(socket, params) do

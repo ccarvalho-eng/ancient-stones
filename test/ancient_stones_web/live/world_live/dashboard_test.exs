@@ -25,6 +25,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.Occupation
+  alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.Skill
@@ -108,6 +109,170 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     [hold] = province.holds
 
     assert hold.name == "Whiterun"
+  end
+
+  test "clears geography create forms after creation", %{conn: conn} do
+    world = create_world!()
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
+
+    view
+    |> form("#continent-form",
+      continent: %{
+        name: "Tamriel",
+        description: "A vast continent"
+      }
+    )
+    |> render_submit()
+
+    refute has_element?(view, "#continent_name[value='Tamriel']")
+    refute has_element?(view, "#continent_description", "A vast continent")
+
+    [continent] = Worlds.get_world_dashboard!(world.id).continents
+
+    open_action(view, "province")
+
+    view
+    |> form("#province-form",
+      province: %{
+        continent_id: continent.id,
+        name: "Skyrim",
+        terrain: "mountain",
+        climate: "cold",
+        description: "A cold northern province"
+      }
+    )
+    |> render_submit()
+
+    refute has_element?(view, "#province_name[value='Skyrim']")
+    refute has_element?(view, "#province_description", "A cold northern province")
+
+    [continent] = Worlds.get_world_dashboard!(world.id).continents
+    [province] = continent.provinces
+
+    open_action(view, "hold")
+
+    view
+    |> form("#hold-form",
+      hold: %{
+        province_id: province.id,
+        name: "Whiterun",
+        terrain: "plains",
+        climate: "temperate",
+        description: "Central open tundra"
+      }
+    )
+    |> render_submit()
+
+    refute has_element?(view, "#hold_name[value='Whiterun']")
+    refute has_element?(view, "#hold_description", "Central open tundra")
+  end
+
+  test "saves selected provinces and holds from their dashboard forms", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Whiterun"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?province_id=#{province.id}")
+
+    open_action(view, "province")
+
+    assert has_element?(view, "#province-form button", "Save")
+    assert has_element?(view, "#province_name[value='Skyrim']")
+
+    view
+    |> form("#province-form",
+      province: %{
+        continent_id: continent.id,
+        name: "Northern Skyrim",
+        terrain: "mountain",
+        climate: "cold",
+        description: "Edited province"
+      }
+    )
+    |> render_submit()
+
+    province = Repo.get!(Province, province.id)
+
+    assert province.name == "Northern Skyrim"
+    assert province.description == "Edited province"
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?hold_id=#{hold.id}")
+
+    open_action(view, "hold")
+
+    assert has_element?(view, "#hold-form button", "Save")
+    assert has_element?(view, "#hold_name[value='Whiterun']")
+
+    view
+    |> form("#hold-form",
+      hold: %{
+        province_id: province.id,
+        name: "Greater Whiterun",
+        terrain: "plains",
+        climate: "temperate",
+        description: "Edited hold",
+        province_capital: "false"
+      }
+    )
+    |> render_submit()
+
+    hold = Repo.get!(Hold, hold.id)
+
+    assert hold.name == "Greater Whiterun"
+    assert hold.description == "Edited hold"
+  end
+
+  test "sets and clears a selected hold as the province capital from the hold form", %{
+    conn: conn
+  } do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Whiterun"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?hold_id=#{hold.id}")
+
+    open_action(view, "hold")
+
+    assert has_element?(view, "#hold_province_capital")
+
+    view
+    |> form("#hold-form",
+      hold: %{
+        province_id: province.id,
+        name: "Whiterun",
+        terrain: "plains",
+        climate: "temperate",
+        description: "Central open tundra",
+        province_capital: "true"
+      }
+    )
+    |> render_submit()
+
+    province = Repo.get!(Province, province.id)
+
+    assert province.capital_hold_id == hold.id
+    assert has_element?(view, "#hold-details", "Province Capital")
+    assert has_element?(view, "#hold-details", "Yes")
+
+    view
+    |> form("#hold-form",
+      hold: %{
+        province_id: province.id,
+        name: "Whiterun",
+        terrain: "plains",
+        climate: "temperate",
+        description: "Central open tundra",
+        province_capital: "false"
+      }
+    )
+    |> render_submit()
+
+    province = Repo.get!(Province, province.id)
+
+    refute province.capital_hold_id
   end
 
   test "creates location types and capital locations", %{conn: conn} do
