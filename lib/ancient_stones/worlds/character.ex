@@ -18,6 +18,7 @@ defmodule AncientStones.Worlds.Character do
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   @statuses ~w(alive dead unknown)
+  @genders ~w(female male)
 
   def statuses do
     @statuses
@@ -31,8 +32,16 @@ defmodule AncientStones.Worlds.Character do
     ]
   end
 
+  def gender_options do
+    [
+      {"Female", "female"},
+      {"Male", "male"}
+    ]
+  end
+
   schema "characters" do
     field :name, :string
+    field :gender, :string
     field :title, :string
     field :role, :string
     field :politics, :string
@@ -63,6 +72,7 @@ defmodule AncientStones.Worlds.Character do
     character
     |> cast(attrs, [
       :name,
+      :gender,
       :title,
       :role,
       :politics,
@@ -73,11 +83,13 @@ defmodule AncientStones.Worlds.Character do
       :description
     ])
     |> validate_required([:name, :world_id])
+    |> validate_inclusion(:gender, @genders)
     |> validate_inclusion(:status, @statuses)
     |> validate_number(:health, greater_than_or_equal_to: 0)
     |> validate_number(:magicka, greater_than_or_equal_to: 0)
     |> validate_number(:stamina, greater_than_or_equal_to: 0)
     |> check_constraint(:status, name: :characters_status_valid)
+    |> check_constraint(:gender, name: :characters_gender_valid)
     |> foreign_key_constraint(:world_id)
     |> foreign_key_constraint(:race_id)
     |> foreign_key_constraint(:guild_id)

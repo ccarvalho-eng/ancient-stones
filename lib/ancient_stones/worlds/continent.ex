@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.Continent do
   import Ecto.Changeset
 
   alias AncientStones.Worlds.Calendar
+  alias AncientStones.Worlds.ContinentCurrency
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.World
 
@@ -15,6 +16,7 @@ defmodule AncientStones.Worlds.Continent do
     belongs_to(:world, World)
     has_many(:calendars, Calendar)
     has_many(:provinces, Province)
+    has_one(:currency, ContinentCurrency)
 
     timestamps(type: :utc_datetime)
   end

@@ -18,6 +18,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.GuildInfluence
   alias AncientStones.Worlds.CharacterInventoryCategory
   alias AncientStones.Worlds.CharacterInventoryItem
+  alias AncientStones.Worlds.ContinentCurrency
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.HoldCommerceEntry
   alias AncientStones.Worlds.Item
@@ -198,15 +199,21 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     |> form("#continent-form",
       continent: %{
         name: "Greater Tamriel",
-        description: "Edited continent"
+        description: "Edited continent",
+        currency_name: "Frostmarks",
+        currency_description: "Stamped silver rings traded by weight"
       }
     )
     |> render_submit()
 
     continent = Repo.get!(Continent, continent.id)
+    currency = Repo.get_by!(ContinentCurrency, continent_id: continent.id)
 
     assert continent.name == "Greater Tamriel"
     assert continent.description == "Edited continent"
+    assert currency.name == "Frostmarks"
+    assert currency.description == "Stamped silver rings traded by weight"
+    assert has_element?(view, "#continent-details", "Frostmarks")
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?province_id=#{province.id}")
 
@@ -252,6 +259,72 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert hold.name == "Greater Whiterun"
     assert hold.description == "Edited hold"
+  end
+
+  test "shows province politics in province and continent details", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, skyrim} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, cyrodiil} = Worlds.create_province(continent, %{name: "Cyrodiil"})
+    {:ok, whiterun} = Worlds.create_hold(skyrim, %{name: "Whiterun"})
+    {:ok, high_king} = Worlds.create_character(world, %{name: "Eirik Frost-Crowned"})
+    {:ok, chancellor} = Worlds.create_character(world, %{name: "Valdemar Reed-Speaker"})
+    {:ok, jarl} = Worlds.create_character(world, %{name: "Hakon Wave-Bound"})
+
+    {:ok, _office} =
+      Worlds.create_political_office(
+        world,
+        %{
+          office: "High King",
+          scope: "province",
+          politics: "Crown Moot",
+          description: "Chosen by jarls and oath-speakers"
+        },
+        %{province: skyrim, character: high_king}
+      )
+
+    {:ok, _office} =
+      Worlds.create_political_office(
+        world,
+        %{
+          office: "Chancellor",
+          scope: "province",
+          politics: "Gold Road Council",
+          description: "Keeps the imperial road ledgers"
+        },
+        %{province: cyrodiil, character: chancellor}
+      )
+
+    {:ok, _office} =
+      Worlds.create_political_office(
+        world,
+        %{
+          office: "Jarl",
+          scope: "hold",
+          politics: "Fjord Clans",
+          description: "Rules the hold moot"
+        },
+        %{hold: whiterun, character: jarl}
+      )
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?province_id=#{skyrim.id}")
+
+    assert has_element?(view, "#province-political-office-details", "High King")
+    assert has_element?(view, "#province-political-office-details", "Eirik Frost-Crowned")
+    assert has_element?(view, "#province-political-office-details", "Crown Moot")
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?hold_id=#{whiterun.id}")
+
+    assert has_element?(view, "#political-office-details", "Hold Offices")
+    assert has_element?(view, "#political-office-details", "Hakon Wave-Bound")
+    refute has_element?(view, "#political-office-details", "High King")
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?continent_id=#{continent.id}")
+
+    assert has_element?(view, "#continent-political-office-details", "Skyrim")
+    assert has_element?(view, "#continent-political-office-details", "Eirik Frost-Crowned")
+    assert has_element?(view, "#continent-political-office-details", "Cyrodiil")
+    assert has_element?(view, "#continent-political-office-details", "Valdemar Reed-Speaker")
   end
 
   test "sets and clears a selected hold as the province capital from the hold form", %{
@@ -863,11 +936,14 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#character_status option[value='alive']", "Alive")
     assert has_element?(view, "#character_status option[value='dead']", "Dead")
     assert has_element?(view, "#character_status option[value='unknown']", "Unknown")
+    assert has_element?(view, "#character_gender option[value='female']", "Female")
+    assert has_element?(view, "#character_gender option[value='male']", "Male")
 
     view
     |> form("#character-form",
       character: %{
         name: "Ulfric Stormcloak",
+        gender: "male",
         title: "Jarl of Windhelm",
         role: "Jarl",
         politics: "Stormcloak",
@@ -892,9 +968,77 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
       ])
 
     assert character.home_location.name == "Windhelm"
+    assert character.gender == "male"
     assert Enum.any?(character.character_occupations, &(&1.occupation.name == "Jarl"))
     assert Enum.any?(character.character_skills, &(&1.skill.name == "Speech"))
     assert has_element?(view, "#character-list", "Ulfric Stormcloak")
+  end
+
+  test "saves selected characters from the character form", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, nord} = Worlds.create_race(world, %{name: "Nord"})
+    {:ok, breton} = Worlds.create_race(world, %{name: "Breton"})
+    {:ok, guild} = Worlds.create_guild(world, %{name: "Crown Moot"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tysttind"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Frostgard"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Nordhavn"})
+    {:ok, city} = Worlds.create_location_type(world, %{name: "City"})
+    {:ok, hall} = Worlds.create_location(hold, city, %{name: "High Hall"})
+
+    {:ok, character} =
+      Worlds.create_character(
+        world,
+        %{
+          name: "Eirik Frost-Crowned",
+          gender: "male",
+          title: "High King",
+          role: "Ruler",
+          politics: "Crown Moot",
+          status: "alive",
+          description: "An oath-bound king"
+        },
+        %{race: nord}
+      )
+
+    {:ok, view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=characters&character_id=#{character.id}")
+
+    assert has_element?(view, "#character-form button", "Save")
+    assert has_element?(view, "#character_name[value='Eirik Frost-Crowned']")
+
+    view
+    |> form("#character-form",
+      character: %{
+        name: "Eirik Ring-Keeper",
+        gender: "male",
+        title: "High King of Frostgard",
+        role: "High King",
+        politics: "Crown Moot",
+        status: "alive",
+        race_id: breton.id,
+        guild_id: guild.id,
+        home_location_id: hall.id,
+        occupation_id: "",
+        skill_id: "",
+        description: "Bearer of the Frostmark oath"
+      }
+    )
+    |> render_submit()
+
+    character =
+      Character
+      |> Repo.get!(character.id)
+      |> Repo.preload([:race, :guild, :home_location])
+
+    assert character.name == "Eirik Ring-Keeper"
+    assert character.gender == "male"
+    assert character.title == "High King of Frostgard"
+    assert character.role == "High King"
+    assert character.politics == "Crown Moot"
+    assert character.description == "Bearer of the Frostmark oath"
+    assert character.race.name == "Breton"
+    assert character.guild.name == "Crown Moot"
+    assert character.home_location.name == "High Hall"
   end
 
   test "creates edits and deletes skills from the skills section", %{conn: conn} do

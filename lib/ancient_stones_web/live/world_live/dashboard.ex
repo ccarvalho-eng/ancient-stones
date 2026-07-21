@@ -4,6 +4,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.Geography
+  alias AncientStones.Worlds.Hold
+  alias AncientStones.Worlds.Province
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -23,13 +25,24 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   embed_templates "dashboard/*"
 
   def handle_event("create_continent", %{"continent" => params}, socket) do
-    create_and_reload(socket, fn -> Worlds.create_continent(socket.assigns.world, params) end)
+    create_and_reload(socket, fn ->
+      with {:ok, continent} <-
+             Worlds.create_continent(socket.assigns.world, continent_attrs(params)),
+           {:ok, _currency} <-
+             Worlds.put_continent_currency(continent, continent_currency_attrs(params)) do
+        {:ok, continent}
+      end
+    end)
   end
 
   def handle_event("update_continent", %{"continent" => params}, socket) do
     update_and_reload(socket, fn ->
       with {:ok, continent} <- get_selected_continent(socket) do
-        Worlds.update_continent(continent, params)
+        with {:ok, continent} <- Worlds.update_continent(continent, continent_attrs(params)),
+             {:ok, _currency} <-
+               Worlds.put_continent_currency(continent, continent_currency_attrs(params)) do
+          {:ok, continent}
+        end
       end
     end)
   end
@@ -396,6 +409,22 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
           guild: guild,
           occupation: occupation,
           skill: skill,
+          home_location: home_location
+        )
+      end
+    end)
+  end
+
+  def handle_event("update_character", %{"character" => params}, socket) do
+    update_and_reload(socket, fn ->
+      with {:ok, character} <- get_selected_character(socket),
+           {:ok, race} <- get_optional_race_in_world(socket, params["race_id"]),
+           {:ok, guild} <- get_optional_guild_in_world(socket, params["guild_id"]),
+           {:ok, home_location} <-
+             get_optional_location_in_world(socket, params["home_location_id"]) do
+        Worlds.update_character(character, params,
+          race: race,
+          guild: guild,
           home_location: home_location
         )
       end
@@ -827,7 +856,12 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     selected_hold_political_offices = selected_hold_political_offices(selected_hold)
 
     selected_political_offices =
-      selected_province_political_offices ++ selected_hold_political_offices
+      selected_political_offices(
+        selected_path.province,
+        selected_hold,
+        selected_province_political_offices,
+        selected_hold_political_offices
+      )
 
     selected_political_office =
       select_record(selected_political_offices, params["political_office_id"]) ||
@@ -976,7 +1010,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :commerce_form,
       data_form(:commerce, %{
         "kind" => "income",
-        "currency" => "Septims",
+        "currency" => commerce_currency(selected_hold_commerce_entries, selected_path.continent),
         "frequency" => "monthly"
       })
     )
@@ -1014,14 +1048,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:god_form, data_form(:god))
     |> assign(
       :character_form,
-      data_form(:character, %{
-        "race_id" => nil,
-        "guild_id" => nil,
-        "home_location_id" => nil,
-        "occupation_id" => nil,
-        "skill_id" => nil,
-        "status" => "alive"
-      })
+      data_form(:character, character_form_attrs(selected_character))
     )
     |> assign(
       :inventory_category_form,
@@ -1929,6 +1956,28 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> Enum.sort_by(&{&1.office, record_name(&1.character)})
   end
 
+  defp selected_political_offices(
+         _selected_province,
+         %{} = _selected_hold,
+         _province_offices,
+         hold_offices
+       ) do
+    hold_offices
+  end
+
+  defp selected_political_offices(%{} = _selected_province, nil, province_offices, _hold_offices) do
+    province_offices
+  end
+
+  defp selected_political_offices(
+         _selected_province,
+         _selected_hold,
+         _province_offices,
+         _hold_offices
+       ) do
+    []
+  end
+
   defp selected_hold_locations(nil) do
     []
   end
@@ -1964,7 +2013,20 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp continent_form_attrs(continent) do
     %{
       "name" => continent.name,
-      "description" => continent.description
+      "description" => continent.description,
+      "currency_name" => continent_currency_name(continent),
+      "currency_description" => continent_currency_description(continent)
+    }
+  end
+
+  defp continent_attrs(params) do
+    Map.take(params, ["name", "description"])
+  end
+
+  defp continent_currency_attrs(params) do
+    %{
+      "name" => Map.get(params, "currency_name"),
+      "description" => Map.get(params, "currency_description")
     }
   end
 
@@ -1994,6 +2056,35 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "climate" => hold.climate,
       "description" => hold.description,
       "province_capital" => to_string(province_capital_hold?(selected_province, hold))
+    }
+  end
+
+  defp character_form_attrs(nil) do
+    %{
+      "race_id" => nil,
+      "gender" => nil,
+      "guild_id" => nil,
+      "home_location_id" => nil,
+      "occupation_id" => nil,
+      "skill_id" => nil,
+      "status" => "alive"
+    }
+  end
+
+  defp character_form_attrs(character) do
+    %{
+      "name" => character.name,
+      "gender" => character.gender,
+      "title" => character.title,
+      "role" => character.role,
+      "politics" => character.politics,
+      "status" => character.status || "alive",
+      "race_id" => character.race_id,
+      "guild_id" => character.guild_id,
+      "home_location_id" => character.home_location_id,
+      "occupation_id" => nil,
+      "skill_id" => nil,
+      "description" => character.description
     }
   end
 
@@ -2369,6 +2460,15 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  defp character_gender_label(gender) do
+    Character.gender_options()
+    |> Enum.find_value(display_value(gender), fn {label, value} ->
+      if value == gender do
+        label
+      end
+    end)
+  end
+
   defp political_office_edit_attrs(nil) do
     %{}
   end
@@ -2662,6 +2762,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp selected_record_action("geography", params, opts) do
     if Keyword.get(opts, :select_action, false) do
       geography_record_action(params)
+    end
+  end
+
+  defp selected_record_action("characters", %{"character_id" => character_id}, opts)
+       when character_id not in [nil, ""] do
+    if Keyword.get(opts, :select_action, false) do
+      "character"
     end
   end
 
@@ -3079,6 +3186,20 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  defp commerce_total_label(entries, continent) do
+    "#{commerce_total(entries)} net #{commerce_currency(entries, continent)}"
+  end
+
+  defp commerce_currency(entries, continent) do
+    entries
+    |> Enum.map(& &1.currency)
+    |> Enum.find(&present?/1)
+    |> case do
+      nil -> continent_currency_name(continent) || "Coins"
+      currency -> currency
+    end
+  end
+
   defp guild_influences(nil) do
     []
   end
@@ -3122,6 +3243,36 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp display_value(value) do
     to_string(value)
+  end
+
+  defp continent_currency_name(%{currency: %{name: name}}) do
+    if present?(name) do
+      name
+    end
+  end
+
+  defp continent_currency_name(_continent) do
+    nil
+  end
+
+  defp continent_currency_description(%{currency: %{description: description}}) do
+    description
+  end
+
+  defp continent_currency_description(_continent) do
+    nil
+  end
+
+  defp present?(nil) do
+    false
+  end
+
+  defp present?("") do
+    false
+  end
+
+  defp present?(_value) do
+    true
   end
 
   defp era_years(%{starts_at_year: nil, ends_at_year: nil}) do
@@ -3459,6 +3610,68 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       </span>
     </div>
     """
+  end
+
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :subtitle, :string, required: true
+  attr :empty_message, :string, required: true
+  attr :offices, :list, required: true
+  attr :record, :map, required: true
+  attr :world, :map, required: true
+
+  defp political_office_group(assigns) do
+    ~H"""
+    <section id={@id} class="rounded-md border border-zinc-200 bg-white px-3 py-2">
+      <div>
+        <p class="text-[11px] font-semibold uppercase text-zinc-500">
+          {@title}
+        </p>
+        <p class="mt-0.5 text-sm font-medium text-zinc-800">
+          {@subtitle}
+        </p>
+      </div>
+      <div class="mt-1 flex flex-col divide-y divide-zinc-100">
+        <div :if={@offices == []} class="py-2 text-sm text-zinc-500">
+          {@empty_message}
+        </div>
+        <div
+          :for={office <- @offices}
+          class="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 py-2 first:pt-0 last:pb-0"
+        >
+          <.link
+            patch={political_office_patch(@world, @record, office)}
+            class="block min-w-0 rounded px-1 py-0.5 transition hover:bg-zinc-50"
+          >
+            <div class="text-sm font-medium text-zinc-800">
+              {office.office}
+            </div>
+            <p class="text-xs text-zinc-500">
+              {record_name(office.character)} / {display_value(office.politics)}
+            </p>
+          </.link>
+          <button
+            type="button"
+            phx-click="delete_political_office"
+            phx-value-id={office.id}
+            data-confirm={"Delete #{office.office}?"}
+            class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
+            aria-label={"Delete #{office.office}"}
+          >
+            <.icon name="hero-trash" class="size-4" />
+          </button>
+        </div>
+      </div>
+    </section>
+    """
+  end
+
+  defp political_office_patch(world, %Province{} = province, office) do
+    ~p"/worlds/#{world}/dashboard?province_id=#{province.id}&political_office_id=#{office.id}"
+  end
+
+  defp political_office_patch(world, %Hold{} = hold, office) do
+    ~p"/worlds/#{world}/dashboard?hold_id=#{hold.id}&political_office_id=#{office.id}"
   end
 
   attr :label, :string, required: true

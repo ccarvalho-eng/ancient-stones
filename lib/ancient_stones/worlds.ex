@@ -20,6 +20,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.CivilizationLocation
   alias AncientStones.Worlds.CivilizationRace
   alias AncientStones.Worlds.Continent
+  alias AncientStones.Worlds.ContinentCurrency
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.CreatureLocation
   alias AncientStones.Worlds.CreatureType
@@ -120,6 +121,7 @@ defmodule AncientStones.Worlds do
         civilization_races: [:race]
       ],
       continents: [
+        :currency,
         calendars: [:months],
         provinces: [
           :capital_hold,
@@ -274,6 +276,66 @@ defmodule AncientStones.Worlds do
     continent
     |> Continent.changeset(attrs)
     |> Repo.update()
+  end
+
+  def put_continent_currency(%Continent{id: continent_id} = continent, attrs) do
+    case normalized_currency_attrs(attrs) do
+      nil ->
+        delete_continent_currency(continent)
+
+      currency_attrs ->
+        continent
+        |> Repo.preload(:currency)
+        |> Map.get(:currency)
+        |> case do
+          nil ->
+            %ContinentCurrency{continent_id: continent_id}
+
+          currency ->
+            currency
+        end
+        |> ContinentCurrency.changeset(currency_attrs)
+        |> Repo.insert_or_update()
+    end
+  end
+
+  defp normalized_currency_attrs(attrs) do
+    name =
+      attrs
+      |> Map.get("name", Map.get(attrs, :name))
+      |> blank_to_nil()
+
+    description =
+      attrs
+      |> Map.get("description", Map.get(attrs, :description))
+      |> blank_to_nil()
+
+    if name do
+      %{"name" => name, "description" => description}
+    end
+  end
+
+  defp delete_continent_currency(%Continent{} = continent) do
+    continent
+    |> Repo.preload(:currency)
+    |> Map.get(:currency)
+    |> case do
+      nil -> {:ok, nil}
+      currency -> Repo.delete(currency)
+    end
+  end
+
+  defp blank_to_nil(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> case do
+      "" -> nil
+      value -> value
+    end
+  end
+
+  defp blank_to_nil(value) do
+    value
   end
 
   def create_timeline(%World{id: world_id}, attrs) do
@@ -644,6 +706,15 @@ defmodule AncientStones.Worlds do
 
       character
     end)
+  end
+
+  def update_character(%Character{} = character, attrs, refs \\ %{}) do
+    character
+    |> Character.changeset(attrs)
+    |> put_ref(:race_id, refs[:race])
+    |> put_ref(:guild_id, refs[:guild])
+    |> put_ref(:home_location_id, refs[:home_location])
+    |> Repo.update()
   end
 
   def create_creature_type(%World{id: world_id}, attrs) do

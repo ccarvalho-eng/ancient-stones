@@ -378,6 +378,44 @@
                       label="Locations"
                       value={continent_location_count(@selected_path.continent)}
                     />
+                    <.detail
+                      label="Coin"
+                      value={display_value(continent_currency_name(@selected_path.continent))}
+                      icon="hero-circle-stack"
+                    />
+                  </div>
+
+                  <div
+                    id="continent-political-office-details"
+                    class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"
+                  >
+                    <div>
+                      <p class="text-[11px] font-semibold uppercase text-zinc-500">
+                        Province Politics
+                      </p>
+                      <p class="mt-0.5 text-sm font-medium text-zinc-800">
+                        {@selected_path.continent.name}
+                      </p>
+                    </div>
+
+                    <div class="mt-3 space-y-3">
+                      <div
+                        :if={@selected_path.continent.provinces == []}
+                        class="py-2 text-sm text-zinc-500"
+                      >
+                        No provinces have been added.
+                      </div>
+                      <.political_office_group
+                        :for={province <- sorted(@selected_path.continent.provinces)}
+                        id={"continent-province-politics-#{province.id}"}
+                        title={province.name}
+                        subtitle={"#{display_value(length(province.holds))} holds"}
+                        empty_message="No province offices have been added."
+                        offices={selected_province_political_offices(province)}
+                        record={province}
+                        world={@world}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -422,7 +460,22 @@
                       label="Locations"
                       value={province_location_count(@selected_path.province)}
                     />
+                    <.detail
+                      label="Coin"
+                      value={display_value(continent_currency_name(@selected_path.continent))}
+                      icon="hero-circle-stack"
+                    />
                   </div>
+
+                  <.political_office_group
+                    id="province-political-office-details"
+                    title="Province Politics"
+                    subtitle={@selected_path.province.name}
+                    empty_message="No province offices have been added."
+                    offices={@selected_province_political_offices}
+                    record={@selected_path.province}
+                    world={@world}
+                  />
                 </div>
 
                 <div
@@ -461,6 +514,11 @@
                       label="Capital Location"
                       value={record_name(@selected_hold.capital_location)}
                     />
+                    <.detail
+                      label="Coin"
+                      value={display_value(continent_currency_name(@selected_path.continent))}
+                      icon="hero-circle-stack"
+                    />
                   </div>
                 </div>
 
@@ -472,96 +530,24 @@
                   <div class="flex items-center justify-between gap-3">
                     <div>
                       <p class="text-[11px] font-semibold uppercase text-zinc-500">
-                        Politics
+                        Hold Politics
                       </p>
                       <p class="mt-0.5 text-sm font-medium text-zinc-800">
-                        {selected_path(@selected_path)}
+                        {@selected_hold.name}
                       </p>
                     </div>
                   </div>
 
                   <div class="mt-3">
-                    <p class="text-[11px] font-semibold uppercase text-zinc-500">
-                      Province Offices
-                    </p>
-                    <div class="mt-1 flex flex-col divide-y divide-zinc-100">
-                      <div
-                        :if={@selected_province_political_offices == []}
-                        class="py-2 text-sm text-zinc-500"
-                      >
-                        No province offices have been added.
-                      </div>
-                      <div
-                        :for={office <- @selected_province_political_offices}
-                        class="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 py-2 first:pt-0 last:pb-0"
-                      >
-                        <.link
-                          patch={
-                            ~p"/worlds/#{@world}/dashboard?hold_id=#{@selected_hold.id}&political_office_id=#{office.id}"
-                          }
-                          class="block min-w-0 rounded px-1 py-0.5 transition hover:bg-white"
-                        >
-                          <div class="text-sm font-medium text-zinc-800">
-                            {office.office}
-                          </div>
-                          <p class="text-xs text-zinc-500">
-                            {record_name(office.character)} / {display_value(office.politics)}
-                          </p>
-                        </.link>
-                        <button
-                          type="button"
-                          phx-click="delete_political_office"
-                          phx-value-id={office.id}
-                          data-confirm={"Delete #{office.office}?"}
-                          class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
-                          aria-label={"Delete #{office.office}"}
-                        >
-                          <.icon name="hero-trash" class="size-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="mt-3">
-                    <p class="text-[11px] font-semibold uppercase text-zinc-500">
-                      Hold Offices
-                    </p>
-                    <div class="mt-1 flex flex-col divide-y divide-zinc-100">
-                      <div
-                        :if={@selected_hold_political_offices == []}
-                        class="py-2 text-sm text-zinc-500"
-                      >
-                        No hold offices have been added.
-                      </div>
-                      <div
-                        :for={office <- @selected_hold_political_offices}
-                        class="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 py-2 first:pt-0 last:pb-0"
-                      >
-                        <.link
-                          patch={
-                            ~p"/worlds/#{@world}/dashboard?hold_id=#{@selected_hold.id}&political_office_id=#{office.id}"
-                          }
-                          class="block min-w-0 rounded px-1 py-0.5 transition hover:bg-white"
-                        >
-                          <div class="text-sm font-medium text-zinc-800">
-                            {office.office}
-                          </div>
-                          <p class="text-xs text-zinc-500">
-                            {record_name(office.character)} / {display_value(office.politics)}
-                          </p>
-                        </.link>
-                        <button
-                          type="button"
-                          phx-click="delete_political_office"
-                          phx-value-id={office.id}
-                          data-confirm={"Delete #{office.office}?"}
-                          class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
-                          aria-label={"Delete #{office.office}"}
-                        >
-                          <.icon name="hero-trash" class="size-4" />
-                        </button>
-                      </div>
-                    </div>
+                    <.political_office_group
+                      id="hold-political-offices"
+                      title="Hold Offices"
+                      subtitle={@selected_hold.name}
+                      empty_message="No hold offices have been added."
+                      offices={@selected_hold_political_offices}
+                      record={@selected_hold}
+                      world={@world}
+                    />
                   </div>
                 </div>
 
@@ -580,7 +566,10 @@
                       </p>
                     </div>
                     <span class="rounded border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-600">
-                      {commerce_total(@selected_hold_commerce_entries)} net Septims
+                      {commerce_total_label(
+                        @selected_hold_commerce_entries,
+                        @selected_path.continent
+                      )}
                     </span>
                   </div>
                   <div class="mt-2 flex flex-col divide-y divide-zinc-100">
@@ -707,6 +696,12 @@
                     field={@continent_form[:description]}
                     type="textarea"
                     label="Description"
+                  />
+                  <.input field={@continent_form[:currency_name]} type="text" label="Coin" />
+                  <.input
+                    field={@continent_form[:currency_description]}
+                    type="textarea"
+                    label="Coin Description"
                   />
                   <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
                     {if @selected_path.continent, do: "Save", else: "Create"}
@@ -2526,6 +2521,10 @@
                     </div>
 
                     <div class="grid gap-3 text-sm sm:grid-cols-2">
+                      <.detail
+                        label="Gender"
+                        value={character_gender_label(@selected_character.gender)}
+                      />
                       <.detail label="Title" value={display_value(@selected_character.title)} />
                       <.detail label="Role" value={display_value(@selected_character.role)} />
                       <.detail
@@ -2677,15 +2676,24 @@
                     action="character"
                     expanded_action={@expanded_action}
                     icon="hero-identification"
-                    title="Add Character"
+                    title={if(@selected_character, do: "Edit Character", else: "Add Character")}
                   >
                     <.form
                       for={@character_form}
                       id="character-form"
-                      phx-submit="create_character"
+                      phx-submit={
+                        if(@selected_character, do: "update_character", else: "create_character")
+                      }
                       class="space-y-2"
                     >
                       <.input field={@character_form[:name]} type="text" label="Name" required />
+                      <.input
+                        field={@character_form[:gender]}
+                        type="select"
+                        label="Gender"
+                        prompt="None"
+                        options={Character.gender_options()}
+                      />
                       <.input field={@character_form[:title]} type="text" label="Title" />
                       <.input field={@character_form[:role]} type="text" label="Role" />
                       <.input
@@ -2740,7 +2748,7 @@
                         label="Description"
                       />
                       <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
-                        Create
+                        {if @selected_character, do: "Save", else: "Create"}
                       </.button>
                     </.form>
                   </.action_section>
