@@ -201,6 +201,14 @@
   color: var(--stone-subtle);
 }
 
+.stone-breadcrumb-link {
+  transition: color 120ms ease;
+}
+
+.stone-breadcrumb-link:hover {
+  color: var(--stone-text);
+}
+
 .stone-border {
   border-color: var(--stone-border);
 }

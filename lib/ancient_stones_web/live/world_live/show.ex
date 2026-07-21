@@ -24,7 +24,7 @@ defmodule AncientStonesWeb.WorldLive.Show do
           <header class="stone-topbar stone-border flex h-16 items-center justify-between border-b px-5">
             <div>
               <nav class="stone-muted flex items-center gap-1.5 text-xs font-medium">
-                <.link navigate={~p"/worlds"} class="hover:text-zinc-800">Worlds</.link>
+                <.link navigate={~p"/worlds"} class="stone-breadcrumb-link">Worlds</.link>
                 <.icon name="hero-chevron-right" class="size-3.5" />
                 <span class="stone-heading">{@world.name}</span>
               </nav>
