@@ -100,6 +100,12 @@ defmodule AncientStones.WorldsTest do
     akavir = continent_named(dashboard, "Akavir")
     yokuda = continent_named(dashboard, "Yokuda")
 
+    assert continent.currency.name == "Septims"
+    assert Decimal.equal?(continent.currency.value_per_unit, Decimal.new("1.00"))
+    assert continent.currency.value_basis == "hearth-day"
+    assert akavir.currency.name == "Akaviri Taels"
+    assert Decimal.equal?(akavir.currency.value_per_unit, Decimal.new("0.80"))
+
     assert province.name == "Skyrim"
     assert province.terrain == :mountain
     assert province.climate == :cold

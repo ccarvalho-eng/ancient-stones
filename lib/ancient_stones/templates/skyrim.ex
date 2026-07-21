@@ -216,6 +216,12 @@ defmodule AncientStones.Templates.Skyrim do
       %{
         name: "Tamriel",
         description: "The central continent of Nirn, traditionally divided into nine provinces.",
+        currency:
+          currency(
+            "Septims",
+            "Imperial gold coins accepted across most Tamrielic trade routes.",
+            "1.00"
+          ),
         calendars: [tamrielic_calendar()],
         provinces: tamriel_provinces()
       },
@@ -223,39 +229,84 @@ defmodule AncientStones.Templates.Skyrim do
         name: "Akavir",
         description:
           "An eastern continent associated with Tsaesci, Tang Mo, Kamal, Ka Po' Tun, dragons, and invasions of Tamriel.",
+        currency:
+          currency(
+            "Akaviri Taels",
+            "Stamped eastern silver used in caravan and war-ledger accounts.",
+            "0.80"
+          ),
         provinces: akavir_regions()
       },
       %{
         name: "Atmora",
         description:
           "A northern frozen continent remembered as the ancestral homeland of the Atmorans and early Nords.",
+        currency:
+          currency(
+            "Atmoran Rings",
+            "Old iron and silver rings valued by weight in northern sagas.",
+            "0.55"
+          ),
         provinces: []
       },
       %{
         name: "Pyandonea",
         description:
           "An island-continent south-west of Tamriel, associated with the Maormer sea elves.",
+        currency:
+          currency(
+            "Sea-Crowns",
+            "Pearl-inlaid trade pieces carried through Maormer sea lanes.",
+            "0.70"
+          ),
         provinces: []
       },
       %{
         name: "Yokuda",
         description:
           "The western homeland of the Redguards before catastrophe drove survivors toward Hammerfell.",
+        currency:
+          currency(
+            "Yokudan Shehns",
+            "Curved copper-silver coins remembered in Ra Gada trade accounts.",
+            "0.65"
+          ),
         provinces: yokuda_regions()
       },
       %{
         name: "Aldmeris",
         description:
           "A mythic or lost homeland associated with elven origins in Elder Scrolls tradition.",
+        currency:
+          currency(
+            "Aldmeri Stars",
+            "Rare star-cut electrum pieces preserved as heirlooms rather than common coin.",
+            "1.20"
+          ),
         provinces: []
       },
       %{
         name: "Thras",
         description:
           "The Coral Kingdom associated with the Sload, described as a partially submerged landmass.",
+        currency:
+          currency(
+            "Coral Tokens",
+            "Low-trust coral counters used in distant accounts of Sload exchange.",
+            "0.30"
+          ),
         provinces: []
       }
     ]
+  end
+
+  defp currency(name, description, value_per_unit) do
+    %{
+      name: name,
+      description: description,
+      value_per_unit: value_per_unit,
+      value_basis: "hearth-day"
+    }
   end
 
   defp tamriel_provinces do

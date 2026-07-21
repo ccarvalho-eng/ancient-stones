@@ -2666,6 +2666,12 @@ defmodule AncientStones.Worlds do
         |> create_continent(continent_data)
         |> unwrap_transaction!()
 
+      if currency_data = continent_data[:currency] do
+        continent
+        |> put_continent_currency(currency_data)
+        |> unwrap_transaction!()
+      end
+
       build_template_calendars!(continent, Map.get(continent_data, :calendars, []))
       build_template_provinces!(continent, Map.get(continent_data, :provinces, []), type_by_name)
     end
