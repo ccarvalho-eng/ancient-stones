@@ -1126,6 +1126,12 @@ defmodule AncientStones.Worlds do
     |> Repo.insert()
   end
 
+  def update_calendar_month(%CalendarMonth{} = calendar_month, attrs) do
+    calendar_month
+    |> CalendarMonth.changeset(attrs)
+    |> Repo.update()
+  end
+
   def get_calendar_month!(id) do
     Repo.get!(CalendarMonth, id)
   end

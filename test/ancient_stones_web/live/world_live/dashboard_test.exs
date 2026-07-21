@@ -6,6 +6,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Repo
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Calendar
+  alias AncientStones.Worlds.CalendarMonth
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.Creature
@@ -1727,6 +1728,58 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#calendar-details", "270.0 deg")
     assert has_element?(view, "#calendar-month-grid")
     assert has_element?(view, "#calendar-month-#{month.id}", "Frostfall")
+  end
+
+  test "selects calendars and months for editing from the calendar section", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+
+    {:ok, calendar} =
+      Worlds.create_calendar(continent, %{
+        name: "Nordic Reckoning",
+        days_per_week: 7,
+        era: "Fourth Era",
+        year_start_angle: "270.0",
+        perihelion_day: 12,
+        description: "A local calendar"
+      })
+
+    {:ok, month} =
+      Worlds.create_calendar_month(calendar, %{
+        name: "Frostfall",
+        days: 31,
+        position: 1
+      })
+
+    {:ok, view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=calendar&calendar_id=#{calendar.id}")
+
+    assert has_element?(view, "#calendar-edit-form")
+    assert has_element?(view, "#calendar_edit_name[value='Nordic Reckoning']")
+    refute has_element?(view, "#calendar-form input[name='calendar[name]']")
+
+    view
+    |> element("a[aria-label='Edit Frostfall']")
+    |> render_click()
+
+    assert has_element?(view, "#calendar-month-edit-form")
+    assert has_element?(view, "#calendar_month_edit_name[value='Frostfall']")
+
+    view
+    |> form("#calendar-month-edit-form",
+      calendar_month_edit: %{
+        name: "Snowmelt",
+        days: 30,
+        position: 1
+      }
+    )
+    |> render_submit()
+
+    month = Repo.get!(CalendarMonth, month.id)
+
+    assert month.name == "Snowmelt"
+    assert month.days == 30
+    assert has_element?(view, "#calendar-month-#{month.id}", "Snowmelt")
   end
 
   test "creates timelines, eras, and events from the timeline section", %{conn: conn} do

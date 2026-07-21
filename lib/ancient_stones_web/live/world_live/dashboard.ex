@@ -697,6 +697,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  def handle_event("update_calendar_month", %{"calendar_month_edit" => params}, socket) do
+    update_and_reload(socket, fn ->
+      with {:ok, month} <- get_selected_calendar_month(socket) do
+        Worlds.update_calendar_month(month, params)
+      end
+    end)
+  end
+
   def handle_event("delete_calendar", %{"id" => id}, socket) do
     delete_and_reload(socket, fn ->
       with {:ok, calendar} <- get_calendar_in_world(socket, id) do
@@ -832,6 +840,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     timeline_events = flat_timeline_events(timelines)
     selected_calendar = select_record(calendars, params["calendar_id"]) || first_record(calendars)
 
+    selected_calendar_month =
+      select_record(calendar_months(selected_calendar), params["calendar_month_id"])
+
     selected_character =
       select_record(characters, params["character_id"]) || first_record(characters)
 
@@ -911,6 +922,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:expanded_action, expanded_action)
     |> assign(:calendars, calendars)
     |> assign(:selected_calendar, selected_calendar)
+    |> assign(:selected_calendar_month, selected_calendar_month)
     |> assign(:characters, characters)
     |> assign(:character_roles, character_roles)
     |> assign(:selected_character, selected_character)
@@ -1167,6 +1179,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       })
     )
     |> assign(
+      :calendar_month_edit_form,
+      data_form(:calendar_month_edit, calendar_month_edit_attrs(selected_calendar_month))
+    )
+    |> assign(
       :calendar_edit_form,
       data_form(:calendar_edit, calendar_edit_attrs(selected_calendar))
     )
@@ -1216,7 +1232,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "spell_id" => selected_record_id(socket.assigns[:selected_spell]),
       "civilization_id" => selected_record_id(socket.assigns[:selected_civilization]),
       "timeline_id" => selected_record_id(socket.assigns[:selected_timeline]),
-      "calendar_id" => selected_record_id(socket.assigns[:selected_calendar])
+      "calendar_id" => selected_record_id(socket.assigns[:selected_calendar]),
+      "calendar_month_id" => selected_record_id(socket.assigns[:selected_calendar_month])
     }
   end
 
@@ -1578,6 +1595,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp get_selected_calendar(_socket) do
     {:error, :calendar_not_selected}
+  end
+
+  defp get_selected_calendar_month(%{assigns: %{selected_calendar_month: %{} = month}}) do
+    {:ok, Worlds.get_calendar_month!(month.id)}
+  end
+
+  defp get_selected_calendar_month(_socket) do
+    {:error, :calendar_month_not_selected}
   end
 
   defp get_selected_skill(%{assigns: %{selected_skill: %{} = skill}}) do
@@ -2267,6 +2292,18 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     }
   end
 
+  defp calendar_month_edit_attrs(nil) do
+    %{}
+  end
+
+  defp calendar_month_edit_attrs(month) do
+    %{
+      "name" => month.name,
+      "days" => month.days,
+      "position" => month.position
+    }
+  end
+
   defp document_edit_attrs(nil) do
     %{}
   end
@@ -2881,7 +2918,27 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end
   end
 
+  defp selected_record_action("calendar", params, opts) do
+    if Keyword.get(opts, :select_action, false) do
+      calendar_record_action(params)
+    end
+  end
+
   defp selected_record_action(_section, _params, _opts) do
+    nil
+  end
+
+  defp calendar_record_action(%{"calendar_month_id" => calendar_month_id})
+       when calendar_month_id not in [nil, ""] do
+    "calendar_month_edit"
+  end
+
+  defp calendar_record_action(%{"calendar_id" => calendar_id})
+       when calendar_id not in [nil, ""] do
+    "calendar_edit"
+  end
+
+  defp calendar_record_action(_params) do
     nil
   end
 
