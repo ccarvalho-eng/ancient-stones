@@ -223,7 +223,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         map_y: 45,
         visibility: "lost",
         currency_name: "Frostmarks",
-        currency_description: "Stamped silver rings traded by weight"
+        currency_description: "Stamped silver rings traded by weight",
+        currency_value_per_unit: "1.00",
+        currency_value_basis: "hearth-day"
       }
     )
     |> render_submit()
@@ -238,7 +240,10 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert continent.visibility == :lost
     assert currency.name == "Frostmarks"
     assert currency.description == "Stamped silver rings traded by weight"
+    assert Decimal.equal?(currency.value_per_unit, Decimal.new("1.00"))
+    assert currency.value_basis == "hearth-day"
     assert has_element?(view, "#continent-details", "Frostmarks")
+    assert has_element?(view, "#continent-details", "1 hearth-day")
     assert has_element?(view, "#continent-details", "X -30, Y 45")
     assert has_element?(view, "#continent-details", "Lost")
 
@@ -560,6 +565,48 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     |> render_click()
 
     refute Repo.get(HoldCommerceEntry, commerce_entry.id)
+  end
+
+  test "converts between continent currencies", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, north} = Worlds.create_continent(world, %{name: "North"})
+    {:ok, marsh} = Worlds.create_continent(world, %{name: "Marsh"})
+
+    {:ok, frostmarks} =
+      Worlds.put_continent_currency(north, %{
+        name: "Frostmarks",
+        description: "Stamped silver rings",
+        value_per_unit: "1.00",
+        value_basis: "hearth-day"
+      })
+
+    {:ok, reedmarks} =
+      Worlds.put_continent_currency(marsh, %{
+        name: "Reedmarks",
+        description: "Reed-bronze slivers",
+        value_per_unit: "0.20",
+        value_basis: "hearth-day"
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?continent_id=#{north.id}")
+
+    assert has_element?(view, "#currency-converter")
+    assert has_element?(view, "#currency-converter-result", "1 Frostmarks")
+    assert has_element?(view, "#currency-converter-result", "5 Reedmarks")
+
+    view
+    |> form("#currency-converter-form",
+      currency_converter: %{
+        amount: "2",
+        from_currency_id: reedmarks.id,
+        to_currency_id: frostmarks.id
+      }
+    )
+    |> render_change()
+
+    assert has_element?(view, "#currency-converter-result", "2 Reedmarks")
+    assert has_element?(view, "#currency-converter-result", "0.4 Frostmarks")
+    assert has_element?(view, "#currency-converter-result", "1 Reedmarks = 0.2 Frostmarks")
   end
 
   test "location actions follow the selected hold", %{conn: conn} do

@@ -393,6 +393,87 @@
                       value={display_value(continent_currency_name(@selected_path.continent))}
                       icon="hero-circle-stack"
                     />
+                    <.detail
+                      label="Coin Value"
+                      value={
+                        currency_value_label(
+                          continent_currency_value_per_unit(@selected_path.continent),
+                          continent_currency_value_basis(@selected_path.continent)
+                        )
+                      }
+                      icon="hero-scale"
+                    />
+                  </div>
+
+                  <div
+                    id="currency-converter"
+                    class="rounded-md border border-zinc-200 bg-white px-3 py-2"
+                  >
+                    <div class="flex items-center justify-between gap-3">
+                      <div>
+                        <p class="text-[11px] font-semibold uppercase text-zinc-500">
+                          Coin Converter
+                        </p>
+                        <p class="mt-0.5 text-sm font-medium text-zinc-800">
+                          {currency_basis_label(@currency_conversion)}
+                        </p>
+                      </div>
+                      <.icon name="hero-arrows-right-left" class="size-4 text-zinc-400" />
+                    </div>
+
+                    <.form
+                      for={@currency_converter_form}
+                      id="currency-converter-form"
+                      phx-change="convert_currency"
+                      phx-submit="convert_currency"
+                      class="mt-3 space-y-2"
+                    >
+                      <div class="grid gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                        <.input
+                          field={@currency_converter_form[:amount]}
+                          type="number"
+                          label="Amount"
+                          step="0.01"
+                          min="0"
+                        />
+                        <.input
+                          field={@currency_converter_form[:from_currency_id]}
+                          type="select"
+                          label="From"
+                          options={@currency_options}
+                        />
+                        <.input
+                          field={@currency_converter_form[:to_currency_id]}
+                          type="select"
+                          label="To"
+                          options={@currency_options}
+                        />
+                      </div>
+                    </.form>
+
+                    <div
+                      :if={@currency_options == []}
+                      class="mt-3 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500"
+                    >
+                      Add coin values to at least two continents to compare currencies.
+                    </div>
+
+                    <div
+                      :if={@currency_options != [] && @currency_conversion[:error]}
+                      class="mt-3 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-500"
+                    >
+                      {@currency_conversion.error}
+                    </div>
+
+                    <div
+                      :if={@currency_options != [] && is_nil(@currency_conversion[:error])}
+                      id="currency-converter-result"
+                      class="mt-3 grid gap-2 text-sm sm:grid-cols-3"
+                    >
+                      <.detail label="Amount" value={@currency_conversion.amount_label} />
+                      <.detail label="Converted" value={@currency_conversion.result_label} />
+                      <.detail label="Rate" value={@currency_conversion.rate_label} />
+                    </div>
                   </div>
 
                   <div
@@ -476,6 +557,16 @@
                       icon="hero-circle-stack"
                     />
                     <.detail
+                      label="Coin Value"
+                      value={
+                        currency_value_label(
+                          continent_currency_value_per_unit(@selected_path.continent),
+                          continent_currency_value_basis(@selected_path.continent)
+                        )
+                      }
+                      icon="hero-scale"
+                    />
+                    <.detail
                       label="Coordinates"
                       value={map_coordinate_label(@selected_path.province)}
                       icon="hero-map-pin"
@@ -538,6 +629,16 @@
                       label="Coin"
                       value={display_value(continent_currency_name(@selected_path.continent))}
                       icon="hero-circle-stack"
+                    />
+                    <.detail
+                      label="Coin Value"
+                      value={
+                        currency_value_label(
+                          continent_currency_value_per_unit(@selected_path.continent),
+                          continent_currency_value_basis(@selected_path.continent)
+                        )
+                      }
+                      icon="hero-scale"
                     />
                     <.detail
                       label="Coordinates"
@@ -753,6 +854,20 @@
                     type="textarea"
                     label="Coin Description"
                   />
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input
+                      field={@continent_form[:currency_value_per_unit]}
+                      type="number"
+                      label="Coin Value"
+                      step="0.01"
+                      min="0"
+                    />
+                    <.input
+                      field={@continent_form[:currency_value_basis]}
+                      type="text"
+                      label="Value Basis"
+                    />
+                  </div>
                   <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
                     {if @selected_path.continent, do: "Save", else: "Create"}
                   </.button>

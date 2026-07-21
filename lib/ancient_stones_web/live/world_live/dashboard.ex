@@ -48,6 +48,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  def handle_event("convert_currency", %{"currency_converter" => params}, socket) do
+    {:noreply,
+     socket
+     |> assign(:currency_converter_form, data_form(:currency_converter, params))
+     |> assign(:currency_conversion, currency_conversion(socket.assigns.continents, params))}
+  end
+
   def handle_event("create_province", %{"province" => params}, socket) do
     create_and_reload(socket, fn ->
       with {:ok, continent} <- get_continent_in_world(socket, params["continent_id"]) do
@@ -882,6 +889,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     selected_continent_id = selected_or_first_id(selected_path.continent, continents)
     selected_province_id = selected_or_first_id(selected_path.province, provinces)
     selected_hold_options = option_list(List.wrap(selected_hold))
+    currency_converter_attrs = currency_converter_attrs(continents, selected_path.continent)
 
     lore_connection_entity_options =
       lore_connection_entity_options(
@@ -988,6 +996,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:selected_hold_options, selected_hold_options)
     |> assign(:location_type_options, option_list(location_types))
     |> assign(:location_options, option_list(selected_hold_locations))
+    |> assign(:currency_options, currency_options(continents))
+    |> assign(:currency_converter_form, data_form(:currency_converter, currency_converter_attrs))
+    |> assign(:currency_conversion, currency_conversion(continents, currency_converter_attrs))
     |> assign(
       :continent_form,
       data_form(:continent, continent_form_attrs(selected_path.continent))
@@ -2043,7 +2054,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "map_y" => continent.map_y,
       "visibility" => continent.visibility,
       "currency_name" => continent_currency_name(continent),
-      "currency_description" => continent_currency_description(continent)
+      "currency_description" => continent_currency_description(continent),
+      "currency_value_per_unit" => continent_currency_value_per_unit(continent),
+      "currency_value_basis" => continent_currency_value_basis(continent)
     }
   end
 
@@ -2054,7 +2067,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp continent_currency_attrs(params) do
     %{
       "name" => Map.get(params, "currency_name"),
-      "description" => Map.get(params, "currency_description")
+      "description" => Map.get(params, "currency_description"),
+      "value_per_unit" => Map.get(params, "currency_value_per_unit"),
+      "value_basis" => Map.get(params, "currency_value_basis")
     }
   end
 
@@ -3284,6 +3299,22 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     "#{commerce_total(entries)} net #{commerce_currency(entries, continent)}"
   end
 
+  defp currency_basis_label(%{basis_label: basis_label}) do
+    basis_label
+  end
+
+  defp currency_basis_label(_conversion) do
+    "Measured in hearth-days"
+  end
+
+  defp currency_value_label(nil, _basis) do
+    "None"
+  end
+
+  defp currency_value_label(value_per_unit, basis) do
+    "#{format_decimal(value_per_unit)} #{basis}"
+  end
+
   defp commerce_currency(entries, continent) do
     entries
     |> Enum.map(& &1.currency)
@@ -3292,6 +3323,149 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       nil -> continent_currency_name(continent) || "Coins"
       currency -> currency
     end
+  end
+
+  defp currency_converter_attrs(continents, selected_continent) do
+    currencies = currency_records(continents)
+
+    selected_currency =
+      if selected_continent do
+        Enum.find(currencies, &(&1.continent_id == selected_continent.id))
+      end
+
+    from_currency = selected_currency || List.first(currencies)
+    to_currency = Enum.find(currencies, &(&1.id != record_id(from_currency))) || from_currency
+
+    %{
+      "amount" => "1",
+      "from_currency_id" => record_id(from_currency),
+      "to_currency_id" => record_id(to_currency)
+    }
+  end
+
+  defp currency_options(continents) do
+    continents
+    |> currency_records()
+    |> Enum.map(fn currency ->
+      {"#{currency.name} (#{currency.continent_name})", currency.id}
+    end)
+  end
+
+  defp currency_conversion(continents, params) do
+    currencies = currency_records(continents)
+    from_currency = currency_by_id(currencies, params["from_currency_id"])
+    to_currency = currency_by_id(currencies, params["to_currency_id"])
+
+    with {:ok, amount} <- parse_positive_decimal(params["amount"]),
+         {:ok, from_currency} <- usable_currency(from_currency),
+         {:ok, to_currency} <- usable_currency(to_currency),
+         :ok <- same_value_basis(from_currency, to_currency) do
+      basis = currency_value_basis(from_currency)
+      value = Decimal.mult(amount, from_currency.value_per_unit)
+      result = Decimal.div(value, to_currency.value_per_unit)
+      rate = Decimal.div(from_currency.value_per_unit, to_currency.value_per_unit)
+
+      %{
+        amount_label: "#{format_decimal(amount)} #{from_currency.name}",
+        result_label: "#{format_decimal(result)} #{to_currency.name}",
+        basis_label: "#{format_decimal(value)} #{basis}",
+        rate_label: "1 #{from_currency.name} = #{format_decimal(rate)} #{to_currency.name}"
+      }
+    else
+      {:error, reason} -> %{error: reason}
+    end
+  end
+
+  defp currency_records(continents) do
+    continents
+    |> Enum.flat_map(fn continent ->
+      case continent.currency do
+        %{value_per_unit: %Decimal{} = value_per_unit} = currency ->
+          [
+            %{
+              id: currency.id,
+              continent_id: continent.id,
+              continent_name: continent.name,
+              name: currency.name,
+              value_per_unit: value_per_unit,
+              value_basis: currency_value_basis(currency)
+            }
+          ]
+
+        _currency ->
+          []
+      end
+    end)
+    |> Enum.sort_by(&{&1.name, &1.continent_name})
+  end
+
+  defp currency_by_id(currencies, id) do
+    Enum.find(currencies, &(to_string(&1.id) == to_string(id)))
+  end
+
+  defp usable_currency(nil) do
+    {:error, "Set values on at least two coins."}
+  end
+
+  defp usable_currency(%{value_per_unit: value_per_unit} = currency) do
+    if Decimal.compare(value_per_unit, Decimal.new("0")) == :gt do
+      {:ok, currency}
+    else
+      {:error, "Currency value must be greater than zero."}
+    end
+  end
+
+  defp same_value_basis(from_currency, to_currency) do
+    if currency_value_basis(from_currency) == currency_value_basis(to_currency) do
+      :ok
+    else
+      {:error, "Currencies use different value bases."}
+    end
+  end
+
+  defp parse_positive_decimal(value) do
+    value
+    |> parse_decimal()
+    |> case do
+      {:ok, decimal} ->
+        if Decimal.compare(decimal, Decimal.new("0")) == :gt do
+          {:ok, decimal}
+        else
+          {:error, "Enter an amount greater than zero."}
+        end
+
+      :error ->
+        {:error, "Enter a valid amount."}
+    end
+  end
+
+  defp parse_decimal(nil) do
+    :error
+  end
+
+  defp parse_decimal(value) do
+    value
+    |> to_string()
+    |> Decimal.parse()
+    |> case do
+      {%Decimal{} = decimal, ""} -> {:ok, decimal}
+      _value -> :error
+    end
+  end
+
+  defp format_decimal(decimal) do
+    decimal
+    |> Decimal.round(2)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+  end
+
+  defp record_id(nil) do
+    nil
+  end
+
+  defp record_id(%{id: id}) do
+    id
   end
 
   defp guild_influences(nil) do
@@ -3403,6 +3577,38 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp continent_currency_description(_continent) do
     nil
+  end
+
+  defp continent_currency_value_per_unit(%{currency: %{value_per_unit: value_per_unit}}) do
+    value_per_unit
+  end
+
+  defp continent_currency_value_per_unit(_continent) do
+    nil
+  end
+
+  defp continent_currency_value_basis(%{currency: nil}) do
+    "hearth-day"
+  end
+
+  defp continent_currency_value_basis(%{currency: currency}) do
+    currency_value_basis(currency)
+  end
+
+  defp continent_currency_value_basis(_continent) do
+    "hearth-day"
+  end
+
+  defp currency_value_basis(%{value_basis: value_basis}) do
+    if present?(value_basis) do
+      value_basis
+    else
+      "hearth-day"
+    end
+  end
+
+  defp currency_value_basis(_currency) do
+    "hearth-day"
   end
 
   defp present?(nil) do

@@ -314,7 +314,12 @@ defmodule AncientStones.Worlds do
       |> blank_to_nil()
 
     if name do
-      %{"name" => name, "description" => description}
+      %{
+        "name" => name,
+        "description" => description,
+        "value_per_unit" => Map.get(attrs, "value_per_unit", Map.get(attrs, :value_per_unit)),
+        "value_basis" => Map.get(attrs, "value_basis", Map.get(attrs, :value_basis))
+      }
     end
   end
 
