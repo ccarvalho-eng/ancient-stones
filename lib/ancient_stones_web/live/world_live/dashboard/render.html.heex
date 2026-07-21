@@ -129,13 +129,13 @@
       </div>
 
       <%= if @section == "geography" do %>
-        <div class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_300px_minmax(0,1fr)_340px]">
+        <div class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_300px_minmax(0,1fr)_340px]">
           <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
             <div class="border-b border-zinc-200 px-4 py-3">
               <h2 class="text-sm font-semibold text-zinc-800">Geography</h2>
               <p class="text-xs text-zinc-500">Continents, provinces, and holds</p>
             </div>
-            <div class="max-h-[720px] space-y-3 overflow-y-auto p-3 text-sm">
+            <div class="max-h-[800px] space-y-3 overflow-y-auto p-3 text-sm">
               <div
                 :for={continent <- sidebar_continents(@continents)}
                 class={[
@@ -277,7 +277,7 @@
               </.link>
             </div>
 
-            <div id="location-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+            <div id="location-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
               <div
                 :if={is_nil(@selected_hold)}
                 class="px-4 py-8 text-center text-sm text-zinc-500"
@@ -340,7 +340,7 @@
                 </div>
               </div>
 
-              <div class="max-h-[720px] overflow-y-auto p-3">
+              <div class="max-h-[800px] overflow-y-auto p-3">
                 <div
                   :if={
                     is_nil(@selected_path.continent) && is_nil(@selected_hold) &&
@@ -817,7 +817,7 @@
               <p class="mt-1 text-xs text-zinc-500">Create or edit selected geography records.</p>
             </div>
 
-            <div id="action-list" class="max-h-[720px] overflow-y-auto">
+            <div id="action-list" class="max-h-[800px] overflow-y-auto">
               <.action_section
                 action="continent"
                 expanded_action={@expanded_action}
@@ -1299,7 +1299,7 @@
           <% @section == "races" -> %>
             <div
               id="races-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -1312,7 +1312,7 @@
                   </span>
                 </div>
 
-                <div id="race-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="race-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div :if={@races == []} class="px-4 py-8 text-center text-sm text-zinc-500">
                     No races have been added to this world.
                   </div>
@@ -1357,7 +1357,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div :if={is_nil(@selected_race)} class="py-8 text-center text-sm text-zinc-500">
                     Select a race to inspect its description.
                   </div>
@@ -1429,7 +1429,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create records for this section.</p>
                 </div>
 
-                <div id="race-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="race-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="race"
                     expanded_action={@expanded_action}
@@ -1554,7 +1554,7 @@
           <% @section == "guilds" -> %>
             <div
               id="guilds-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -1567,7 +1567,7 @@
                   </span>
                 </div>
 
-                <div id="guild-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="guild-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div :if={@guilds == []} class="px-4 py-8 text-center text-sm text-zinc-500">
                     No guilds have been added to this world.
                   </div>
@@ -1614,7 +1614,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_guild)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -1685,7 +1685,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create records for this section.</p>
                 </div>
 
-                <div id="guild-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="guild-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="guild"
                     expanded_action={@expanded_action}
@@ -1772,7 +1772,7 @@
           <% @section == "gods" -> %>
             <div
               id="gods-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -1785,7 +1785,7 @@
                   </span>
                 </div>
 
-                <div id="god-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="god-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div :if={@gods == []} class="px-4 py-8 text-center text-sm text-zinc-500">
                     No gods have been added to this world.
                   </div>
@@ -1847,7 +1847,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div :if={is_nil(@selected_god)} class="py-8 text-center text-sm text-zinc-500">
                     Select a god to inspect pantheon and domains.
                   </div>
@@ -1874,7 +1874,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create records for this section.</p>
                 </div>
 
-                <div id="god-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="god-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="god"
                     expanded_action={@expanded_action}
@@ -1906,7 +1906,7 @@
           <% @section == "civilizations" -> %>
             <div
               id="civilizations-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -1923,7 +1923,7 @@
 
                 <div
                   id="civilization-list"
-                  class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5"
+                  class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5"
                 >
                   <div
                     :if={@civilizations == []}
@@ -1979,7 +1979,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_civilization)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -2018,7 +2018,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create records for this section.</p>
                 </div>
 
-                <div id="civilization-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="civilization-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="civilization"
                     expanded_action={@expanded_action}
@@ -2068,7 +2068,7 @@
           <% @section == "documents" -> %>
             <div
               id="documents-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -2081,7 +2081,7 @@
                   </span>
                 </div>
 
-                <div id="document-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="document-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div :if={@documents == []} class="px-4 py-8 text-center text-sm text-zinc-500">
                     No documents have been added to this world.
                   </div>
@@ -2148,7 +2148,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_document)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -2199,7 +2199,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create and edit lore documents.</p>
                 </div>
 
-                <div id="document-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="document-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="document"
                     expanded_action={@expanded_action}
@@ -2355,7 +2355,7 @@
           <% @section == "connections" -> %>
             <div
               id="connections-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -2372,7 +2372,7 @@
 
                 <div
                   id="connection-list"
-                  class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5"
+                  class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5"
                 >
                   <div
                     :if={@lore_connections == []}
@@ -2450,7 +2450,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_lore_connection)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -2504,7 +2504,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create and edit lore connections.</p>
                 </div>
 
-                <div id="connection-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="connection-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="lore_connection"
                     expanded_action={@expanded_action}
@@ -2627,7 +2627,7 @@
           <% @section == "characters" -> %>
             <div
               id="characters-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -2640,7 +2640,7 @@
                   </span>
                 </div>
 
-                <div id="character-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="character-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div :if={@characters == []} class="px-4 py-8 text-center text-sm text-zinc-500">
                     No characters have been added to this world.
                   </div>
@@ -2707,7 +2707,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_character)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -2879,7 +2879,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create records for this section.</p>
                 </div>
 
-                <div id="character-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="character-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="character"
                     expanded_action={@expanded_action}
@@ -3142,7 +3142,7 @@
           <% @section == "skills" -> %>
             <div
               id="skills-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -3157,7 +3157,7 @@
                   </span>
                 </div>
 
-                <div id="skill-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="skill-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div :if={@skills == []} class="px-4 py-8 text-center text-sm text-zinc-500">
                     No skills have been added to this world.
                   </div>
@@ -3222,7 +3222,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_skill)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -3378,7 +3378,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create and edit custom skills.</p>
                 </div>
 
-                <div id="skill-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="skill-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="skill"
                     expanded_action={@expanded_action}
@@ -3517,7 +3517,7 @@
           <% @section == "spells" -> %>
             <div
               id="spells-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -3532,7 +3532,7 @@
                   </span>
                 </div>
 
-                <div id="spell-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="spell-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div :if={@spells == []} class="px-4 py-8 text-center text-sm text-zinc-500">
                     No spells have been added to this world.
                   </div>
@@ -3597,7 +3597,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_spell)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -3632,7 +3632,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create and edit custom spells.</p>
                 </div>
 
-                <div id="spell-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="spell-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="spell"
                     expanded_action={@expanded_action}
@@ -3732,7 +3732,7 @@
           <% @section == "items" -> %>
             <div
               id="items-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -3747,7 +3747,7 @@
                   </span>
                 </div>
 
-                <div id="item-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="item-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div :if={@items == []} class="px-4 py-8 text-center text-sm text-zinc-500">
                     No items have been added to this world.
                   </div>
@@ -3811,7 +3811,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_item)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -3898,7 +3898,7 @@
                   </p>
                 </div>
 
-                <div id="item-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="item-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="item"
                     expanded_action={@expanded_action}
@@ -4072,7 +4072,7 @@
           <% @section == "bestiary" -> %>
             <div
               id="bestiary-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -4085,7 +4085,7 @@
                   </span>
                 </div>
 
-                <div id="creature-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="creature-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div
                     :if={@creatures == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
@@ -4155,7 +4155,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_creature)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -4238,7 +4238,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create and place custom creatures.</p>
                 </div>
 
-                <div id="bestiary-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="bestiary-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="creature_type"
                     expanded_action={@expanded_action}
@@ -4414,7 +4414,7 @@
           <% @section == "calendar" -> %>
             <div
               id="calendar-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -4427,7 +4427,7 @@
                   </span>
                 </div>
 
-                <div id="calendar-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="calendar-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div
                     :if={@calendars == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
@@ -4482,7 +4482,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_calendar)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -4609,7 +4609,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create and edit calendars.</p>
                 </div>
 
-                <div id="calendar-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="calendar-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="calendar"
                     expanded_action={@expanded_action}
@@ -4775,7 +4775,7 @@
           <% @section == "timeline" -> %>
             <div
               id="timeline-dashboard"
-              class="grid min-h-[700px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+              class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
             >
               <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
                 <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
@@ -4788,7 +4788,7 @@
                   </span>
                 </div>
 
-                <div id="timeline-list" class="max-h-[720px] space-y-1.5 overflow-y-auto p-1.5">
+                <div id="timeline-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div
                     :if={@timelines == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
@@ -4845,7 +4845,7 @@
                   </div>
                 </div>
 
-                <div class="max-h-[720px] overflow-y-auto p-4">
+                <div class="max-h-[800px] overflow-y-auto p-4">
                   <div
                     :if={is_nil(@selected_timeline)}
                     class="py-8 text-center text-sm text-zinc-500"
@@ -4998,7 +4998,7 @@
                   <p class="mt-1 text-xs text-zinc-500">Create timelines, eras, and events.</p>
                 </div>
 
-                <div id="timeline-action-list" class="max-h-[720px] overflow-y-auto">
+                <div id="timeline-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
                     action="timeline"
                     expanded_action={@expanded_action}

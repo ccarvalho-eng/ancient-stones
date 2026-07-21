@@ -302,6 +302,7 @@ defmodule AncientStonesWeb.CoreComponents do
   attr :multiple, :boolean, default: false, doc: "the multiple flag for select inputs"
   attr :class, :any, default: nil, doc: "the input class to use over defaults"
   attr :error_class, :any, default: nil, doc: "the input error class to use over defaults"
+  attr :tooltip, :string, default: nil, doc: "optional help text shown beside the label"
 
   attr :rest, :global,
     include: ~w(accept autocomplete capture cols disabled form list max maxlength min minlength
@@ -361,7 +362,7 @@ defmodule AncientStonesWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <.input_label label={@label} tooltip={@tooltip} />
         <select
           id={@id}
           name={@name}
@@ -382,7 +383,7 @@ defmodule AncientStonesWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <.input_label label={@label} tooltip={@tooltip} />
         <textarea
           id={@id}
           name={@name}
@@ -403,7 +404,7 @@ defmodule AncientStonesWeb.CoreComponents do
     ~H"""
     <div class="fieldset mb-2">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <.input_label label={@label} tooltip={@tooltip} />
         <input
           type={@type}
           name={@name}
@@ -418,6 +419,26 @@ defmodule AncientStonesWeb.CoreComponents do
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
+    """
+  end
+
+  attr :label, :string, default: nil
+  attr :tooltip, :string, default: nil
+
+  defp input_label(assigns) do
+    ~H"""
+    <span :if={@label} class="label mb-1 inline-flex items-center gap-1.5">
+      <span>{@label}</span>
+      <span
+        :if={@tooltip}
+        class="stone-tooltip-trigger stone-muted inline-flex size-4 items-center justify-center rounded-full"
+        tabindex="0"
+        aria-label={@tooltip}
+        title={@tooltip}
+      >
+        <.icon name="hero-question-mark-circle" class="size-4" />
+      </span>
+    </span>
     """
   end
 

@@ -19,6 +19,26 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     assert has_element?(view, "#dashboard-world-form")
     assert has_element?(view, "#theme-switcher")
     assert has_element?(view, "button[data-ancient-stones-theme='dark']")
+    assert has_element?(view, "#world-library-tabs")
+    assert has_element?(view, "#galaxies-tab.stone-selected")
+    assert has_element?(view, "#unassigned-worlds-panel.hidden")
+
+    assert has_element?(
+             view,
+             "#dashboard-world-form [title='Planet tilt in degrees. Earth is about 23.5 degrees.']"
+           )
+  end
+
+  test "switches the world library tabs", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/worlds")
+
+    view
+    |> element("#unassigned-worlds-tab")
+    |> render_click()
+
+    assert has_element?(view, "#unassigned-worlds-tab.stone-selected")
+    assert has_element?(view, "#galaxies-panel.hidden")
+    refute has_element?(view, "#unassigned-worlds-panel.hidden")
   end
 
   test "shows top-level inventory in the workspace sidebar", %{conn: conn} do

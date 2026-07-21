@@ -53,13 +53,24 @@ defmodule AncientStonesWeb.WorldLive.New do
                   rows="5"
                 />
                 <div class="grid gap-3 sm:grid-cols-3">
-                  <.input field={@form[:primary_star_name]} type="text" label="Star" />
-                  <.input field={@form[:orbital_period_days]} type="number" label="Orbit Days" />
+                  <.input
+                    field={@form[:primary_star_name]}
+                    type="text"
+                    label="Star"
+                    tooltip="Primary star or sun the world orbits."
+                  />
+                  <.input
+                    field={@form[:orbital_period_days]}
+                    type="number"
+                    label="Orbit Days"
+                    tooltip="Number of days in one full orbit around the primary star."
+                  />
                   <.input
                     field={@form[:axial_tilt_degrees]}
                     type="number"
                     label="Axial Tilt"
                     step="0.01"
+                    tooltip="Planet tilt in degrees. Earth is about 23.5 degrees."
                   />
                 </div>
 
