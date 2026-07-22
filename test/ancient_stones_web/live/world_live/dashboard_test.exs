@@ -57,6 +57,35 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     refute has_element?(view, "#continent-form")
   end
 
+  test "searches every populated dashboard section without crashing", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
+
+    for section <- [
+          "geography",
+          "races",
+          "guilds",
+          "gods",
+          "civilizations",
+          "documents",
+          "connections",
+          "characters",
+          "skills",
+          "spells",
+          "items",
+          "bestiary",
+          "calendar",
+          "timeline"
+        ] do
+      {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=#{section}")
+
+      view
+      |> form("#dashboard-search-form", search: %{query: "a"})
+      |> render_change()
+
+      assert has_element?(view, "#dashboard-search-query[value='a']")
+    end
+  end
+
   test "creates geography records from dashboard forms", %{conn: conn} do
     world = create_world!()
 
@@ -958,6 +987,12 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#folded-documents-note[open]")
     assert has_element?(view, "#document-list", "Black-Briar Correspondence")
 
+    view
+    |> form("#dashboard-search-form", search: %{query: "allies close"})
+    |> render_change()
+
+    assert has_element?(view, "#document-list", "Black-Briar Correspondence")
+
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=connections")
 
     view
@@ -1214,6 +1249,30 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
       |> Enum.map(&String.replace(&1, ~r/\s+/, ""))
 
     assert alfar_names == ["BrynJarl", "AstaLawspeaker"]
+  end
+
+  test "searches characters by name without hiding form options", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, alfar} = Worlds.create_race(world, %{name: "Alfar"})
+    {:ok, fjordborn} = Worlds.create_race(world, %{name: "Fjordborn"})
+
+    {:ok, _character} =
+      Worlds.create_character(world, %{name: "Asta Ink-Reader"}, %{race: alfar})
+
+    {:ok, _character} =
+      Worlds.create_character(world, %{name: "Bryn Road-Warden"}, %{race: fjordborn})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=characters")
+
+    view
+    |> form("#dashboard-search-form", search: %{query: "Ink"})
+    |> render_change()
+
+    assert has_element?(view, "#character-list", "Asta Ink-Reader")
+    assert has_element?(view, "#folded-characters-alfar[open]")
+    refute has_element?(view, "#character-list", "Bryn Road-Warden")
+    refute has_element?(view, "#folded-characters-fjordborn")
+    assert has_element?(view, "#character_race_id option[value='#{alfar.id}']")
   end
 
   test "creates edits and deletes skills from the skills section", %{conn: conn} do

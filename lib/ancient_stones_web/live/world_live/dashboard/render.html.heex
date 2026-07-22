@@ -122,10 +122,57 @@
             </div>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-3">
+            <.form
+              for={@search_form}
+              id="dashboard-search-form"
+              phx-change="search_dashboard"
+              phx-submit="search_dashboard"
+              class="hidden md:block"
+            >
+              <div class="stone-search">
+                <.icon
+                  name="hero-magnifying-glass"
+                  class="stone-search-icon pointer-events-none size-4"
+                />
+                <.input
+                  id="dashboard-search-query"
+                  field={@search_form[:query]}
+                  type="search"
+                  placeholder={"Search #{String.downcase(section_label(@section))}"}
+                  autocomplete="off"
+                  phx-debounce="250"
+                  class="stone-search-input"
+                />
+              </div>
+            </.form>
             <.theme_switcher theme={@theme} />
           </div>
         </div>
+
+        <.form
+          for={@search_form}
+          id="dashboard-search-form-mobile"
+          phx-change="search_dashboard"
+          phx-submit="search_dashboard"
+          class="mt-3 md:hidden"
+        >
+          <div class="stone-search stone-search-mobile">
+            <.icon
+              name="hero-magnifying-glass"
+              class="stone-search-icon pointer-events-none size-4"
+            />
+            <.input
+              id="dashboard-search-query-mobile"
+              field={@search_form[:query]}
+              type="search"
+              placeholder={"Search #{String.downcase(section_label(@section))}"}
+              autocomplete="off"
+              phx-debounce="250"
+              class="stone-search-input"
+            />
+          </div>
+        </.form>
       </div>
 
       <%= if @section == "geography" do %>
@@ -137,7 +184,7 @@
             </div>
             <div class="max-h-[800px] space-y-3 overflow-y-auto p-3 text-sm">
               <div
-                :for={continent <- sidebar_continents(@continents)}
+                :for={continent <- sidebar_continents(@filtered_continents)}
                 class={[
                   "overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm",
                   selected_continent?(@selected_path, continent) && "stone-selected"
@@ -286,7 +333,7 @@
               </div>
 
               <div
-                :for={location <- @selected_hold_locations}
+                :for={location <- @filtered_selected_hold_locations}
                 class={[
                   "flex items-stretch overflow-hidden rounded-md stone-record-card border",
                   @selected_location && @selected_location.id == location.id && "stone-selected"
@@ -1308,17 +1355,20 @@
                     <p class="text-xs text-zinc-500">World peoples and playable ancestries</p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@races)}
+                    {length(@filtered_races)}
                   </span>
                 </div>
 
                 <div id="race-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
-                  <div :if={@races == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                  <div
+                    :if={@filtered_races == []}
+                    class="px-4 py-8 text-center text-sm text-zinc-500"
+                  >
                     No races have been added to this world.
                   </div>
 
                   <div
-                    :for={race <- @races}
+                    :for={race <- @filtered_races}
                     class={[
                       "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
                       @selected_race && @selected_race.id == race.id && "stone-selected"
@@ -1563,17 +1613,20 @@
                     <p class="text-xs text-zinc-500">Orders, colleges, clans, and factions</p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@guilds)}
+                    {length(@filtered_guilds)}
                   </span>
                 </div>
 
                 <div id="guild-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
-                  <div :if={@guilds == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                  <div
+                    :if={@filtered_guilds == []}
+                    class="px-4 py-8 text-center text-sm text-zinc-500"
+                  >
                     No guilds have been added to this world.
                   </div>
 
                   <div
-                    :for={guild <- @guilds}
+                    :for={guild <- @filtered_guilds}
                     class={[
                       "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
                       @selected_guild && @selected_guild.id == guild.id && "stone-selected"
@@ -1781,24 +1834,30 @@
                     <p class="text-xs text-zinc-500">Pantheons, patrons, and domains</p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@gods)}
+                    {length(@filtered_gods)}
                   </span>
                 </div>
 
                 <div id="god-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
-                  <div :if={@gods == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                  <div
+                    :if={@filtered_gods == []}
+                    class="px-4 py-8 text-center text-sm text-zinc-500"
+                  >
                     No gods have been added to this world.
                   </div>
 
                   <div
-                    :for={{pantheon, pantheon_gods} <- grouped_gods(@gods)}
+                    :for={{pantheon, pantheon_gods} <- grouped_gods(@filtered_gods)}
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
                       id={folded_group_dom_id("gods", pantheon)}
                       label={display_value(pantheon)}
                       count={length(pantheon_gods)}
-                      open={folded_group_open?(@open_folded_groups, "gods", pantheon)}
+                      open={
+                        @search_query != "" ||
+                          folded_group_open?(@open_folded_groups, "gods", pantheon)
+                      }
                       toggle_key={folded_group_key("gods", pantheon)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
@@ -1917,7 +1976,7 @@
                     </p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@civilizations)}
+                    {length(@filtered_civilizations)}
                   </span>
                 </div>
 
@@ -1926,14 +1985,14 @@
                   class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5"
                 >
                   <div
-                    :if={@civilizations == []}
+                    :if={@filtered_civilizations == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
                   >
                     No civilizations have been added to this world.
                   </div>
 
                   <div
-                    :for={civilization <- @civilizations}
+                    :for={civilization <- @filtered_civilizations}
                     class={[
                       "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
                       @selected_civilization && @selected_civilization.id == civilization.id &&
@@ -2077,24 +2136,30 @@
                     <p class="text-xs text-zinc-500">Books, notes, journals, and lore</p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@documents)}
+                    {length(@filtered_documents)}
                   </span>
                 </div>
 
                 <div id="document-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
-                  <div :if={@documents == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                  <div
+                    :if={@filtered_documents == []}
+                    class="px-4 py-8 text-center text-sm text-zinc-500"
+                  >
                     No documents have been added to this world.
                   </div>
 
                   <div
-                    :for={{kind, kind_documents} <- grouped_documents(@documents)}
+                    :for={{kind, kind_documents} <- grouped_documents(@filtered_documents)}
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
                       id={folded_group_dom_id("documents", kind)}
                       label={display_value(kind)}
                       count={length(kind_documents)}
-                      open={folded_group_open?(@open_folded_groups, "documents", kind)}
+                      open={
+                        @search_query != "" ||
+                          folded_group_open?(@open_folded_groups, "documents", kind)
+                      }
                       toggle_key={folded_group_key("documents", kind)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
@@ -2366,7 +2431,7 @@
                     </p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@lore_connections)}
+                    {length(@filtered_lore_connections)}
                   </span>
                 </div>
 
@@ -2375,7 +2440,7 @@
                   class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5"
                 >
                   <div
-                    :if={@lore_connections == []}
+                    :if={@filtered_lore_connections == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
                   >
                     No connections have been added to this world.
@@ -2384,7 +2449,7 @@
                   <div
                     :for={
                       {source, source_lore_connections} <-
-                        grouped_lore_connections(@lore_connections)
+                        grouped_lore_connections(@filtered_lore_connections)
                     }
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
@@ -2392,7 +2457,10 @@
                       id={folded_group_dom_id("connections", source)}
                       label={source}
                       count={length(source_lore_connections)}
-                      open={folded_group_open?(@open_folded_groups, "connections", source)}
+                      open={
+                        @search_query != "" ||
+                          folded_group_open?(@open_folded_groups, "connections", source)
+                      }
                       toggle_key={folded_group_key("connections", source)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
@@ -2636,24 +2704,30 @@
                     <p class="text-xs text-zinc-500">People, offices, allegiances, and homes</p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@characters)}
+                    {length(@filtered_characters)}
                   </span>
                 </div>
 
                 <div id="character-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
-                  <div :if={@characters == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                  <div
+                    :if={@filtered_characters == []}
+                    class="px-4 py-8 text-center text-sm text-zinc-500"
+                  >
                     No characters have been added to this world.
                   </div>
 
                   <div
-                    :for={{race, race_characters} <- grouped_characters(@characters)}
+                    :for={{race, race_characters} <- grouped_characters(@filtered_characters)}
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
                       id={folded_group_dom_id("characters", race)}
                       label={race}
                       count={length(race_characters)}
-                      open={folded_group_open?(@open_folded_groups, "characters", race)}
+                      open={
+                        @search_query != "" ||
+                          folded_group_open?(@open_folded_groups, "characters", race)
+                      }
                       toggle_key={folded_group_key("characters", race)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
@@ -3153,24 +3227,30 @@
                     </p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@skills)}
+                    {length(@filtered_skills)}
                   </span>
                 </div>
 
                 <div id="skill-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
-                  <div :if={@skills == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                  <div
+                    :if={@filtered_skills == []}
+                    class="px-4 py-8 text-center text-sm text-zinc-500"
+                  >
                     No skills have been added to this world.
                   </div>
 
                   <div
-                    :for={{category, category_skills} <- grouped_skills(@skills)}
+                    :for={{category, category_skills} <- grouped_skills(@filtered_skills)}
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
                       id={folded_group_dom_id("skills", category)}
                       label={display_value(category)}
                       count={length(category_skills)}
-                      open={folded_group_open?(@open_folded_groups, "skills", category)}
+                      open={
+                        @search_query != "" ||
+                          folded_group_open?(@open_folded_groups, "skills", category)
+                      }
                       toggle_key={folded_group_key("skills", category)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
@@ -3528,24 +3608,30 @@
                     </p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@spells)}
+                    {length(@filtered_spells)}
                   </span>
                 </div>
 
                 <div id="spell-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
-                  <div :if={@spells == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                  <div
+                    :if={@filtered_spells == []}
+                    class="px-4 py-8 text-center text-sm text-zinc-500"
+                  >
                     No spells have been added to this world.
                   </div>
 
                   <div
-                    :for={{school, school_spells} <- grouped_spells(@spells)}
+                    :for={{school, school_spells} <- grouped_spells(@filtered_spells)}
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
                       id={folded_group_dom_id("spells", school)}
                       label={display_value(school)}
                       count={length(school_spells)}
-                      open={folded_group_open?(@open_folded_groups, "spells", school)}
+                      open={
+                        @search_query != "" ||
+                          folded_group_open?(@open_folded_groups, "spells", school)
+                      }
                       toggle_key={folded_group_key("spells", school)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
@@ -3743,24 +3829,30 @@
                     </p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@items)}
+                    {length(@filtered_items)}
                   </span>
                 </div>
 
                 <div id="item-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
-                  <div :if={@items == []} class="px-4 py-8 text-center text-sm text-zinc-500">
+                  <div
+                    :if={@filtered_items == []}
+                    class="px-4 py-8 text-center text-sm text-zinc-500"
+                  >
                     No items have been added to this world.
                   </div>
 
                   <div
-                    :for={{category, category_items} <- grouped_items(@items)}
+                    :for={{category, category_items} <- grouped_items(@filtered_items)}
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
                       id={folded_group_dom_id("items", category)}
                       label={item_category_label(category)}
                       count={length(category_items)}
-                      open={folded_group_open?(@open_folded_groups, "items", category)}
+                      open={
+                        @search_query != "" ||
+                          folded_group_open?(@open_folded_groups, "items", category)
+                      }
                       toggle_key={folded_group_key("items", category)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
@@ -4081,27 +4173,32 @@
                     <p class="text-xs text-zinc-500">Creature types, habitats, and lairs</p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@creatures)}
+                    {length(@filtered_creatures)}
                   </span>
                 </div>
 
                 <div id="creature-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div
-                    :if={@creatures == []}
+                    :if={@filtered_creatures == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
                   >
                     No creatures have been added to this world.
                   </div>
 
                   <div
-                    :for={{creature_type, type_creatures} <- grouped_creatures(@creatures)}
+                    :for={
+                      {creature_type, type_creatures} <- grouped_creatures(@filtered_creatures)
+                    }
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
                       id={folded_group_dom_id("bestiary", creature_type)}
                       label={creature_type}
                       count={length(type_creatures)}
-                      open={folded_group_open?(@open_folded_groups, "bestiary", creature_type)}
+                      open={
+                        @search_query != "" ||
+                          folded_group_open?(@open_folded_groups, "bestiary", creature_type)
+                      }
                       toggle_key={folded_group_key("bestiary", creature_type)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
@@ -4423,20 +4520,20 @@
                     <p class="text-xs text-zinc-500">Continent-level calendars and months</p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@calendars)}
+                    {length(@filtered_calendars)}
                   </span>
                 </div>
 
                 <div id="calendar-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div
-                    :if={@calendars == []}
+                    :if={@filtered_calendars == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
                   >
                     No calendars have been added to this world.
                   </div>
 
                   <div
-                    :for={calendar <- @calendars}
+                    :for={calendar <- @filtered_calendars}
                     class={[
                       "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
                       @selected_calendar && @selected_calendar.id == calendar.id &&
@@ -4784,20 +4881,20 @@
                     <p class="text-xs text-zinc-500">Historical era systems for this world</p>
                   </div>
                   <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
-                    {length(@timelines)}
+                    {length(@filtered_timelines)}
                   </span>
                 </div>
 
                 <div id="timeline-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
                   <div
-                    :if={@timelines == []}
+                    :if={@filtered_timelines == []}
                     class="px-4 py-8 text-center text-sm text-zinc-500"
                   >
                     No timelines have been added to this world.
                   </div>
 
                   <div
-                    :for={timeline <- @timelines}
+                    :for={timeline <- @filtered_timelines}
                     class={[
                       "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
                       @selected_timeline && @selected_timeline.id == timeline.id &&

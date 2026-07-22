@@ -13,6 +13,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
      assign(socket,
        page_title: "World Details",
        theme: "system",
+       search_query: "",
        timeline_detail_tab: "eras",
        expanded_action: "continent",
        open_folded_groups: MapSet.new()
@@ -760,6 +761,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     {:noreply, assign(socket, :theme, normalize_theme(theme))}
   end
 
+  def handle_event("search_dashboard", %{"search" => %{"query" => query}}, socket) do
+    {:noreply, assign_filtered_dashboard_records(socket, query)}
+  end
+
   defp create_and_reload(socket, callback) do
     case callback.() do
       {:ok, _record} ->
@@ -811,6 +816,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp assign_dashboard(socket, world_id, params, opts \\ []) do
     world = Worlds.get_world_dashboard!(world_id)
     section = normalize_section(params["section"])
+    search_query = socket.assigns[:search_query] || ""
     expanded_action = selected_expanded_action(socket, section, params, opts)
     continents = sorted(world.continents)
     civilizations = sorted(world.civilizations)
@@ -1210,6 +1216,287 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :lore_connection_edit_form,
       data_form(:lore_connection_edit, lore_connection_edit_attrs(selected_lore_connection))
     )
+    |> assign(:search_form, data_form(:search, %{"query" => search_query}))
+    |> assign_filtered_dashboard_records(search_query)
+  end
+
+  defp assign_filtered_dashboard_records(socket, query) do
+    query = normalize_search_query(query)
+
+    socket
+    |> assign(:search_query, query)
+    |> assign(:search_form, data_form(:search, %{"query" => query}))
+    |> assign(:filtered_continents, filter_continents(socket.assigns.continents, query))
+    |> assign(
+      :filtered_selected_hold_locations,
+      filter_records(socket.assigns.selected_hold_locations, query, &location_search_text/1)
+    )
+    |> assign(:filtered_races, filter_records(socket.assigns.races, query, &race_search_text/1))
+    |> assign(
+      :filtered_guilds,
+      filter_records(socket.assigns.guilds, query, &guild_search_text/1)
+    )
+    |> assign(:filtered_gods, filter_records(socket.assigns.gods, query, &god_search_text/1))
+    |> assign(
+      :filtered_civilizations,
+      filter_records(socket.assigns.civilizations, query, &civilization_search_text/1)
+    )
+    |> assign(
+      :filtered_documents,
+      filter_records(socket.assigns.documents, query, &document_search_text/1)
+    )
+    |> assign(
+      :filtered_lore_connections,
+      filter_records(socket.assigns.lore_connections, query, &lore_connection_search_text/1)
+    )
+    |> assign(
+      :filtered_characters,
+      filter_records(socket.assigns.characters, query, &character_search_text/1)
+    )
+    |> assign(
+      :filtered_skills,
+      filter_records(socket.assigns.skills, query, &skill_search_text/1)
+    )
+    |> assign(
+      :filtered_spells,
+      filter_records(socket.assigns.spells, query, &spell_search_text/1)
+    )
+    |> assign(:filtered_items, filter_records(socket.assigns.items, query, &item_search_text/1))
+    |> assign(
+      :filtered_creatures,
+      filter_records(socket.assigns.creatures, query, &creature_search_text/1)
+    )
+    |> assign(
+      :filtered_calendars,
+      filter_records(socket.assigns.calendars, query, &calendar_search_text/1)
+    )
+    |> assign(
+      :filtered_timelines,
+      filter_records(socket.assigns.timelines, query, &timeline_search_text/1)
+    )
+  end
+
+  defp normalize_search_query(query) do
+    query
+    |> to_string()
+    |> String.trim()
+  end
+
+  defp filter_records(records, "", _search_text) do
+    records
+  end
+
+  defp filter_records(records, query, search_text) do
+    normalized_query = String.downcase(query)
+
+    Enum.filter(records, fn record ->
+      record
+      |> search_text.()
+      |> search_matches?(normalized_query)
+    end)
+  end
+
+  defp filter_continents(continents, "") do
+    continents
+  end
+
+  defp filter_continents(continents, query) do
+    normalized_query = String.downcase(query)
+
+    Enum.flat_map(continents, fn continent ->
+      matching_provinces = filter_provinces(continent.provinces, normalized_query)
+
+      cond do
+        search_matches?(continent_search_text(continent), normalized_query) ->
+          [%{continent | provinces: matching_provinces}]
+
+        matching_provinces != [] ->
+          [%{continent | provinces: matching_provinces}]
+
+        true ->
+          []
+      end
+    end)
+  end
+
+  defp filter_provinces(provinces, normalized_query) do
+    provinces
+    |> sorted()
+    |> Enum.flat_map(fn province ->
+      matching_holds = filter_holds(province.holds, normalized_query)
+
+      cond do
+        search_matches?(province_search_text(province), normalized_query) ->
+          [%{province | holds: matching_holds}]
+
+        matching_holds != [] ->
+          [%{province | holds: matching_holds}]
+
+        true ->
+          []
+      end
+    end)
+  end
+
+  defp filter_holds(holds, normalized_query) do
+    holds
+    |> sorted()
+    |> Enum.filter(fn hold ->
+      search_matches?(hold_search_text(hold), normalized_query) ||
+        Enum.any?(selected_hold_locations(hold), fn location ->
+          search_matches?(location_search_text(location), normalized_query)
+        end)
+    end)
+  end
+
+  defp search_matches?(texts, normalized_query) do
+    texts
+    |> List.wrap()
+    |> Enum.reject(&is_nil/1)
+    |> Enum.any?(fn text ->
+      text
+      |> to_string()
+      |> String.downcase()
+      |> String.contains?(normalized_query)
+    end)
+  end
+
+  defp continent_search_text(continent) do
+    [continent.name, continent.description, continent.visibility]
+  end
+
+  defp province_search_text(province) do
+    [
+      province.name,
+      province.description,
+      province.terrain,
+      province.climate,
+      province.visibility,
+      record_name(province.capital_hold)
+    ]
+  end
+
+  defp hold_search_text(hold) do
+    [
+      hold.name,
+      hold.description,
+      hold.terrain,
+      hold.climate,
+      hold.visibility,
+      record_name(hold.capital_location)
+    ]
+  end
+
+  defp location_search_text(location) do
+    [
+      location.name,
+      location.description,
+      record_name(location.location_type),
+      record_name(location.parent_location),
+      location.visibility
+    ]
+  end
+
+  defp race_search_text(race) do
+    [race.name, race.description]
+  end
+
+  defp guild_search_text(guild) do
+    [guild.name, guild.description, guild.leader, guild.headquarters, guild.alignment]
+  end
+
+  defp god_search_text(god) do
+    [god.name, god.description, god.pantheon, god.domain]
+  end
+
+  defp civilization_search_text(civilization) do
+    [
+      civilization.name,
+      civilization.description,
+      civilization.era,
+      civilization.status,
+      record_name(civilization.timeline_era)
+    ]
+  end
+
+  defp document_search_text(document) do
+    [
+      document.title,
+      document.summary,
+      document.content,
+      document.kind,
+      document.source,
+      record_name(document.author_character),
+      record_name(document.location),
+      record_name(document.guild),
+      record_name(document.god),
+      record_name(document.race),
+      record_name(document.civilization)
+    ]
+  end
+
+  defp lore_connection_search_text(lore_connection) do
+    [
+      lore_connection_name(lore_connection),
+      lore_connection.description,
+      lore_connection.connection_type,
+      lore_connection.status,
+      lore_connection_endpoint_label(lore_connection, :source),
+      lore_connection_endpoint_label(lore_connection, :target)
+    ]
+  end
+
+  defp character_search_text(character) do
+    [
+      character.name,
+      character.description,
+      character.title,
+      character.politics,
+      character.gender,
+      character.status,
+      character_role_name(character),
+      record_name(character.race),
+      record_name(character.guild),
+      record_name(character.home_location)
+    ]
+  end
+
+  defp skill_search_text(skill) do
+    [skill.name, skill.description, skill.category, record_name(skill.skill_tree)]
+  end
+
+  defp spell_search_text(spell) do
+    [spell.name, spell.description, spell.school, spell.level, spell.source]
+  end
+
+  defp item_search_text(item) do
+    [
+      item.name,
+      item.description,
+      item.category,
+      item.kind,
+      item.source,
+      item.material
+    ]
+  end
+
+  defp creature_search_text(creature) do
+    [
+      creature.name,
+      creature.description,
+      creature.habitat,
+      creature.temperament,
+      creature.danger_level,
+      record_name(creature.creature_type)
+    ]
+  end
+
+  defp calendar_search_text(calendar) do
+    [calendar.name, calendar.description, calendar.era, record_name(calendar.continent)]
+  end
+
+  defp timeline_search_text(timeline) do
+    [timeline.name, timeline.description]
   end
 
   defp reload_params(socket) do
