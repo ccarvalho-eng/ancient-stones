@@ -978,6 +978,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert document.author_character_id == character.id
     assert document.guild_id == guild.id
+    assert has_element?(view, "#document-reader", "Black-Briar Correspondence")
+    assert has_element?(view, "#document-reader", "Maven keeps her allies close.")
     assert has_element?(view, "#folded-documents-note:not([open])")
 
     view
@@ -992,6 +994,42 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     |> render_change()
 
     assert has_element?(view, "#document-list", "Black-Briar Correspondence")
+
+    {:ok, view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=documents&document_id=#{document.id}")
+
+    assert has_element?(view, "#document-edit-form")
+
+    edit_params = %{
+      title: "Black-Briar Ledger",
+      kind: "journal",
+      source: "Riften Archive",
+      author_character_id: character.id,
+      location_id: riften.id,
+      guild_id: guild.id,
+      god_id: "",
+      race_id: "",
+      civilization_id: "",
+      summary: "A ledger tracing Riften influence.",
+      content: "The ledger names every quiet bargain."
+    }
+
+    view
+    |> form("#document-edit-form", document_edit: edit_params)
+    |> render_change()
+
+    assert has_element?(view, "#document-reader", "Black-Briar Ledger")
+    assert has_element?(view, "#document-reader", "The ledger names every quiet bargain.")
+    assert Repo.get!(Document, document.id).title == "Black-Briar Correspondence"
+
+    view
+    |> form("#document-edit-form", document_edit: edit_params)
+    |> render_submit()
+
+    document = Repo.get!(Document, document.id)
+
+    assert document.title == "Black-Briar Ledger"
+    assert document.content == "The ledger names every quiet bargain."
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=connections")
 

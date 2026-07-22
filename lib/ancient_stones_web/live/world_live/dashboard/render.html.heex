@@ -2248,12 +2248,37 @@
                       />
                     </div>
 
-                    <div class="rounded-md border border-zinc-200 bg-zinc-50 p-3">
-                      <p class="text-[11px] font-semibold uppercase text-zinc-500">Text</p>
-                      <p class="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-600">
+                    <article
+                      id="document-reader"
+                      class="stone-document-reader rounded-md px-6 py-7 sm:px-9 sm:py-8"
+                    >
+                      <header class="text-center">
+                        <p class="stone-document-kicker">
+                          {display_value(@selected_document.kind)}
+                        </p>
+                        <h3 class="stone-document-title mt-2">
+                          {@selected_document.title}
+                        </h3>
+                        <div class="stone-document-rule"></div>
+                        <p
+                          :if={@selected_document.summary}
+                          class="stone-document-summary mx-auto max-w-2xl"
+                        >
+                          {@selected_document.summary}
+                        </p>
+                      </header>
+
+                      <div class="stone-document-meta mt-6 grid gap-2 border-y border-zinc-300 py-3 sm:grid-cols-2">
+                        <div>Source: {display_value(@selected_document.source)}</div>
+                        <div>Author: {record_name(@selected_document.author_character)}</div>
+                        <div>Location: {record_name(@selected_document.location)}</div>
+                        <div>Guild: {record_name(@selected_document.guild)}</div>
+                      </div>
+
+                      <p class="stone-document-body mt-6 whitespace-pre-line">
                         {@selected_document.content || "No text has been added."}
                       </p>
-                    </div>
+                    </article>
                   </div>
                 </div>
               </main>
@@ -2345,6 +2370,7 @@
                     <.form
                       for={@document_edit_form}
                       id="document-edit-form"
+                      phx-change="preview_document_edit"
                       phx-submit="update_document"
                       class="space-y-2"
                     >

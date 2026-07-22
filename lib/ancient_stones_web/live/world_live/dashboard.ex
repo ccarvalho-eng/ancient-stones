@@ -309,6 +309,16 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  def handle_event("preview_document_edit", %{"document_edit" => params}, socket) do
+    {:noreply,
+     socket
+     |> assign(:document_edit_form, data_form(:document_edit, params))
+     |> assign(
+       :selected_document,
+       preview_document(socket.assigns.selected_document, params, socket)
+     )}
+  end
+
   def handle_event("delete_document", %{"id" => id}, socket) do
     delete_and_reload(socket, fn ->
       with {:ok, document} <- get_document_in_world(socket, id) do
@@ -1932,8 +1942,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     {:error, :creature_not_selected}
   end
 
-  defp get_selected_document(%{assigns: %{selected_document: %{} = document}}) do
-    {:ok, document}
+  defp get_selected_document(%{assigns: %{selected_document: %{id: document_id}}}) do
+    {:ok, Worlds.get_document!(document_id)}
   end
 
   defp get_selected_document(_socket) do
@@ -2611,6 +2621,66 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     }
   end
 
+  defp preview_document(nil, _params, _socket) do
+    nil
+  end
+
+  defp preview_document(document, params, socket) do
+    author_character =
+      preview_record(
+        socket.assigns.characters,
+        params,
+        "author_character_id",
+        document.author_character
+      )
+
+    location =
+      preview_record(socket.assigns.locations, params, "location_id", document.location)
+
+    guild = preview_record(socket.assigns.guilds, params, "guild_id", document.guild)
+    god = preview_record(socket.assigns.gods, params, "god_id", document.god)
+    race = preview_record(socket.assigns.races, params, "race_id", document.race)
+
+    civilization =
+      preview_record(
+        socket.assigns.civilizations,
+        params,
+        "civilization_id",
+        document.civilization
+      )
+
+    %{
+      document
+      | title: Map.get(params, "title", document.title),
+        kind: Map.get(params, "kind", document.kind),
+        source: Map.get(params, "source", document.source),
+        summary: Map.get(params, "summary", document.summary),
+        content: Map.get(params, "content", document.content),
+        author_character_id: selected_record_id(author_character),
+        author_character: author_character,
+        location_id: selected_record_id(location),
+        location: location,
+        guild_id: selected_record_id(guild),
+        guild: guild,
+        god_id: selected_record_id(god),
+        god: god,
+        race_id: selected_record_id(race),
+        race: race,
+        civilization_id: selected_record_id(civilization),
+        civilization: civilization
+    }
+  end
+
+  defp preview_record(records, params, param_key, current_record) do
+    case Map.fetch(params, param_key) do
+      {:ok, record_id} ->
+        select_record(records, record_id)
+
+      :error ->
+        current_record
+    end
+  end
+
   defp lore_connection_edit_attrs(nil) do
     %{}
   end
@@ -3202,6 +3272,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
        when character_id not in [nil, ""] do
     if Keyword.get(opts, :select_action, false) do
       "character"
+    end
+  end
+
+  defp selected_record_action("documents", %{"document_id" => document_id}, opts)
+       when document_id not in [nil, ""] do
+    if Keyword.get(opts, :select_action, false) do
+      "document_edit"
     end
   end
 
