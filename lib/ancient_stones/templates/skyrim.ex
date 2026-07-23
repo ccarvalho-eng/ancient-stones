@@ -2336,28 +2336,232 @@ defmodule AncientStones.Templates.Skyrim do
         "book",
         "Skyrim",
         "A lore text about the Dragonborn, prophecy, and the return of dragons.",
-        civilization: "Ancient Nords"
+        civilization: "Ancient Nords",
+        god: "Akatosh",
+        content:
+          "A catalog entry for the Dragonborn tradition: prophecy, dragon blood, the Voice, and the fear that old cycles can return when dragons rise again."
       ),
       document(
         "A Gentleman's Guide to Whiterun",
         "book",
         "Skyrim",
         "A traveler's guide to Whiterun, its districts, and its people.",
-        location: "Whiterun"
+        location: "Whiterun",
+        content:
+          "A civic guide to the market, Cloud District, plains farms, Jorrvaskr, and the careful neutrality that keeps Whiterun useful to every side."
       ),
       document(
         "Nords of Skyrim",
         "book",
         "Skyrim",
         "A cultural account of Nord identity, history, and custom.",
-        race: "Nord"
+        race: "Nord",
+        civilization: "Ancient Nords",
+        content:
+          "A cultural primer on kinship, honor, death, song, ancient kings, barrow memory, and the stubborn pride that shapes Skyrim's public life."
       ),
       document(
         "The Great War",
         "book",
         "Skyrim",
         "A historical account of the Great War between the Empire and Aldmeri Dominion.",
-        guild: "Imperial Legion"
+        guild: "Imperial Legion",
+        content:
+          "A military history entry summarizing the war, imperial exhaustion, the White-Gold Concordat, and the political wound still felt in Skyrim."
+      ),
+      document(
+        "The Holds of Skyrim",
+        "book",
+        "Skyrim",
+        "A regional survey of Skyrim's nine holds, their capitals, climates, and rival interests.",
+        content:
+          "A hold-by-hold reference for writers: Eastmarch's old power, Haafingar's imperial coast, Whiterun's trade roads, and the Rift's autumn shadows."
+      ),
+      document(
+        "Songs of Skyrim",
+        "book",
+        "Skyrim",
+        "A bardic collection preserving patriotic songs, tavern pieces, and public memory.",
+        guild: "Bards College",
+        location: "Solitude",
+        content:
+          "A songbook entry showing how music carries politics: rebellion, nostalgia, old wars, drinking halls, and names that survive because crowds repeat them."
+      ),
+      document(
+        "Olaf and the Dragon",
+        "book",
+        "Skyrim",
+        "A bardic tale about King Olaf, dragon legend, and Solitude's performance tradition.",
+        guild: "Bards College",
+        location: "Solitude",
+        civilization: "Ancient Nords",
+        content:
+          "A performance note for bardic history: useful when a story may be half record, half court theater, and still politically powerful."
+      ),
+      document(
+        "The Dragon War",
+        "book",
+        "Skyrim",
+        "A historical account of the ancient Nordic revolt against dragon rule.",
+        civilization: "Ancient Nords",
+        god: "Alduin",
+        content:
+          "A summary of the Dragon Cult, rebel tongues, old barrows, and the moment dragons ceased to be rulers and became buried terrors."
+      ),
+      document(
+        "Alduin is Real",
+        "book",
+        "Skyrim",
+        "A warning text insisting that Alduin is not merely a mythic metaphor.",
+        civilization: "Ancient Nords",
+        god: "Alduin",
+        content:
+          "A prophecy-facing source for dragon plots: frantic, useful, and easy for respectable scholars to dismiss until the sky proves otherwise."
+      ),
+      document(
+        "Lost Legends",
+        "book",
+        "Skyrim",
+        "A survey of old Nordic legends, buried artifacts, and dangerous heroic memory.",
+        civilization: "Ancient Nords",
+        location: "Reachwater Rock",
+        content:
+          "A legend index for quests involving ancient names, broken inheritance, tombs, and artifacts whose stories outlive their owners."
+      ),
+      document(
+        "The Legend of Red Eagle",
+        "book",
+        "Skyrim",
+        "A Reach legend about Red Eagle, resistance, sacrifice, and the cost of defiance.",
+        location: "Old Hroldan Inn",
+        content:
+          "A regional legend useful for the Reach: rebellion remembered as heroism by some, as banditry by others, and as unfinished business by the dead."
+      ),
+      document(
+        "The Aetherium Wars",
+        "book",
+        "Skyrim",
+        "A Dwemer-focused history of Aetherium, city-state rivalry, and lost craft.",
+        civilization: "Dwemer",
+        location: "Alftand",
+        content:
+          "A research entry on Dwemer ambition: rare materials, competing city-states, brilliant engineering, and discoveries that invite ruin."
+      ),
+      document(
+        "The Falmer: A Study",
+        "book",
+        "Skyrim",
+        "A scholarly study of the Snow Elves, their fall, and the Falmer legacy beneath Skyrim.",
+        civilization: "Snow Elves",
+        location: "Sightless Pit",
+        content:
+          "A research note on tragedy beneath the province: vanished splendor, underground survival, and the uncomfortable line between history and horror."
+      ),
+      document(
+        "Shadowmarks",
+        "book",
+        "Skyrim",
+        "A practical guide to thief signs, hidden warnings, and underworld navigation.",
+        guild: "Thieves Guild",
+        god: "Nocturnal",
+        location: "Riften",
+        content:
+          "A thieves' field reference explaining how a door, wall, or crate can become a message for people trained to see what others walk past."
+      ),
+      document(
+        "Gallus's Encoded Journal",
+        "journal",
+        "Skyrim",
+        "An encrypted journal tied to betrayal, Nightingale secrets, and Thieves Guild history.",
+        guild: "Thieves Guild",
+        god: "Nocturnal",
+        location: "Riften",
+        content:
+          "A plot document for guild intrigue: encoded evidence, broken trust, and the kind of truth that can restore or destroy a criminal family."
+      ),
+      document(
+        "The Night Mother's Truth",
+        "book",
+        "Skyrim",
+        "A Dark Brotherhood text about the Night Mother, ritual authority, and murder as doctrine.",
+        guild: "Dark Brotherhood",
+        god: "Sithis",
+        location: "Dark Brotherhood Sanctuary",
+        content:
+          "A doctrinal source for assassin plots: reverence, secrecy, command, and the frightening comfort of believing murder has a sacred order."
+      ),
+      document(
+        "Sithis",
+        "book",
+        "Skyrim",
+        "A theological text concerning the void, dread, and Dark Brotherhood belief.",
+        guild: "Dark Brotherhood",
+        god: "Sithis",
+        content:
+          "A compact religious reference for the Brotherhood: less a biography than an attempt to name emptiness, silence, and the power of endings."
+      ),
+      document(
+        "Letter from a Friend",
+        "letter",
+        "Skyrim",
+        "An anonymous letter pointing the reader toward a place where the Voice may matter.",
+        guild: "Greybeards",
+        location: "High Hrothgar",
+        content:
+          "A quest-style letter hook: someone has heard power in the world and wants the reader to seek a word, a ruin, or a mountain answer."
+      ),
+      document(
+        "Delphine's Note",
+        "note",
+        "Skyrim",
+        "A cautious Blades note written in the language of spies, meetings, and withheld trust.",
+        author: "Delphine",
+        guild: "Blades",
+        location: "Riverwood",
+        content:
+          "A spy note for early dragon investigations: brief, practical, and careful enough to suggest that the writer expects betrayal."
+      ),
+      document(
+        "Esbern's Dragon Research",
+        "journal",
+        "Skyrim",
+        "Research notes connecting dragons, old Blades scholarship, and apocalyptic chronology.",
+        author: "Esbern",
+        guild: "Blades",
+        location: "Sky Haven Temple",
+        content:
+          "An archivist's working journal: fragments of prophecy, dragon names, old maps, and the suspicion that history is arranging itself again."
+      ),
+      document(
+        "Farengar's Dragon Notes",
+        "journal",
+        "Skyrim",
+        "Court wizard notes on dragon burial sites, recovered tablets, and practical research.",
+        author: "Farengar Secret-Fire",
+        location: "Whiterun",
+        content:
+          "A court research file for Whiterun: pragmatic questions, incomplete evidence, and the uneasy excitement of studying something dangerous."
+      ),
+      document(
+        "Calcelmo's Dwemer Notes",
+        "journal",
+        "Skyrim",
+        "Markarth research notes on Dwemer language, stonework, and ruin evidence.",
+        author: "Calcelmo",
+        location: "Markarth",
+        civilization: "Dwemer",
+        content:
+          "A scholar's working record: inscriptions, mechanisms, disputed translations, and the pressure of studying a vanished people inside their own stone."
+      ),
+      document(
+        "The Talos Mistake",
+        "book",
+        "Skyrim",
+        "A political argument about Talos worship and the cost of imperial compromise.",
+        guild: "Imperial Legion",
+        god: "Talos",
+        content:
+          "A public controversy source: useful for showing how theology, law, occupation, and rebellion become impossible to separate in Skyrim."
       ),
       document(
         "Black-Briar Correspondence",
@@ -2366,7 +2570,9 @@ defmodule AncientStones.Templates.Skyrim do
         "A writer-facing note representing Maven Black-Briar's criminal and political leverage in Riften.",
         author: "Maven Black-Briar",
         guild: "Thieves Guild",
-        location: "Riften"
+        location: "Riften",
+        content:
+          "A private correspondence stub for Riften plots: favors owed, debts applied, guards softened, and respectable language hiding criminal force."
       )
     ]
   end

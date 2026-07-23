@@ -244,6 +244,30 @@ defmodule AncientStones.WorldsTest do
 
     assert document.author_character.name == "Maven Black-Briar"
     assert document.guild.name == "Thieves Guild"
+    assert document.content =~ "Riften plots"
+
+    template_document_titles = Enum.map(dashboard.documents, & &1.title)
+
+    assert "The Aetherium Wars" in template_document_titles
+    assert "Shadowmarks" in template_document_titles
+    assert "Gallus's Encoded Journal" in template_document_titles
+    assert "Esbern's Dragon Research" in template_document_titles
+
+    aetherium_wars = Enum.find(dashboard.documents, &(&1.title == "The Aetherium Wars"))
+
+    assert aetherium_wars.civilization.name == "Dwemer"
+    assert aetherium_wars.location.name == "Alftand"
+
+    shadowmarks = Enum.find(dashboard.documents, &(&1.title == "Shadowmarks"))
+
+    assert shadowmarks.guild.name == "Thieves Guild"
+    assert shadowmarks.god.name == "Nocturnal"
+
+    esbern_notes = Enum.find(dashboard.documents, &(&1.title == "Esbern's Dragon Research"))
+
+    assert esbern_notes.kind == "journal"
+    assert esbern_notes.author_character.name == "Esbern"
+    assert esbern_notes.guild.name == "Blades"
 
     timeline = Enum.find(dashboard.timelines, &(&1.name == "Tamrielic Timeline"))
 
