@@ -93,6 +93,23 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert Worlds.get_world_dashboard!(world.id).galaxy.name == "Mundus Prime"
   end
 
+  test "shows the galaxy name in the breadcrumb for an assigned world", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
+    world = Worlds.get_world_dashboard!(world.id)
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
+
+    assert has_element?(view, "#breadcrumb-parent", world.galaxy.name)
+  end
+
+  test "shows worlds in the breadcrumb for an unassigned world", %{conn: conn} do
+    world = create_world!()
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
+
+    assert has_element?(view, "#breadcrumb-parent", "Worlds")
+  end
+
   test "does not show galaxy action form for worlds without a galaxy", %{conn: conn} do
     world = create_world!()
 
