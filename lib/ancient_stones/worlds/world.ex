@@ -2,6 +2,7 @@ defmodule AncientStones.Worlds.World do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias AncientStones.Maps.MapDocument
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.Civilization
@@ -56,6 +57,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:spells, Spell)
     has_many(:timelines, Timeline)
     has_many(:timeline_events, through: [:timelines, :events])
+    has_many(:map_documents, MapDocument)
 
     timestamps(type: :utc_datetime)
   end

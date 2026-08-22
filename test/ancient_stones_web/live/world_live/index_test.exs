@@ -5,6 +5,7 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
 
   alias AncientStones.Galaxies
   alias AncientStones.Galaxies.Galaxy
+  alias AncientStones.Maps
   alias AncientStones.Repo
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Spell
@@ -42,12 +43,14 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
   end
 
   test "shows top-level inventory in the workspace sidebar", %{conn: conn} do
-    {:ok, _world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
+    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
+    {:ok, _map} = Maps.create_world_map(world, %{"name" => "Outer map", "kind" => "world"})
 
     {:ok, view, _html} = live(conn, ~p"/worlds")
 
     assert has_element?(view, ".stone-sidebar", "Worlds")
     assert has_element?(view, ".stone-sidebar", "Galaxies")
+    assert has_element?(view, "#maps-navigation strong", "1")
     refute has_element?(view, ".stone-sidebar", "Holds")
     refute has_element?(view, ".stone-sidebar", "Location Types")
     refute has_element?(view, ".stone-sidebar", "Locations")

@@ -2,6 +2,7 @@ defmodule AncientStones.Worlds.Location do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias AncientStones.Maps.MapItem
   alias AncientStones.Worlds.CivilizationLocation
   alias AncientStones.Worlds.CreatureLocation
   alias AncientStones.Worlds.Geography
@@ -29,6 +30,7 @@ defmodule AncientStones.Worlds.Location do
     has_many(:creatures, through: [:creature_locations, :creature])
     has_many(:source_lore_connections, LoreConnection, foreign_key: :source_location_id)
     has_many(:target_lore_connections, LoreConnection, foreign_key: :target_location_id)
+    has_many(:map_items, MapItem)
 
     timestamps(type: :utc_datetime)
   end

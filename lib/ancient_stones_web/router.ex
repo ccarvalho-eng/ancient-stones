@@ -18,6 +18,7 @@ defmodule AncientStonesWeb.Router do
     pipe_through :browser
 
     live "/", WorldLive.Index, :index
+    live "/maps", MapLive.Index, :index
     live "/worlds", WorldLive.Index, :index
     live "/worlds/new", WorldLive.New, :new
     live "/worlds/:id/dashboard", WorldLive.Dashboard, :show
