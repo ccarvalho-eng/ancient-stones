@@ -34,3 +34,16 @@ export function zoomFromPinch(startZoom, startDistance, currentDistance) {
 
   return Math.min(4, Math.max(0.05, startZoom * (currentDistance / startDistance)))
 }
+
+export function contrastingInk(background) {
+  const match = /^#([0-9a-f]{6})$/i.exec(background)
+  if (!match) return "#342f28"
+
+  const color = Number.parseInt(match[1], 16)
+  const red = (color >> 16) & 255
+  const green = (color >> 8) & 255
+  const blue = color & 255
+  const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255
+
+  return luminance < 0.45 ? "#e6e2da" : "#342f28"
+}

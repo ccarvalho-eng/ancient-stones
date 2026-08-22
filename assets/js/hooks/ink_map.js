@@ -10,7 +10,12 @@ import {
   controlsUtils,
 } from "../../vendor/fabric.mjs"
 import {mapIconPaths, mapIcons} from "../map_icons"
-import {appendDistinctPoint, roughenCoastline, zoomFromPinch} from "../map_geometry.mjs"
+import {
+  appendDistinctPoint,
+  contrastingInk,
+  roughenCoastline,
+  zoomFromPinch,
+} from "../map_geometry.mjs"
 
 const serializableProperties = [
   "mapKind",
@@ -29,7 +34,7 @@ const serializableProperties = [
 ]
 const layerOrder = {terrain: 0, features: 1, labels: 2}
 const parchment = "#e7ddc4"
-const ink = "#342f28"
+const darkCanvas = "#21252b"
 
 const textureBrushes = {
   forest: {path: mapIconPaths["pine-tree"], filled: true, spacing: 1.1, jitter: 0.35},
@@ -62,7 +67,13 @@ const InkMap = {
     this.textureStroke = null
     this.panState = null
     this.landmassDraft = null
-    this.mapBackground = mapDocument.mapBackground || parchment
+    this.themeRoot = this.el.closest(".stone-page")
+    this.themeMedia = window.matchMedia("(prefers-color-scheme: dark)")
+    this.hasExplicitBackground = mapDocument.mapBackgroundExplicit ?? Boolean(mapDocument.mapBackground)
+    this.mapBackground = this.hasExplicitBackground
+      ? mapDocument.mapBackground
+      : this.defaultCanvasBackground()
+    this.inkColor = contrastingInk(this.mapBackground)
 
     this.canvas = new Canvas(this.el.querySelector("#ink-map-canvas"), {
       width: this.width,
@@ -85,6 +96,11 @@ const InkMap = {
     this.handleFullscreenChange = () => this.syncFullscreenState()
     document.addEventListener("fullscreenchange", this.handleFullscreenChange)
     this.handleEvent("map_resized", ({width, height}) => this.resizeMap(width, height))
+    this.handleThemeChange = () => this.syncImplicitCanvasTheme()
+    this.themeObserver = new MutationObserver(this.handleThemeChange)
+    if (this.themeRoot) this.themeObserver.observe(this.themeRoot, {attributes: true, attributeFilter: ["class"]})
+    this.themeMedia.addEventListener("change", this.handleThemeChange)
+    this.syncBackgroundInput()
     this.syncSaveState()
 
     this.canvas.loadFromJSON(mapDocument).then(() => {
@@ -106,6 +122,8 @@ const InkMap = {
     this.el.removeEventListener("input", this.handleInput)
     this.el.removeEventListener("change", this.handleInput)
     document.removeEventListener("fullscreenchange", this.handleFullscreenChange)
+    this.themeObserver.disconnect()
+    this.themeMedia.removeEventListener("change", this.handleThemeChange)
     document.removeEventListener("click", this.handleNavigation, true)
     window.removeEventListener("beforeunload", this.handleBeforeUnload)
     window.removeEventListener("keydown", this.handleKeydown)
@@ -334,7 +352,7 @@ const InkMap = {
 
     if (drawing) {
       const brush = new PencilBrush(this.canvas)
-      brush.color = ink
+      brush.color = this.inkColor
       brush.width = Number.parseInt(this.el.querySelector("[data-map-brush-size]").value, 10)
       brush.decimate = 1.5
       brush.limitedToCanvasSize = true
@@ -427,8 +445,8 @@ const InkMap = {
       top: point.y,
       originX: "center",
       originY: "center",
-      fill: texture.filled ? ink : "rgba(255, 255, 255, 0)",
-      stroke: texture.filled ? undefined : ink,
+      fill: texture.filled ? this.inkColor : "rgba(255, 255, 255, 0)",
+      stroke: texture.filled ? undefined : this.inkColor,
       strokeWidth: texture.filled ? 0 : 1.5,
       angle: texture.orient ? direction : (Math.random() - 0.5) * 16,
       selectable: false,
@@ -487,7 +505,7 @@ const InkMap = {
     const points = [...draft.points, draft.preview].map(({x, y}) => ({x, y}))
     draft.object = new Polygon(points, {
       fill: this.landColor(),
-      stroke: ink,
+      stroke: this.inkColor,
       strokeWidth: 2,
       opacity: 0.72,
       selectable: false,
@@ -512,7 +530,7 @@ const InkMap = {
     const landColor = this.landColor()
     const polygon = new Polygon(this.roughenCoastline(draft.points, roughness), {
       fill: landColor,
-      stroke: ink,
+      stroke: this.inkColor,
       strokeWidth: 2,
       mapKind: "landmass",
       mapLayer: "terrain",
@@ -560,7 +578,9 @@ const InkMap = {
   },
 
   setMapBackground(color) {
+    this.hasExplicitBackground = true
     this.mapBackground = color
+    this.inkColor = contrastingInk(color)
     this.canvas.backgroundColor = color
     this.canvas.lowerCanvasEl.style.backgroundColor = color
     this.canvas.requestRenderAll()
@@ -633,7 +653,7 @@ const InkMap = {
       top: this.height / 2,
       originX: "center",
       originY: "center",
-      fill: ink,
+      fill: this.inkColor,
       strokeWidth: 0,
       mapKind: kind,
       mapLayer: this.activeLayer,
@@ -697,7 +717,7 @@ const InkMap = {
       top: this.height / 2,
       originX: "center",
       originY: "center",
-      fill: ink,
+      fill: this.inkColor,
       fontFamily: "Georgia",
       fontSize: 34,
       fontWeight: "600",
@@ -989,6 +1009,7 @@ const InkMap = {
 
     const document = this.canvas.toJSON(serializableProperties)
     document.mapBackground = this.mapBackground
+    document.mapBackgroundExplicit = this.hasExplicitBackground
     return document
   },
 
@@ -1168,9 +1189,14 @@ const InkMap = {
     this.restoring = true
     this.historyIndex = index
     const document = JSON.parse(this.history[index])
-    this.mapBackground = document.mapBackground || parchment
+    this.hasExplicitBackground = document.mapBackgroundExplicit ?? Boolean(document.mapBackground)
+    this.mapBackground = this.hasExplicitBackground
+      ? document.mapBackground
+      : this.defaultCanvasBackground()
+    this.inkColor = contrastingInk(this.mapBackground)
     this.canvas.backgroundColor = this.mapBackground
     this.canvas.lowerCanvasEl.style.backgroundColor = this.mapBackground
+    this.syncBackgroundInput()
     this.canvas.loadFromJSON(document).then(() => {
       this.ensureItemIds()
       this.canvas.requestRenderAll()
@@ -1231,6 +1257,29 @@ const InkMap = {
   setStatus(message) {
     const status = this.el.querySelector("#ink-map-status")
     if (status) status.textContent = message
+  },
+
+  defaultCanvasBackground() {
+    if (this.themeRoot?.classList.contains("stone-theme-dark")) return darkCanvas
+    if (this.themeRoot?.classList.contains("stone-theme-light")) return parchment
+
+    return this.themeMedia.matches ? darkCanvas : parchment
+  },
+
+  syncImplicitCanvasTheme() {
+    if (this.hasExplicitBackground) return
+
+    this.mapBackground = this.defaultCanvasBackground()
+    this.inkColor = contrastingInk(this.mapBackground)
+    this.canvas.backgroundColor = this.mapBackground
+    this.canvas.lowerCanvasEl.style.backgroundColor = this.mapBackground
+    this.syncBackgroundInput()
+    this.canvas.requestRenderAll()
+  },
+
+  syncBackgroundInput() {
+    const input = this.el.querySelector("[data-map-water-color]")
+    if (input) input.value = this.mapBackground
   },
 }
 
