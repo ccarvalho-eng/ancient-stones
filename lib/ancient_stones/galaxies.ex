@@ -28,6 +28,12 @@ defmodule AncientStones.Galaxies do
     |> Repo.insert()
   end
 
+  def update_galaxy(%Galaxy{} = galaxy, attrs) do
+    galaxy
+    |> Galaxy.changeset(attrs)
+    |> Repo.update()
+  end
+
   def get_galaxy!(id) do
     Galaxy
     |> Repo.get!(id)

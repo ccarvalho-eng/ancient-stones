@@ -866,6 +866,45 @@
 
             <div id="action-list" class="max-h-[800px] overflow-y-auto">
               <.action_section
+                action="world"
+                expanded_action={@expanded_action}
+                icon="hero-globe-alt"
+                title="Edit World Name"
+              >
+                <.form
+                  for={@world_form}
+                  id="dashboard-world-form"
+                  phx-submit="update_world"
+                  class="space-y-2"
+                >
+                  <.input field={@world_form[:name]} type="text" label="World Name" required />
+                  <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                    Save
+                  </.button>
+                </.form>
+              </.action_section>
+
+              <.action_section
+                :if={@world.galaxy}
+                action="galaxy"
+                expanded_action={@expanded_action}
+                icon="hero-sparkles"
+                title="Edit Galaxy Name"
+              >
+                <.form
+                  for={@galaxy_form}
+                  id="dashboard-galaxy-form"
+                  phx-submit="update_galaxy"
+                  class="space-y-2"
+                >
+                  <.input field={@galaxy_form[:name]} type="text" label="Galaxy Name" required />
+                  <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                    Save
+                  </.button>
+                </.form>
+              </.action_section>
+
+              <.action_section
                 action="continent"
                 expanded_action={@expanded_action}
                 icon="hero-globe-alt"
@@ -4656,6 +4695,37 @@
                       />
                     </div>
 
+                    <div
+                      id="calendar-weekdays"
+                      class="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                    >
+                      <div class="flex items-center justify-between gap-3">
+                        <p class="text-[11px] font-semibold uppercase text-zinc-500">Weekdays</p>
+                        <span class="rounded border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-500">
+                          {length(@selected_calendar.weekday_names)}
+                        </span>
+                      </div>
+                      <div class="mt-3 flex flex-wrap gap-2">
+                        <p
+                          :if={@selected_calendar.weekday_names == []}
+                          class="text-sm text-zinc-500"
+                        >
+                          No weekday names have been set.
+                        </p>
+                        <span
+                          :for={
+                            {weekday_name, index} <-
+                              Enum.with_index(@selected_calendar.weekday_names, 1)
+                          }
+                          id={"calendar-weekday-#{index}"}
+                          class="rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-sm font-medium text-zinc-700"
+                        >
+                          <span class="mr-1 text-xs text-zinc-400">{index}</span>
+                          {weekday_name}
+                        </span>
+                      </div>
+                    </div>
+
                     <div class="rounded-md border border-zinc-200 bg-zinc-50 p-3">
                       <div class="flex items-center justify-between gap-3">
                         <p class="text-[11px] font-semibold uppercase text-zinc-500">Months</p>
@@ -4742,6 +4812,7 @@
                     <.form
                       for={@calendar_form}
                       id="calendar-form"
+                      phx-change="change_calendar_weekdays"
                       phx-submit="create_calendar"
                       class="space-y-2"
                     >
@@ -4752,11 +4823,7 @@
                         options={@continent_options}
                       />
                       <.input field={@calendar_form[:name]} type="text" label="Name" required />
-                      <.input
-                        field={@calendar_form[:days_per_week]}
-                        type="number"
-                        label="Days Per Week"
-                      />
+                      <.weekday_fields form={@calendar_form} form_name="calendar" />
                       <.input field={@calendar_form[:era]} type="text" label="Era" />
                       <.input
                         field={@calendar_form[:year_start_angle]}
@@ -4790,6 +4857,7 @@
                     <.form
                       for={@calendar_edit_form}
                       id="calendar-edit-form"
+                      phx-change="change_calendar_weekdays"
                       phx-submit="update_calendar"
                       class="space-y-2"
                     >
@@ -4799,11 +4867,7 @@
                         label="Name"
                         required
                       />
-                      <.input
-                        field={@calendar_edit_form[:days_per_week]}
-                        type="number"
-                        label="Days Per Week"
-                      />
+                      <.weekday_fields form={@calendar_edit_form} form_name="calendar_edit" />
                       <.input field={@calendar_edit_form[:era]} type="text" label="Era" />
                       <.input
                         field={@calendar_edit_form[:year_start_angle]}

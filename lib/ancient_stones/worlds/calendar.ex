@@ -11,6 +11,7 @@ defmodule AncientStones.Worlds.Calendar do
     field :name, :string
     field :description, :string
     field :days_per_week, :integer
+    field :weekday_names, {:array, :string}, default: []
     field :era, :string
     field :year_start_angle, :decimal
     field :perihelion_day, :integer
@@ -27,15 +28,56 @@ defmodule AncientStones.Worlds.Calendar do
       :name,
       :description,
       :days_per_week,
+      :weekday_names,
       :era,
       :year_start_angle,
       :perihelion_day
     ])
+    |> update_change(:weekday_names, &normalize_weekday_names/1)
     |> validate_required([:name, :continent_id])
     |> validate_number(:days_per_week, greater_than: 0)
+    |> validate_weekday_names()
     |> validate_number(:year_start_angle, greater_than_or_equal_to: 0, less_than: 360)
     |> validate_number(:perihelion_day, greater_than: 0)
     |> foreign_key_constraint(:continent_id)
+    |> check_constraint(:weekday_names,
+      name: :calendars_weekday_names_count_matches_days_per_week,
+      message: "must contain exactly one name for each day of the week"
+    )
     |> unique_constraint(:name, name: :calendars_continent_id_name_index)
+  end
+
+  defp normalize_weekday_names(nil) do
+    []
+  end
+
+  defp normalize_weekday_names(weekday_names) do
+    Enum.map(weekday_names, &String.trim/1)
+  end
+
+  defp validate_weekday_names(changeset) do
+    weekday_names = get_field(changeset, :weekday_names) || []
+    days_per_week = get_field(changeset, :days_per_week)
+
+    cond do
+      weekday_names == [] ->
+        changeset
+
+      Enum.any?(weekday_names, &(&1 == "")) ->
+        add_error(changeset, :weekday_names, "cannot contain blank names")
+
+      not is_integer(days_per_week) ->
+        add_error(changeset, :weekday_names, "requires days per week")
+
+      length(weekday_names) != days_per_week ->
+        add_error(
+          changeset,
+          :weekday_names,
+          "must contain exactly #{days_per_week} names"
+        )
+
+      true ->
+        changeset
+    end
   end
 end

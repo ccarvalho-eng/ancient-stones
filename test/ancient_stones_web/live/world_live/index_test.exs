@@ -112,6 +112,73 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     assert has_element?(view, "#galaxies", "Mundus")
   end
 
+  test "selects a world and updates its name with the world form", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Eldoria"})
+    {:ok, view, _html} = live(conn, ~p"/worlds")
+
+    view
+    |> element("#select-world-#{world.id}")
+    |> render_click()
+
+    assert has_element?(view, "#dashboard-world-form[phx-submit='update_world']")
+    assert has_element?(view, "#world_name[value='Eldoria']")
+    assert has_element?(view, "#dashboard-world-form button", "Save")
+    assert has_element?(view, "#cancel-world-edit", "Cancel")
+
+    view
+    |> element("#cancel-world-edit")
+    |> render_click()
+
+    assert has_element?(view, "#dashboard-world-form[phx-submit='create_world']")
+    refute has_element?(view, "#cancel-world-edit")
+
+    view
+    |> element("#select-world-#{world.id}")
+    |> render_click()
+
+    view
+    |> form("#dashboard-world-form", world: %{name: "Eldoria Prime"})
+    |> render_submit()
+
+    assert Repo.get!(World, world.id).name == "Eldoria Prime"
+    assert has_element?(view, "#worlds", "Eldoria Prime")
+    assert has_element?(view, "#dashboard-world-form[phx-submit='create_world']")
+  end
+
+  test "selects a galaxy and updates its name with the galaxy form", %{conn: conn} do
+    {:ok, galaxy} = Galaxies.create_galaxy(%{name: "Mundus"})
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"}, galaxy: galaxy)
+    {:ok, view, _html} = live(conn, ~p"/worlds")
+
+    view
+    |> element("#select-galaxy-#{galaxy.id}")
+    |> render_click()
+
+    assert has_element?(view, "#dashboard-galaxy-form[phx-submit='update_galaxy']")
+    assert has_element?(view, "#galaxy_name[value='Mundus']")
+    assert has_element?(view, "#dashboard-galaxy-form button", "Save")
+    assert has_element?(view, "#cancel-galaxy-edit", "Cancel")
+
+    view
+    |> element("#cancel-galaxy-edit")
+    |> render_click()
+
+    assert has_element?(view, "#dashboard-galaxy-form[phx-submit='create_galaxy']")
+    refute has_element?(view, "#cancel-galaxy-edit")
+
+    view
+    |> element("#select-galaxy-#{galaxy.id}")
+    |> render_click()
+
+    view
+    |> form("#dashboard-galaxy-form", galaxy: %{name: "Mundus Prime"})
+    |> render_submit()
+
+    assert Repo.get!(Galaxy, world.galaxy_id).name == "Mundus Prime"
+    assert has_element?(view, "#galaxies", "Mundus Prime")
+    assert has_element?(view, "#dashboard-galaxy-form[phx-submit='create_galaxy']")
+  end
+
   test "nests worlds under their galaxy and lists only unassigned worlds separately", %{
     conn: conn
   } do
@@ -123,6 +190,7 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
 
     assert has_element?(view, "#galaxies", "Mundus")
     assert has_element?(view, "#galaxies", "Nirn")
+    assert has_element?(view, "#galaxies .stone-child-record", "Nirn")
     assert has_element?(view, "#worlds", "Orphan Realm")
     refute has_element?(view, "#worlds", "Nirn")
   end
