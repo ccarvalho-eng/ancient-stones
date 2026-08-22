@@ -866,6 +866,45 @@
 
             <div id="action-list" class="max-h-[800px] overflow-y-auto">
               <.action_section
+                action="world"
+                expanded_action={@expanded_action}
+                icon="hero-globe-alt"
+                title="Edit World Name"
+              >
+                <.form
+                  for={@world_form}
+                  id="dashboard-world-form"
+                  phx-submit="update_world"
+                  class="space-y-2"
+                >
+                  <.input field={@world_form[:name]} type="text" label="World Name" required />
+                  <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                    Save
+                  </.button>
+                </.form>
+              </.action_section>
+
+              <.action_section
+                :if={@world.galaxy}
+                action="galaxy"
+                expanded_action={@expanded_action}
+                icon="hero-sparkles"
+                title="Edit Galaxy Name"
+              >
+                <.form
+                  for={@galaxy_form}
+                  id="dashboard-galaxy-form"
+                  phx-submit="update_galaxy"
+                  class="space-y-2"
+                >
+                  <.input field={@galaxy_form[:name]} type="text" label="Galaxy Name" required />
+                  <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+                    Save
+                  </.button>
+                </.form>
+              </.action_section>
+
+              <.action_section
                 action="continent"
                 expanded_action={@expanded_action}
                 icon="hero-globe-alt"

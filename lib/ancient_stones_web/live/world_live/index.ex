@@ -16,6 +16,8 @@ defmodule AncientStonesWeb.WorldLive.Index do
      |> assign_index_records(galaxies)
      |> assign(:galaxy_options, option_list(galaxies))
      |> assign(:current_template, "blank")
+     |> assign(:selected_world, nil)
+     |> assign(:selected_galaxy, nil)
      |> assign(:world_form, world_form(galaxies))
      |> assign(:galaxy_form, galaxy_form())
      |> stream(:galaxies, galaxies)
@@ -156,7 +158,14 @@ defmodule AncientStonesWeb.WorldLive.Index do
                         class="stone-record-card rounded-md border p-3"
                       >
                         <div class="flex items-start justify-between gap-3">
-                          <div class="min-w-0">
+                          <button
+                            id={"select-galaxy-#{galaxy.id}"}
+                            type="button"
+                            phx-click="select_galaxy"
+                            phx-value-id={galaxy.id}
+                            class="min-w-0 flex-1 rounded-md text-left transition hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2"
+                            aria-label={"Edit #{galaxy.name}"}
+                          >
                             <div class="flex items-center gap-2">
                               <span class="stone-panel-muted inline-flex size-7 items-center justify-center rounded-md border">
                                 <.icon name="hero-sparkles" class="size-4" />
@@ -168,7 +177,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                             <p class="stone-muted mt-2 line-clamp-2 text-sm">
                               {galaxy.description || "No description yet."}
                             </p>
-                          </div>
+                          </button>
                           <.danger_icon_button
                             phx-click="delete_galaxy"
                             phx-value-id={galaxy.id}
@@ -191,7 +200,14 @@ defmodule AncientStonesWeb.WorldLive.Index do
                             class="stone-soft-panel rounded-md border px-3 py-2"
                           >
                             <div class="flex items-start justify-between gap-3">
-                              <div class="min-w-0">
+                              <button
+                                id={"select-world-#{world.id}"}
+                                type="button"
+                                phx-click="select_world"
+                                phx-value-id={world.id}
+                                class="min-w-0 flex-1 rounded-md text-left transition hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2"
+                                aria-label={"Edit #{world.name}"}
+                              >
                                 <div class="stone-heading truncate text-sm font-medium">
                                   {world.name}
                                 </div>
@@ -199,7 +215,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                                   {world.description || "No description yet."}
                                 </p>
                                 <.world_geography_stats counts={world_counts(@world_counts, world)} />
-                              </div>
+                              </button>
                               <div class="flex shrink-0 items-center gap-1.5">
                                 <.danger_icon_button
                                   phx-click="delete_world"
@@ -246,7 +262,14 @@ defmodule AncientStonesWeb.WorldLive.Index do
                         class="stone-record-card rounded-md border p-3"
                       >
                         <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                          <div class="min-w-0">
+                          <button
+                            id={"select-world-#{world.id}"}
+                            type="button"
+                            phx-click="select_world"
+                            phx-value-id={world.id}
+                            class="min-w-0 rounded-md text-left transition hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2"
+                            aria-label={"Edit #{world.name}"}
+                          >
                             <div class="flex flex-wrap items-center gap-2">
                               <h4 class="stone-heading truncate text-sm font-semibold">
                                 {world.name}
@@ -259,7 +282,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                               {world.description || "No description yet."}
                             </p>
                             <.world_geography_stats counts={world_counts(@world_counts, world)} />
-                          </div>
+                          </button>
                           <div class="flex items-start justify-end gap-2">
                             <.danger_icon_button
                               phx-click="delete_world"
@@ -285,22 +308,28 @@ defmodule AncientStonesWeb.WorldLive.Index do
                 <div class="stone-panel overflow-hidden rounded-md border">
                   <div class="stone-border border-b px-4 py-3">
                     <div class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
-                      Step 1
+                      Galaxy
                     </div>
-                    <h3 class="stone-heading mt-1 text-sm font-semibold">Create Galaxy</h3>
+                    <h3 class="stone-heading mt-1 text-sm font-semibold">
+                      {if(@selected_galaxy, do: "Edit Galaxy", else: "Create Galaxy")}
+                    </h3>
                     <p class="stone-muted mt-1 text-xs">
-                      Use this first when the world belongs to a known cosmos.
+                      {if(@selected_galaxy,
+                        do: "Update the selected galaxy name.",
+                        else: "Use this first when the world belongs to a known cosmos."
+                      )}
                     </p>
                   </div>
 
                   <.form
                     for={@galaxy_form}
                     id="dashboard-galaxy-form"
-                    phx-submit="create_galaxy"
+                    phx-submit={if(@selected_galaxy, do: "update_galaxy", else: "create_galaxy")}
                     class="space-y-3 p-4"
                   >
                     <.input field={@galaxy_form[:name]} type="text" label="Name" required />
                     <.input
+                      :if={is_nil(@selected_galaxy)}
                       field={@galaxy_form[:description]}
                       type="textarea"
                       label="Description"
@@ -308,91 +337,131 @@ defmodule AncientStonesWeb.WorldLive.Index do
                     />
                     <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
                       <span class="inline-flex items-center justify-center gap-2">
-                        <.icon name="hero-plus" class="size-4" /> Create galaxy
+                        <%= if @selected_galaxy do %>
+                          <.icon name="hero-check" class="size-4" /> Save galaxy
+                        <% else %>
+                          <.icon name="hero-plus" class="size-4" /> Create galaxy
+                        <% end %>
                       </span>
                     </.button>
+                    <button
+                      :if={@selected_galaxy}
+                      id="cancel-galaxy-edit"
+                      type="button"
+                      phx-click="clear_galaxy_selection"
+                      class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition"
+                    >
+                      Cancel edit
+                    </button>
                   </.form>
                 </div>
 
                 <div class="stone-panel overflow-hidden rounded-md border">
                   <div class="stone-border border-b px-4 py-3">
                     <div class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
-                      Step 2
+                      World
                     </div>
-                    <h3 class="stone-heading mt-1 text-sm font-semibold">Create World</h3>
+                    <h3 class="stone-heading mt-1 text-sm font-semibold">
+                      {if(@selected_world, do: "Edit World", else: "Create World")}
+                    </h3>
                     <p class="stone-muted mt-1 text-xs">
-                      A world is the planet record. Templates can fill starter geography.
+                      {if(@selected_world,
+                        do: "Update the selected world name.",
+                        else: "A world is the planet record. Templates can fill starter geography."
+                      )}
                     </p>
                   </div>
 
                   <.form
                     for={@world_form}
                     id="dashboard-world-form"
-                    phx-change="change_template"
-                    phx-submit="create_world"
+                    phx-change={if(is_nil(@selected_world), do: "change_template")}
+                    phx-submit={if(@selected_world, do: "update_world", else: "create_world")}
                     class="space-y-3 p-4"
                   >
-                    <.input
-                      field={@world_form[:template]}
-                      type="select"
-                      label="Template"
-                      options={Templates.options()}
-                    />
-                    <.input field={@world_form[:template_galaxy]} type="hidden" />
-                    <div
-                      :if={@world_form[:template_galaxy].value not in [nil, ""]}
-                      class="stone-panel-muted stone-muted rounded-md border px-3 py-2 text-xs"
-                    >
-                      Template galaxy:
-                      <strong class="stone-heading font-semibold">
-                        {@world_form[:template_galaxy].value}
-                      </strong>
+                    <div :if={is_nil(@selected_world)} class="space-y-3">
+                      <.input
+                        field={@world_form[:template]}
+                        type="select"
+                        label="Template"
+                        options={Templates.options()}
+                      />
+                      <.input field={@world_form[:template_galaxy]} type="hidden" />
+                      <div
+                        :if={@world_form[:template_galaxy].value not in [nil, ""]}
+                        class="stone-panel-muted stone-muted rounded-md border px-3 py-2 text-xs"
+                      >
+                        Template galaxy:
+                        <strong class="stone-heading font-semibold">
+                          {@world_form[:template_galaxy].value}
+                        </strong>
+                      </div>
+                      <.input
+                        field={@world_form[:galaxy_id]}
+                        type="select"
+                        label="Galaxy"
+                        prompt="None"
+                        options={@galaxy_options}
+                      />
                     </div>
-                    <.input
-                      field={@world_form[:galaxy_id]}
-                      type="select"
-                      label="Galaxy"
-                      prompt="None"
-                      options={@galaxy_options}
-                    />
                     <div class="stone-border border-t pt-3">
                       <.input field={@world_form[:name]} type="text" label="Name" required />
                     </div>
-                    <.input
-                      field={@world_form[:description]}
-                      type="textarea"
-                      label="Description"
-                      rows="5"
-                    />
-                    <div class="grid gap-3 sm:grid-cols-3">
+                    <div :if={is_nil(@selected_world)} class="space-y-3">
                       <.input
-                        field={@world_form[:primary_star_name]}
-                        type="text"
-                        label="Star"
-                        tooltip="Primary star or sun the world orbits."
+                        field={@world_form[:description]}
+                        type="textarea"
+                        label="Description"
+                        rows="5"
                       />
-                      <.input
-                        field={@world_form[:orbital_period_days]}
-                        type="number"
-                        label="Orbit Days"
-                        tooltip="Number of days in one full orbit around the primary star."
-                      />
-                      <.input
-                        field={@world_form[:axial_tilt_degrees]}
-                        type="number"
-                        label="Axial Tilt"
-                        step="0.01"
-                        tooltip="Planet tilt in degrees. Earth is about 23.5 degrees."
-                      />
+                      <div class="grid gap-3 sm:grid-cols-3">
+                        <.input
+                          field={@world_form[:primary_star_name]}
+                          type="text"
+                          label="Star"
+                          tooltip="Primary star or sun the world orbits."
+                        />
+                        <.input
+                          field={@world_form[:orbital_period_days]}
+                          type="number"
+                          label="Orbit Days"
+                          tooltip="Number of days in one full orbit around the primary star."
+                        />
+                        <.input
+                          field={@world_form[:axial_tilt_degrees]}
+                          type="number"
+                          label="Axial Tilt"
+                          step="0.01"
+                          tooltip="Planet tilt in degrees. Earth is about 23.5 degrees."
+                        />
+                      </div>
                     </div>
                     <.button
-                      id="dashboard-create-world-button"
+                      id={
+                        if(@selected_world,
+                          do: "dashboard-update-world-button",
+                          else: "dashboard-create-world-button"
+                        )
+                      }
                       class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition"
                     >
                       <span class="inline-flex items-center justify-center gap-2">
-                        <.icon name="hero-plus" class="size-4" /> Create world
+                        <%= if @selected_world do %>
+                          <.icon name="hero-check" class="size-4" /> Save world
+                        <% else %>
+                          <.icon name="hero-plus" class="size-4" /> Create world
+                        <% end %>
                       </span>
                     </.button>
+                    <button
+                      :if={@selected_world}
+                      id="cancel-world-edit"
+                      type="button"
+                      phx-click="clear_world_selection"
+                      class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition"
+                    >
+                      Cancel edit
+                    </button>
                   </.form>
                 </div>
               </aside>
@@ -511,6 +580,73 @@ defmodule AncientStonesWeb.WorldLive.Index do
     end
   end
 
+  def handle_event("select_world", %{"id" => id}, socket) do
+    world = Worlds.get_world!(id)
+
+    {:noreply,
+     socket
+     |> assign(:selected_world, world)
+     |> assign(:world_form, selected_world_form(world))}
+  end
+
+  def handle_event("clear_world_selection", _params, socket) do
+    galaxies = Galaxies.list_galaxies()
+
+    {:noreply,
+     socket
+     |> assign(:current_template, "blank")
+     |> assign(:selected_world, nil)
+     |> assign(:world_form, world_form(galaxies))}
+  end
+
+  def handle_event("select_galaxy", %{"id" => id}, socket) do
+    galaxy = Galaxies.get_galaxy!(id)
+
+    {:noreply,
+     socket
+     |> assign(:selected_galaxy, galaxy)
+     |> assign(:galaxy_form, selected_galaxy_form(galaxy))}
+  end
+
+  def handle_event("clear_galaxy_selection", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_galaxy, nil)
+     |> assign(:galaxy_form, galaxy_form())}
+  end
+
+  def handle_event("update_world", %{"world" => params}, socket) do
+    case socket.assigns.selected_world do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Select a world before updating")}
+
+      world ->
+        case Worlds.update_world(world, %{"name" => params["name"]}) do
+          {:ok, _world} ->
+            {:noreply, socket |> put_flash(:info, "World updated") |> reload_index()}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "World could not be updated")}
+        end
+    end
+  end
+
+  def handle_event("update_galaxy", %{"galaxy" => params}, socket) do
+    case socket.assigns.selected_galaxy do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Select a galaxy before updating")}
+
+      galaxy ->
+        case Galaxies.update_galaxy(galaxy, %{"name" => params["name"]}) do
+          {:ok, _galaxy} ->
+            {:noreply, socket |> put_flash(:info, "Galaxy updated") |> reload_index()}
+
+          {:error, _changeset} ->
+            {:noreply, put_flash(socket, :error, "Galaxy could not be updated")}
+        end
+    end
+  end
+
   def handle_event("set_theme", %{"theme" => theme}, socket) do
     {:noreply, assign(socket, :theme, normalize_theme(theme))}
   end
@@ -553,8 +689,34 @@ defmodule AncientStonesWeb.WorldLive.Index do
     |> to_form(as: :galaxy)
   end
 
+  defp selected_world_form(world) do
+    %{"name" => world.name}
+    |> to_form(as: :world)
+  end
+
+  defp selected_galaxy_form(galaxy) do
+    %{"name" => galaxy.name}
+    |> to_form(as: :galaxy)
+  end
+
   defp assign_index_records(socket, galaxies) do
     assign_index_records(socket, galaxies, Worlds.list_worlds_without_galaxy())
+  end
+
+  defp reload_index(socket) do
+    galaxies = Galaxies.list_galaxies()
+    unassigned_worlds = Worlds.list_worlds_without_galaxy()
+
+    socket
+    |> assign_index_records(galaxies, unassigned_worlds)
+    |> assign(:galaxy_options, option_list(galaxies))
+    |> assign(:current_template, "blank")
+    |> assign(:selected_world, nil)
+    |> assign(:selected_galaxy, nil)
+    |> assign(:world_form, world_form(galaxies))
+    |> assign(:galaxy_form, galaxy_form())
+    |> stream(:galaxies, galaxies, reset: true)
+    |> stream(:worlds, unassigned_worlds, reset: true)
   end
 
   defp assign_index_records(socket, galaxies, unassigned_worlds) do

@@ -1,6 +1,7 @@
 defmodule AncientStonesWeb.WorldLive.Dashboard do
   use AncientStonesWeb, :live_view
 
+  alias AncientStones.Galaxies
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CharacterRole
@@ -35,6 +36,22 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         {:ok, continent}
       end
     end)
+  end
+
+  def handle_event("update_world", %{"world" => params}, socket) do
+    update_and_reload(socket, fn ->
+      Worlds.update_world(socket.assigns.world, %{"name" => params["name"]})
+    end)
+  end
+
+  def handle_event("update_galaxy", %{"galaxy" => params}, socket) do
+    if socket.assigns.world.galaxy do
+      update_and_reload(socket, fn ->
+        Galaxies.update_galaxy(socket.assigns.world.galaxy, %{"name" => params["name"]})
+      end)
+    else
+      {:noreply, put_flash(socket, :error, "No galaxy attached to this world")}
+    end
   end
 
   def handle_event("update_continent", %{"continent" => params}, socket) do
@@ -936,6 +953,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:page_title, world.name)
     |> assign(:section, section)
     |> assign(:expanded_action, expanded_action)
+    |> assign(:world_form, data_form(:world, world_form_attrs(world)))
+    |> assign(:galaxy_form, data_form(:galaxy, galaxy_form_attrs(world.galaxy)))
     |> assign(:calendars, calendars)
     |> assign(:selected_calendar, selected_calendar)
     |> assign(:selected_calendar_month, selected_calendar_month)
@@ -2362,6 +2381,18 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       _key, value, _default -> value
     end)
     |> to_form(as: name)
+  end
+
+  defp world_form_attrs(world) do
+    %{"name" => world.name}
+  end
+
+  defp galaxy_form_attrs(nil) do
+    %{"name" => ""}
+  end
+
+  defp galaxy_form_attrs(galaxy) do
+    %{"name" => galaxy.name}
   end
 
   defp continent_form_attrs(nil) do

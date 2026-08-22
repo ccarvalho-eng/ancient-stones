@@ -57,6 +57,50 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     refute has_element?(view, "#continent-form")
   end
 
+  test "updates world name from the action form", %{conn: conn} do
+    world = create_world!()
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
+
+    open_action(view, "world")
+    assert has_element?(view, "#world_name[value='Eldoria']")
+
+    view
+    |> form("#dashboard-world-form", world: %{name: "Eldoria Prime"})
+    |> render_submit()
+
+    assert has_element?(view, "#world_name[value='Eldoria Prime']")
+    assert Worlds.get_world!(world.id).name == "Eldoria Prime"
+  end
+
+  test "updates galaxy name from the action form", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
+
+    open_action(view, "galaxy")
+    assert has_element?(view, "#dashboard-galaxy-form")
+
+    world = Worlds.get_world_dashboard!(world.id)
+    assert world.galaxy
+    assert has_element?(view, "#galaxy_name[value='#{world.galaxy.name}']")
+
+    view
+    |> form("#dashboard-galaxy-form", galaxy: %{name: "Mundus Prime"})
+    |> render_submit()
+
+    assert has_element?(view, "#galaxy_name[value='Mundus Prime']")
+    assert Worlds.get_world_dashboard!(world.id).galaxy.name == "Mundus Prime"
+  end
+
+  test "does not show galaxy action form for worlds without a galaxy", %{conn: conn} do
+    world = create_world!()
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
+
+    refute has_element?(view, "#dashboard-galaxy-form")
+  end
+
   test "searches every populated dashboard section without crashing", %{conn: conn} do
     {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
 

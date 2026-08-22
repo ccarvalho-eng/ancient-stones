@@ -202,6 +202,12 @@ defmodule AncientStones.Worlds do
     |> Repo.insert()
   end
 
+  def update_world(%World{} = world, attrs) do
+    world
+    |> World.changeset(attrs)
+    |> Repo.update()
+  end
+
   def create_world(attrs, refs) do
     %World{}
     |> World.changeset(attrs)
