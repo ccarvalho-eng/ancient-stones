@@ -13,6 +13,8 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=map")
 
     assert has_element?(view, "#map-dashboard")
+    refute has_element?(view, "#dashboard-search-form")
+    refute has_element?(view, "#dashboard-search-form-mobile")
     assert has_element?(view, "[data-map-editor][phx-hook='InkMap']")
     refute has_element?(view, "#map-manager")
     refute has_element?(view, "#world-map-list")

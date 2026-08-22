@@ -340,6 +340,29 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(altmer.traits, &(&1.name == "Highborn" && &1.category == :power))
   end
 
+  test "stores ordered weekday names on calendars" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    weekday_names = ["Montak", "Midtak", "Fretak"]
+
+    assert {:ok, calendar} =
+             Worlds.create_calendar(continent, %{
+               name: "Tamrielic Calendar",
+               days_per_week: 3,
+               weekday_names: weekday_names
+             })
+
+    assert calendar.weekday_names == weekday_names
+
+    assert {:error, changeset} =
+             Worlds.update_calendar(calendar, %{
+               days_per_week: 2,
+               weekday_names: weekday_names
+             })
+
+    assert %{weekday_names: [_ | _]} = errors_on(changeset)
+  end
+
   test "creates reusable effects and attaches them to items" do
     {:ok, world} = Worlds.create_world(%{name: "Nirn"})
 
@@ -599,6 +622,21 @@ defmodule AncientStones.WorldsTest do
     refute Repo.get(LocationType, ruin.id)
     refute Repo.get(LocationType, nordic_ruin.id)
     refute Repo.get(Location, barrow.id)
+  end
+
+  test "updates a world name" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+
+    assert {:ok, updated_world} = Worlds.update_world(world, %{"name" => "Nirn Prime"})
+    assert updated_world.name == "Nirn Prime"
+    assert Repo.get!(World, world.id).name == "Nirn Prime"
+  end
+
+  test "does not update a world with an invalid name" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+
+    assert {:error, changeset} = Worlds.update_world(world, %{"name" => nil})
+    assert %{name: [_ | _]} = errors_on(changeset)
   end
 
   test "links creatures to locations" do
