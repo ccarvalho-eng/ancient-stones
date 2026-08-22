@@ -197,7 +197,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                         >
                           <div
                             :for={world <- sorted_worlds(galaxy.worlds)}
-                            class="stone-soft-panel rounded-md border px-3 py-2"
+                            class="stone-child-record rounded-md border px-3 py-2"
                           >
                             <div class="flex items-start justify-between gap-3">
                               <button
@@ -205,7 +205,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                                 type="button"
                                 phx-click="select_world"
                                 phx-value-id={world.id}
-                                class="min-w-0 flex-1 rounded-md text-left transition hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2"
+                                class="min-w-0 flex-1 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2"
                                 aria-label={"Edit #{world.name}"}
                               >
                                 <div class="stone-heading truncate text-sm font-medium">
@@ -338,7 +338,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                     <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
                       <span class="inline-flex items-center justify-center gap-2">
                         <%= if @selected_galaxy do %>
-                          <.icon name="hero-check" class="size-4" /> Save galaxy
+                          <.icon name="hero-check" class="size-4" /> Save
                         <% else %>
                           <.icon name="hero-plus" class="size-4" /> Create galaxy
                         <% end %>
@@ -351,7 +351,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                       phx-click="clear_galaxy_selection"
                       class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition"
                     >
-                      Cancel edit
+                      Cancel
                     </button>
                   </.form>
                 </div>
@@ -447,7 +447,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                     >
                       <span class="inline-flex items-center justify-center gap-2">
                         <%= if @selected_world do %>
-                          <.icon name="hero-check" class="size-4" /> Save world
+                          <.icon name="hero-check" class="size-4" /> Save
                         <% else %>
                           <.icon name="hero-plus" class="size-4" /> Create world
                         <% end %>
@@ -460,7 +460,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                       phx-click="clear_world_selection"
                       class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition"
                     >
-                      Cancel edit
+                      Cancel
                     </button>
                   </.form>
                 </div>

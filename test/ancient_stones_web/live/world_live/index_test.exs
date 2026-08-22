@@ -122,7 +122,8 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
 
     assert has_element?(view, "#dashboard-world-form[phx-submit='update_world']")
     assert has_element?(view, "#world_name[value='Eldoria']")
-    assert has_element?(view, "#cancel-world-edit")
+    assert has_element?(view, "#dashboard-world-form button", "Save")
+    assert has_element?(view, "#cancel-world-edit", "Cancel")
 
     view
     |> element("#cancel-world-edit")
@@ -155,7 +156,8 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
 
     assert has_element?(view, "#dashboard-galaxy-form[phx-submit='update_galaxy']")
     assert has_element?(view, "#galaxy_name[value='Mundus']")
-    assert has_element?(view, "#cancel-galaxy-edit")
+    assert has_element?(view, "#dashboard-galaxy-form button", "Save")
+    assert has_element?(view, "#cancel-galaxy-edit", "Cancel")
 
     view
     |> element("#cancel-galaxy-edit")
@@ -188,6 +190,7 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
 
     assert has_element?(view, "#galaxies", "Mundus")
     assert has_element?(view, "#galaxies", "Nirn")
+    assert has_element?(view, "#galaxies .stone-child-record", "Nirn")
     assert has_element?(view, "#worlds", "Orphan Realm")
     refute has_element?(view, "#worlds", "Nirn")
   end

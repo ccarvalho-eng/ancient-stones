@@ -93,21 +93,13 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert Worlds.get_world_dashboard!(world.id).galaxy.name == "Mundus Prime"
   end
 
-  test "shows the galaxy name in the breadcrumb for an assigned world", %{conn: conn} do
+  test "shows worlds as the breadcrumb parent for a world with a galaxy", %{conn: conn} do
     {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
-    world = Worlds.get_world_dashboard!(world.id)
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
 
-    assert has_element?(view, "#breadcrumb-parent", world.galaxy.name)
-  end
-
-  test "shows worlds in the breadcrumb for an unassigned world", %{conn: conn} do
-    world = create_world!()
-
-    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
-
-    assert has_element?(view, "#breadcrumb-parent", "Worlds")
+    assert has_element?(view, "nav[aria-label='Breadcrumb'] a", "Worlds")
+    assert has_element?(view, "nav[aria-label='Breadcrumb'] span", "Northern Realm")
   end
 
   test "does not show galaxy action form for worlds without a galaxy", %{conn: conn} do
@@ -1845,12 +1837,36 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=calendar")
 
+    assert has_element?(view, "#calendar-weekday-fields")
+    assert has_element?(view, "#calendar_weekday_names_0:not([placeholder])")
+    assert has_element?(view, "#calendar_weekday_names_6")
+
+    view
+    |> element("#add-calendar-weekday")
+    |> render_click()
+
+    assert has_element?(view, "#calendar_weekday_names_7")
+
+    view
+    |> element("#remove-calendar-weekday-7")
+    |> render_click()
+
+    refute has_element?(view, "#calendar_weekday_names_7")
+
     view
     |> form("#calendar-form",
       calendar: %{
         continent_id: continent.id,
         name: "Nordic Reckoning",
-        days_per_week: 7,
+        weekday_names: %{
+          "0" => "Montak",
+          "1" => "Dientak",
+          "2" => "Midtak",
+          "3" => "Dondertak",
+          "4" => "Fretak",
+          "5" => "Lortak",
+          "6" => "Suntak"
+        },
         era: "Fourth Era",
         year_start_angle: "270.0",
         perihelion_day: 12,
@@ -1862,6 +1878,17 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     calendar = Repo.get_by!(Calendar, name: "Nordic Reckoning")
     assert Decimal.equal?(calendar.year_start_angle, Decimal.new("270.0"))
     assert calendar.perihelion_day == 12
+    assert calendar.days_per_week == 7
+
+    assert calendar.weekday_names == [
+             "Montak",
+             "Dientak",
+             "Midtak",
+             "Dondertak",
+             "Fretak",
+             "Lortak",
+             "Suntak"
+           ]
 
     open_action(view, "calendar_month")
 
@@ -1884,6 +1911,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#calendar-details", "31 days")
     assert has_element?(view, "#calendar-details", "Aligned")
     assert has_element?(view, "#calendar-details", "270.0 deg")
+    assert has_element?(view, "#calendar-weekdays", "Montak")
+    assert has_element?(view, "#calendar-weekdays", "Midtak")
+    assert has_element?(view, "#calendar-weekdays", "Fretak")
     assert has_element?(view, "#calendar-month-grid")
     assert has_element?(view, "#calendar-month-#{month.id}", "Frostfall")
   end
@@ -1895,7 +1925,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     {:ok, calendar} =
       Worlds.create_calendar(continent, %{
         name: "Nordic Reckoning",
-        days_per_week: 7,
+        days_per_week: 3,
+        weekday_names: ["Montak", "Midtak", "Fretak"],
         era: "Fourth Era",
         year_start_angle: "270.0",
         perihelion_day: 12,
@@ -1914,7 +1945,31 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert has_element?(view, "#calendar-edit-form")
     assert has_element?(view, "#calendar_edit_name[value='Nordic Reckoning']")
+    assert has_element?(view, "#calendar_edit_weekday_names_0[value='Montak']")
+    assert has_element?(view, "#calendar_edit_weekday_names_2[value='Fretak']")
     refute has_element?(view, "#calendar-form input[name='calendar[name]']")
+
+    view
+    |> form("#calendar-edit-form",
+      calendar_edit: %{
+        name: "Nordic Reckoning",
+        weekday_names: %{
+          "0" => "Montak Prime",
+          "1" => "Midtak Prime",
+          "2" => "Fretak Prime"
+        },
+        era: "Fourth Era",
+        year_start_angle: "270.0",
+        perihelion_day: 12,
+        description: "A local calendar"
+      }
+    )
+    |> render_submit()
+
+    calendar = Worlds.get_calendar!(calendar.id)
+
+    assert calendar.weekday_names == ["Montak Prime", "Midtak Prime", "Fretak Prime"]
+    assert has_element?(view, "#calendar-weekdays", "Montak Prime")
 
     view
     |> element("a[aria-label='Edit Frostfall']")

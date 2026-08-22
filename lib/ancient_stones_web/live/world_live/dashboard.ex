@@ -704,7 +704,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   def handle_event("create_calendar", %{"calendar" => params}, socket) do
     create_and_reload(socket, fn ->
       with {:ok, continent} <- get_continent_in_world(socket, params["continent_id"]) do
-        Worlds.create_calendar(continent, params)
+        Worlds.create_calendar(continent, calendar_attrs(params))
       end
     end)
   end
@@ -712,9 +712,41 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   def handle_event("update_calendar", %{"calendar_edit" => params}, socket) do
     update_and_reload(socket, fn ->
       with {:ok, calendar} <- get_selected_calendar(socket) do
-        Worlds.update_calendar(calendar, params)
+        Worlds.update_calendar(calendar, calendar_attrs(params))
       end
     end)
+  end
+
+  def handle_event("change_calendar_weekdays", %{"calendar" => params}, socket) do
+    {:noreply, assign(socket, :calendar_form, data_form(:calendar, params))}
+  end
+
+  def handle_event("change_calendar_weekdays", %{"calendar_edit" => params}, socket) do
+    {:noreply, assign(socket, :calendar_edit_form, data_form(:calendar_edit, params))}
+  end
+
+  def handle_event("add_calendar_weekday", %{"form" => "calendar"}, socket) do
+    {:noreply, add_weekday_form_row(socket, :calendar_form, :calendar)}
+  end
+
+  def handle_event("add_calendar_weekday", %{"form" => "calendar_edit"}, socket) do
+    {:noreply, add_weekday_form_row(socket, :calendar_edit_form, :calendar_edit)}
+  end
+
+  def handle_event(
+        "remove_calendar_weekday",
+        %{"form" => "calendar", "index" => index},
+        socket
+      ) do
+    {:noreply, remove_weekday_form_row(socket, :calendar_form, :calendar, index)}
+  end
+
+  def handle_event(
+        "remove_calendar_weekday",
+        %{"form" => "calendar_edit", "index" => index},
+        socket
+      ) do
+    {:noreply, remove_weekday_form_row(socket, :calendar_edit_form, :calendar_edit, index)}
   end
 
   def handle_event("create_calendar_month", %{"calendar_month" => params}, socket) do
@@ -1188,7 +1220,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         "presence" => "common"
       })
     )
-    |> assign(:calendar_form, data_form(:calendar, %{"continent_id" => first_id(continents)}))
+    |> assign(
+      :calendar_form,
+      data_form(:calendar, %{
+        "continent_id" => first_id(continents),
+        "weekday_names" => indexed_weekday_names(List.duplicate("", 7))
+      })
+    )
     |> assign(:civilization_form, data_form(:civilization, %{"timeline_era_id" => nil}))
     |> assign(:timeline_form, data_form(:timeline))
     |> assign(
@@ -2383,6 +2421,71 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> to_form(as: name)
   end
 
+  attr :form, :any, required: true
+  attr :form_name, :string, required: true
+
+  defp weekday_fields(assigns) do
+    weekday_rows = weekday_form_rows(assigns.form[:weekday_names].value)
+
+    assigns =
+      assigns
+      |> assign(:weekday_rows, weekday_rows)
+      |> assign(:weekday_count, length(weekday_rows))
+
+    ~H"""
+    <div id={"#{@form_name}-weekday-fields"} class="rounded-md border border-zinc-200 p-3">
+      <input
+        type="hidden"
+        name={"#{@form_name}[days_per_week]"}
+        value={@weekday_count}
+      />
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-sm font-medium text-zinc-700">Weekdays</p>
+          <p class="mt-0.5 text-xs text-zinc-500">{@weekday_count} days per week</p>
+        </div>
+        <button
+          id={"add-#{@form_name}-weekday"}
+          type="button"
+          phx-click="add_calendar_weekday"
+          phx-value-form={@form_name}
+          class="stone-button inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition"
+        >
+          <.icon name="hero-plus" class="size-3.5" /> Add day
+        </button>
+      </div>
+      <div class="mt-3 grid gap-2">
+        <div
+          :for={{index, weekday_name} <- @weekday_rows}
+          id={"#{@form_name}-weekday-row-#{index}"}
+          class="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2"
+        >
+          <.input
+            id={"#{@form_name}_weekday_names_#{index}"}
+            name={"#{@form_name}[weekday_names][#{index}]"}
+            value={weekday_name}
+            type="text"
+            label={"Day #{index + 1}"}
+            required
+          />
+          <button
+            :if={@weekday_count > 1}
+            id={"remove-#{@form_name}-weekday-#{index}"}
+            type="button"
+            phx-click="remove_calendar_weekday"
+            phx-value-form={@form_name}
+            phx-value-index={index}
+            class="stone-danger-button mb-2 inline-flex size-10 items-center justify-center rounded-md border transition"
+            aria-label={"Remove day #{index + 1}"}
+          >
+            <.icon name="hero-trash" class="size-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   defp world_form_attrs(world) do
     %{"name" => world.name}
   end
@@ -2614,10 +2717,83 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "name" => calendar.name,
       "description" => calendar.description,
       "days_per_week" => calendar.days_per_week,
+      "weekday_names" =>
+        calendar.weekday_names
+        |> calendar_weekday_names(calendar.days_per_week)
+        |> indexed_weekday_names(),
       "era" => calendar.era,
       "year_start_angle" => calendar.year_start_angle,
       "perihelion_day" => calendar.perihelion_day
     }
+  end
+
+  defp calendar_attrs(params) do
+    weekday_names = weekday_form_values(params["weekday_names"])
+
+    params
+    |> Map.put("weekday_names", weekday_names)
+    |> Map.put("days_per_week", length(weekday_names))
+  end
+
+  defp add_weekday_form_row(socket, form_assign, form_name) do
+    form = Map.fetch!(socket.assigns, form_assign)
+    weekday_names = weekday_form_values(form.params["weekday_names"]) ++ [""]
+
+    params = Map.put(form.params, "weekday_names", indexed_weekday_names(weekday_names))
+    assign(socket, form_assign, data_form(form_name, params))
+  end
+
+  defp remove_weekday_form_row(socket, form_assign, form_name, index) do
+    form = Map.fetch!(socket.assigns, form_assign)
+    weekday_names = weekday_form_values(form.params["weekday_names"])
+
+    weekday_names =
+      case Integer.parse(index) do
+        {parsed_index, ""} when length(weekday_names) > 1 ->
+          List.delete_at(weekday_names, parsed_index)
+
+        _other ->
+          weekday_names
+      end
+
+    params = Map.put(form.params, "weekday_names", indexed_weekday_names(weekday_names))
+    assign(socket, form_assign, data_form(form_name, params))
+  end
+
+  defp calendar_weekday_names([], days_per_week)
+       when is_integer(days_per_week) and days_per_week > 0 do
+    List.duplicate("", days_per_week)
+  end
+
+  defp calendar_weekday_names(weekday_names, _days_per_week) do
+    weekday_names
+  end
+
+  defp weekday_form_rows(weekday_names) do
+    weekday_names
+    |> weekday_form_values()
+    |> Enum.with_index()
+    |> Enum.map(fn {weekday_name, index} -> {index, weekday_name} end)
+  end
+
+  defp weekday_form_values(weekday_names) when is_map(weekday_names) do
+    weekday_names
+    |> Enum.sort_by(fn {index, _weekday_name} -> sortable_form_index(index) end)
+    |> Enum.map(fn {_index, weekday_name} -> weekday_name end)
+  end
+
+  defp weekday_form_values(weekday_names) when is_list(weekday_names) do
+    weekday_names
+  end
+
+  defp weekday_form_values(_weekday_names) do
+    []
+  end
+
+  defp indexed_weekday_names(weekday_names) do
+    weekday_names
+    |> Enum.with_index()
+    |> Map.new(fn {weekday_name, index} -> {to_string(index), weekday_name} end)
   end
 
   defp calendar_month_edit_attrs(nil) do

@@ -340,6 +340,29 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(altmer.traits, &(&1.name == "Highborn" && &1.category == :power))
   end
 
+  test "stores ordered weekday names on calendars" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    weekday_names = ["Montak", "Midtak", "Fretak"]
+
+    assert {:ok, calendar} =
+             Worlds.create_calendar(continent, %{
+               name: "Tamrielic Calendar",
+               days_per_week: 3,
+               weekday_names: weekday_names
+             })
+
+    assert calendar.weekday_names == weekday_names
+
+    assert {:error, changeset} =
+             Worlds.update_calendar(calendar, %{
+               days_per_week: 2,
+               weekday_names: weekday_names
+             })
+
+    assert %{weekday_names: [_ | _]} = errors_on(changeset)
+  end
+
   test "creates reusable effects and attaches them to items" do
     {:ok, world} = Worlds.create_world(%{name: "Nirn"})
 
