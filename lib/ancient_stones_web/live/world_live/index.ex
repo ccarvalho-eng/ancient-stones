@@ -2,6 +2,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
   use AncientStonesWeb, :live_view
 
   alias AncientStones.Galaxies
+  alias AncientStones.Maps
   alias AncientStones.Templates
   alias AncientStones.Worlds
 
@@ -61,6 +62,16 @@ defmodule AncientStonesWeb.WorldLive.Index do
                   <.icon name="hero-globe-alt" class="size-4" /> Worlds / Planets
                 </span>
                 <strong class="text-xs font-semibold">{@inventory.worlds}</strong>
+              </.link>
+              <.link
+                id="maps-navigation"
+                navigate={~p"/maps"}
+                class="stone-button mt-1 flex items-center justify-between gap-2 rounded-md border px-3 py-2 font-medium"
+              >
+                <span class="flex items-center gap-2">
+                  <.icon name="hero-map" class="size-4" /> Maps
+                </span>
+                <strong class="text-xs font-semibold">{@inventory.maps}</strong>
               </.link>
               <span class="stone-muted mt-1 flex items-center justify-between gap-2 rounded-md px-3 py-2">
                 <span class="flex items-center gap-2">
@@ -723,6 +734,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
     inventory =
       Worlds.geography_inventory()
       |> Map.put(:galaxies, Galaxies.count_galaxies())
+      |> Map.put(:maps, Maps.count_maps())
 
     world_counts =
       galaxies

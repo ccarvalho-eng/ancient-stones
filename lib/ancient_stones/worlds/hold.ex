@@ -2,6 +2,7 @@ defmodule AncientStones.Worlds.Hold do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias AncientStones.Maps.MapItem
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.HoldCommerceEntry
   alias AncientStones.Worlds.Location
@@ -24,6 +25,7 @@ defmodule AncientStones.Worlds.Hold do
     has_many(:locations, Location)
     has_many(:commerce_entries, HoldCommerceEntry)
     has_many(:political_offices, PoliticalOffice)
+    has_many(:map_items, MapItem)
 
     timestamps(type: :utc_datetime)
   end

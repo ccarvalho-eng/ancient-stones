@@ -2,6 +2,7 @@ defmodule AncientStones.Worlds.Continent do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias AncientStones.Maps.MapItem
   alias AncientStones.Worlds.Calendar
   alias AncientStones.Worlds.ContinentCurrency
   alias AncientStones.Worlds.Geography
@@ -21,6 +22,7 @@ defmodule AncientStones.Worlds.Continent do
     has_many(:calendars, Calendar)
     has_many(:provinces, Province)
     has_one(:currency, ContinentCurrency)
+    has_many(:map_items, MapItem)
 
     timestamps(type: :utc_datetime)
   end

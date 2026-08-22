@@ -24,6 +24,7 @@ import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ancient_stones"
 import topbar from "../vendor/topbar"
+import InkMap from "./hooks/ink_map"
 
 const themeStorageKey = "phx:theme"
 const themes = new Set(["system", "light", "dark"])
@@ -88,6 +89,7 @@ if (initialStoredTheme) {
 
 const Hooks = {
   ...colocatedHooks,
+  InkMap,
   AncientStonesTheme: {
     mounted() {
       const theme = storedTheme()

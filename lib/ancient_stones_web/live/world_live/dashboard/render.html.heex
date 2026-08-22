@@ -53,6 +53,11 @@
                     label="Geography"
                   />
                   <.section_menu_link
+                    navigate={~p"/maps"}
+                    selected={false}
+                    label="Maps"
+                  />
+                  <.section_menu_link
                     patch={~p"/worlds/#{@world}/dashboard?section=races"}
                     selected={@section == "races"}
                     label="Races"
@@ -124,6 +129,7 @@
 
           <div class="flex items-center gap-3">
             <.form
+              :if={@section != "map"}
               for={@search_form}
               id="dashboard-search-form"
               phx-change="search_dashboard"
@@ -151,6 +157,7 @@
         </div>
 
         <.form
+          :if={@section != "map"}
           for={@search_form}
           id="dashboard-search-form-mobile"
           phx-change="search_dashboard"
@@ -1382,6 +1389,959 @@
         </div>
       <% else %>
         <%= cond do %>
+          <% @section == "map" -> %>
+            <div id="map-dashboard" class="min-h-[800px] bg-zinc-100 p-4">
+              <div class="stone-panel overflow-hidden rounded-md border shadow-sm">
+                <div class="stone-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                  <div>
+                    <p class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
+                      World canvas
+                    </p>
+                    <h2 class="stone-heading text-base font-semibold">
+                      {if @map_document, do: @map_document.name, else: "Create a map"}
+                    </h2>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <p class="stone-muted hidden max-w-xl text-xs xl:block">
+                      Draw terrain, place features, and label the world. Changes remain local until saved.
+                    </p>
+                    <button
+                      id="map-new"
+                      type="button"
+                      phx-click="show_new_map"
+                      class="stone-primary-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                      <.icon name="hero-plus" class="size-4" /> New map
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  :if={@new_map_open?}
+                  id="map-create-dialog"
+                  class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/45 p-4 backdrop-blur-[2px]"
+                  phx-window-keydown="hide_new_map"
+                  phx-key="Escape"
+                >
+                  <div
+                    class="stone-panel w-full max-w-xl overflow-hidden rounded-lg border shadow-2xl"
+                    phx-click-away="hide_new_map"
+                  >
+                    <div class="stone-border flex items-center justify-between border-b px-4 py-3">
+                      <div>
+                        <p class="stone-muted text-[10px] font-semibold uppercase tracking-wide">
+                          {@world.name}
+                        </p>
+                        <h3 class="stone-heading text-base font-semibold">Create map</h3>
+                      </div>
+                      <button
+                        id="map-create-close"
+                        type="button"
+                        phx-click="hide_new_map"
+                        aria-label="Close new map form"
+                        class="stone-button rounded-md border p-2"
+                      >
+                        <.icon name="hero-x-mark" class="size-4" />
+                      </button>
+                    </div>
+                    <.form
+                      for={@map_create_form}
+                      id="map-create-form"
+                      phx-submit="create_map"
+                      class="grid gap-3 p-4 sm:grid-cols-2"
+                    >
+                      <.input field={@map_create_form[:name]} label="Name" required />
+                      <.input
+                        field={@map_create_form[:kind]}
+                        type="select"
+                        label="Scale"
+                        options={[
+                          {"World", :world},
+                          {"Region", :region},
+                          {"City", :city},
+                          {"Interior", :interior},
+                          {"Dungeon", :dungeon}
+                        ]}
+                      />
+                      <.input
+                        field={@map_create_form[:parent_map_id]}
+                        type="select"
+                        label="Parent map"
+                        options={[{"Outer map", ""} | Enum.map(@map_documents, &{&1.name, &1.id})]}
+                      />
+                      <.input
+                        field={@map_create_form[:description]}
+                        type="textarea"
+                        label="Description"
+                      />
+                      <div class="flex justify-end gap-2 sm:col-span-2">
+                        <button
+                          id="map-create-cancel"
+                          type="button"
+                          phx-click="hide_new_map"
+                          class="stone-button rounded-md border px-4 py-2 text-sm font-semibold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          id="map-create-submit"
+                          type="submit"
+                          class="stone-primary-button rounded-md border px-4 py-2 text-sm font-semibold shadow-sm transition hover:brightness-75"
+                        >
+                          Create map
+                        </button>
+                      </div>
+                    </.form>
+                  </div>
+                </div>
+
+                <div
+                  id={"ink-map-editor-#{if(@map_document, do: @map_document.id, else: "new")}"}
+                  data-map-editor
+                  phx-hook="InkMap"
+                  phx-update="ignore"
+                  data-map-document={
+                    Jason.encode!(
+                      if(@map_document,
+                        do: @map_document.document,
+                        else: AncientStones.Maps.MapDocument.empty_document()
+                      )
+                    )
+                  }
+                  data-map-width={if(@map_document, do: @map_document.width, else: 1600)}
+                  data-map-height={if(@map_document, do: @map_document.height, else: 1000)}
+                  class="ink-map-editor grid min-h-[740px] lg:grid-cols-[220px_minmax(0,1fr)_220px]"
+                >
+                  <aside class="stone-border border-b p-3 lg:border-b-0 lg:border-r">
+                    <div class="space-y-5">
+                      <details
+                        id="map-tools-panel"
+                        open
+                        class="stone-soft-panel group rounded-md border p-3"
+                      >
+                        <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                          Tools
+                          <.icon
+                            name="hero-chevron-down"
+                            class="stone-muted size-4 transition group-open:rotate-180"
+                          />
+                        </summary>
+                        <div class="mt-2 grid grid-cols-3 gap-2">
+                          <button
+                            id="map-select-tool"
+                            type="button"
+                            data-map-tool="select"
+                            aria-label="Select"
+                            title="Select"
+                            class="stone-button stone-selected inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                          >
+                            <.icon name="hero-cursor-arrow-rays" class="size-4" />
+                          </button>
+                          <button
+                            id="map-ink-tool"
+                            type="button"
+                            data-map-tool="ink"
+                            aria-label="Ink"
+                            title="Ink"
+                            class="stone-button inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                          >
+                            <.icon name="hero-pencil" class="size-4" />
+                          </button>
+                          <button
+                            id="map-pan-tool"
+                            type="button"
+                            data-map-tool="pan"
+                            aria-label="Pan"
+                            title="Pan"
+                            class="stone-button inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                          >
+                            <.icon name="hero-hand-raised" class="size-4" />
+                          </button>
+                        </div>
+                        <button
+                          id="map-add-label"
+                          type="button"
+                          data-map-action="add-text"
+                          class="stone-button mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                        >
+                          <.icon name="hero-language" class="size-4" /> Text label
+                        </button>
+                        <div class="mt-3 grid gap-2">
+                          <label class="stone-muted block text-xs" for="map-brush-size">
+                            Brush size
+                          </label>
+                          <input
+                            id="map-brush-size"
+                            data-map-brush-size
+                            type="range"
+                            min="1"
+                            max="18"
+                            value="4"
+                            class="w-full accent-zinc-700"
+                          />
+                          <label class="stone-muted mt-1 block text-xs" for="map-brush-density">
+                            Texture density
+                          </label>
+                          <input
+                            id="map-brush-density"
+                            data-map-brush-density
+                            type="range"
+                            min="1"
+                            max="5"
+                            value="3"
+                            class="w-full accent-zinc-700"
+                          />
+                        </div>
+                        <div
+                          id="map-landmass-controls"
+                          class="stone-border mt-2 grid gap-2 rounded-md border p-2"
+                        >
+                          <div class="flex items-center justify-between gap-2">
+                            <p class="stone-heading text-[11px] font-semibold uppercase tracking-wide">
+                              Landmass
+                            </p>
+                            <button
+                              id="map-landmass-tool"
+                              type="button"
+                              data-map-tool="landmass"
+                              class="stone-button inline-flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-[10px] font-semibold transition"
+                            >
+                              <.icon name="hero-map" class="size-3.5" /> Build
+                            </button>
+                          </div>
+                          <div class="grid grid-cols-2 gap-2">
+                            <label class="stone-muted text-[10px] font-semibold uppercase tracking-wide">
+                              Land
+                              <input
+                                id="map-land-color"
+                                type="color"
+                                value="#c8b88f"
+                                data-map-land-color
+                                class="mt-1 h-8 w-full cursor-pointer rounded border bg-transparent"
+                              />
+                            </label>
+                            <label class="stone-muted text-[10px] font-semibold uppercase tracking-wide">
+                              Water
+                              <input
+                                id="map-water-color"
+                                type="color"
+                                value="#9fb5b2"
+                                data-map-water-color
+                                class="mt-1 h-8 w-full cursor-pointer rounded border bg-transparent"
+                              />
+                            </label>
+                          </div>
+                          <label
+                            for="map-coast-roughness"
+                            class="stone-muted text-[10px] font-semibold uppercase tracking-wide"
+                          >
+                            Coast roughness
+                          </label>
+                          <input
+                            id="map-coast-roughness"
+                            type="range"
+                            min="0"
+                            max="5"
+                            value="2"
+                            data-map-coast-roughness
+                            class="w-full"
+                          />
+                          <p class="stone-muted text-[10px] leading-relaxed">
+                            Click coastline points. Enter finishes; Escape cancels.
+                          </p>
+                          <div class="grid grid-cols-3 gap-1">
+                            <button
+                              id="map-landmass-finish"
+                              type="button"
+                              data-map-action="finish-landmass"
+                              class="stone-button rounded border px-1 py-1.5 text-[10px] font-semibold"
+                            >
+                              Finish
+                            </button>
+                            <button
+                              id="map-landmass-undo"
+                              type="button"
+                              data-map-action="undo-landmass-point"
+                              class="stone-button rounded border px-1 py-1.5 text-[10px] font-semibold"
+                            >
+                              Undo point
+                            </button>
+                            <button
+                              id="map-landmass-cancel"
+                              type="button"
+                              data-map-action="cancel-landmass"
+                              class="stone-button rounded border px-1 py-1.5 text-[10px] font-semibold"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          <button
+                            id="map-landmass-edit"
+                            type="button"
+                            data-map-action="edit-landmass"
+                            class="stone-button rounded border px-2 py-1.5 text-[10px] font-semibold"
+                          >
+                            Edit selected coastline
+                          </button>
+                        </div>
+
+                        <p class="stone-muted mt-4 text-[11px] font-semibold uppercase tracking-wide">
+                          Texture brushes
+                        </p>
+                        <div class="mt-2 grid grid-cols-2 gap-1.5">
+                          <button
+                            id="map-texture-forest"
+                            type="button"
+                            data-map-tool="texture-forest"
+                            class="stone-button rounded-md border px-2 py-2 text-xs font-medium transition"
+                          >
+                            Forest
+                          </button>
+                          <button
+                            id="map-texture-mountains"
+                            type="button"
+                            data-map-tool="texture-mountains"
+                            class="stone-button rounded-md border px-2 py-2 text-xs font-medium transition"
+                          >
+                            Mountains
+                          </button>
+                          <button
+                            id="map-texture-grassland"
+                            type="button"
+                            data-map-tool="texture-grassland"
+                            class="stone-button rounded-md border px-2 py-2 text-xs font-medium transition"
+                          >
+                            Grassland
+                          </button>
+                          <button
+                            id="map-texture-marsh"
+                            type="button"
+                            data-map-tool="texture-marsh"
+                            class="stone-button rounded-md border px-2 py-2 text-xs font-medium transition"
+                          >
+                            Marsh
+                          </button>
+                          <button
+                            id="map-texture-desert"
+                            type="button"
+                            data-map-tool="texture-desert"
+                            class="stone-button rounded-md border px-2 py-2 text-xs font-medium transition"
+                          >
+                            Desert
+                          </button>
+                          <button
+                            id="map-texture-waves"
+                            type="button"
+                            data-map-tool="texture-waves"
+                            class="stone-button rounded-md border px-2 py-2 text-xs font-medium transition"
+                          >
+                            Waves
+                          </button>
+                          <button
+                            id="map-texture-road"
+                            type="button"
+                            data-map-tool="texture-road"
+                            class="stone-button col-span-2 rounded-md border px-2 py-2 text-xs font-medium transition"
+                          >
+                            Road
+                          </button>
+                        </div>
+                      </details>
+
+                      <details
+                        id="map-symbols-panel"
+                        class="stone-soft-panel group rounded-md border p-3"
+                      >
+                        <summary class="flex cursor-pointer list-none items-center justify-between gap-2">
+                          <h3 class="stone-heading text-xs font-semibold uppercase tracking-wide">
+                            Symbol library
+                          </h3>
+                          <span class="flex items-center gap-1.5">
+                            <span id="map-icon-count" class="stone-muted text-[10px]">56 symbols</span>
+                            <.icon
+                              name="hero-chevron-down"
+                              class="stone-muted size-4 transition group-open:rotate-180"
+                            />
+                          </span>
+                        </summary>
+                        <div class="stone-search mt-2">
+                          <.icon
+                            name="hero-magnifying-glass"
+                            class="stone-search-icon pointer-events-none size-4"
+                          />
+                          <input
+                            id="map-icon-search"
+                            data-map-icon-search
+                            type="search"
+                            autocomplete="off"
+                            placeholder="Search symbols"
+                            class="stone-search-input"
+                          />
+                        </div>
+                        <select
+                          id="map-icon-category"
+                          data-map-icon-category
+                          class="stone-button mt-2 w-full rounded-md border px-2.5 py-2 text-xs"
+                          aria-label="Filter map symbols"
+                        >
+                          <option value="all">All categories</option>
+                          <option value="terrain">Terrain</option>
+                          <option value="nature">Nature</option>
+                          <option value="settlements">Settlements</option>
+                          <option value="routes">Routes & transport</option>
+                          <option value="landmarks">Landmarks</option>
+                          <option value="creatures">Creatures</option>
+                          <option value="nordic">Nordic</option>
+                          <option value="medieval">Medieval</option>
+                        </select>
+                        <div
+                          id="map-icon-grid"
+                          data-map-icon-grid
+                          class="mt-2 grid max-h-[330px] grid-cols-3 gap-1.5 overflow-y-auto pr-1"
+                          aria-live="polite"
+                        >
+                        </div>
+                      </details>
+                    </div>
+                  </aside>
+
+                  <main id="map-canvas-workspace" class="relative min-w-0 bg-zinc-200/70">
+                    <div class="stone-border flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+                      <div class="flex items-center gap-2">
+                        <button
+                          id="map-undo"
+                          type="button"
+                          data-map-action="undo"
+                          class="stone-button inline-flex size-9 items-center justify-center rounded-md border transition"
+                          aria-label="Undo"
+                        >
+                          <.icon name="hero-arrow-uturn-left" class="size-4" />
+                        </button>
+                        <button
+                          id="map-redo"
+                          type="button"
+                          data-map-action="redo"
+                          class="stone-button inline-flex size-9 items-center justify-center rounded-md border transition"
+                          aria-label="Redo"
+                        >
+                          <.icon name="hero-arrow-uturn-right" class="size-4" />
+                        </button>
+                        <button
+                          id="map-delete-selection"
+                          type="button"
+                          data-map-action="delete"
+                          class="stone-danger-button inline-flex size-9 items-center justify-center rounded-md border transition"
+                          aria-label="Delete selected object"
+                        >
+                          <.icon name="hero-trash" class="size-4" />
+                        </button>
+                        <button
+                          id="map-duplicate-selection"
+                          type="button"
+                          data-map-action="duplicate"
+                          class="stone-button inline-flex size-9 items-center justify-center rounded-md border transition"
+                          aria-label="Duplicate selected objects"
+                          title="Duplicate (Ctrl/Cmd + D)"
+                        >
+                          <.icon name="hero-squares-plus" class="size-4" />
+                        </button>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        <button
+                          id="map-toggle-grid"
+                          type="button"
+                          data-map-action="toggle-grid"
+                          class="stone-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                        >
+                          <.icon name="hero-squares-2x2" class="size-4" /> Grid
+                        </button>
+                        <button
+                          id="map-toggle-snap"
+                          type="button"
+                          data-map-action="toggle-snap"
+                          class="stone-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                          aria-pressed="false"
+                        >
+                          <.icon name="hero-viewfinder-circle" class="size-4" /> Snap
+                        </button>
+                        <button
+                          id="map-toggle-guides"
+                          type="button"
+                          data-map-action="toggle-guides"
+                          class="stone-button stone-selected inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                          aria-pressed="true"
+                        >
+                          <.icon name="hero-plus" class="size-4" /> Guides
+                        </button>
+                        <button
+                          id="map-zoom-fit"
+                          type="button"
+                          data-map-action="zoom-fit"
+                          class="stone-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                        >
+                          <.icon name="hero-arrows-pointing-in" class="size-4" /> Fit
+                        </button>
+                        <button
+                          id="map-fullscreen"
+                          type="button"
+                          data-map-action="fullscreen"
+                          class="stone-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+                          aria-label="Enter focus mode"
+                          aria-pressed="false"
+                          title="Fullscreen focus mode"
+                        >
+                          <.icon name="hero-arrows-pointing-out" class="size-4" />
+                          <span data-map-fullscreen-label class="hidden xl:inline">Focus</span>
+                        </button>
+                        <button
+                          id="map-export"
+                          type="button"
+                          data-map-action="export"
+                          class="stone-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                        >
+                          <.icon name="hero-arrow-down-tray" class="size-4" /> PNG
+                        </button>
+                        <button
+                          id="map-save"
+                          type="button"
+                          data-map-action="save"
+                          class="stone-primary-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold shadow-sm transition duration-150 hover:-translate-y-0.5 hover:brightness-75 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm"
+                        >
+                          <.icon name="hero-check" class="size-4" /> Save
+                        </button>
+                      </div>
+                    </div>
+                    <div id="map-canvas-scroller" class="max-h-[680px] overflow-auto p-5">
+                      <div
+                        id="ink-map-stage"
+                        class="relative mx-auto w-max overflow-hidden rounded-md border border-zinc-400 bg-[#e7ddc4] shadow-lg"
+                      >
+                        <canvas id="ink-map-canvas"></canvas>
+                        <div
+                          id="map-center-guide-vertical"
+                          data-map-center-guide
+                          class="pointer-events-none absolute inset-y-0 left-1/2 z-20 border-l-2 border-dashed border-amber-950/80 opacity-70 drop-shadow-[0_0_1px_rgba(255,255,255,0.95)] transition-opacity"
+                        >
+                        </div>
+                        <div
+                          id="map-center-guide-horizontal"
+                          data-map-center-guide
+                          class="pointer-events-none absolute inset-x-0 top-1/2 z-20 border-t-2 border-dashed border-amber-950/80 opacity-70 drop-shadow-[0_0_1px_rgba(255,255,255,0.95)] transition-opacity"
+                        >
+                        </div>
+                      </div>
+                    </div>
+                    <div
+                      id="map-zoom-controls"
+                      class="stone-soft-panel absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-md border p-1 shadow-lg"
+                    >
+                      <button
+                        id="map-zoom-out"
+                        type="button"
+                        data-map-action="zoom-out"
+                        class="stone-button inline-flex size-7 items-center justify-center rounded border transition"
+                        aria-label="Zoom out"
+                      >
+                        <.icon name="hero-minus" class="size-3.5" />
+                      </button>
+                      <input
+                        id="map-zoom"
+                        data-map-zoom
+                        type="range"
+                        min="5"
+                        max="400"
+                        step="5"
+                        value="100"
+                        class="w-20 accent-zinc-700 sm:w-28"
+                        aria-label="Map zoom"
+                      />
+                      <button
+                        id="map-zoom-value"
+                        type="button"
+                        data-map-action="zoom-reset"
+                        class="stone-button min-w-11 rounded border px-1.5 py-1 text-[11px] font-medium transition"
+                        title="Reset zoom"
+                      >
+                        100%
+                      </button>
+                      <button
+                        id="map-zoom-in"
+                        type="button"
+                        data-map-action="zoom-in"
+                        class="stone-button inline-flex size-7 items-center justify-center rounded border transition"
+                        aria-label="Zoom in"
+                      >
+                        <.icon name="hero-plus" class="size-3.5" />
+                      </button>
+                    </div>
+                  </main>
+
+                  <aside class="stone-border border-t p-3 lg:border-l lg:border-t-0">
+                    <details
+                      :if={@map_document}
+                      id="map-properties"
+                      class="stone-soft-panel group rounded-md border p-3"
+                    >
+                      <summary class="flex cursor-pointer list-none items-center justify-between gap-2">
+                        <div class="min-w-0">
+                          <p class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
+                            Map properties
+                          </p>
+                          <p class="stone-heading mt-1 truncate text-sm font-semibold">
+                            {@map_document.name}
+                          </p>
+                        </div>
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 shrink-0 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <.form
+                        for={@map_edit_form}
+                        id="map-edit-form"
+                        phx-submit="update_map"
+                        class="mt-3 grid gap-3"
+                      >
+                        <.input field={@map_edit_form[:name]} label="Name" required />
+                        <.input
+                          field={@map_edit_form[:kind]}
+                          type="select"
+                          label="Scale"
+                          options={[
+                            {"World", :world},
+                            {"Region", :region},
+                            {"City", :city},
+                            {"Interior", :interior},
+                            {"Dungeon", :dungeon}
+                          ]}
+                        />
+                        <.input
+                          field={@map_edit_form[:parent_map_id]}
+                          type="select"
+                          label="Parent map"
+                          options={[
+                            {"Outer map", ""}
+                            | @map_documents
+                              |> Enum.reject(&(&1.id == @map_document.id))
+                              |> Enum.map(&{&1.name, &1.id})
+                          ]}
+                        />
+                        <.input
+                          field={@map_edit_form[:description]}
+                          type="textarea"
+                          label="Description"
+                        />
+                        <div class="grid grid-cols-2 gap-2">
+                          <.input
+                            field={@map_edit_form[:width]}
+                            type="number"
+                            label="Width"
+                            min="640"
+                            max="8192"
+                            step="100"
+                          />
+                          <.input
+                            field={@map_edit_form[:height]}
+                            type="number"
+                            label="Height"
+                            min="480"
+                            max="8192"
+                            step="100"
+                          />
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                          <button
+                            id="map-edit-submit"
+                            type="submit"
+                            class="stone-primary-button rounded-md border px-3 py-2 text-xs font-semibold transition hover:brightness-75"
+                          >
+                            Save
+                          </button>
+                          <button
+                            id="map-delete"
+                            type="button"
+                            phx-click="delete_map"
+                            data-confirm="Delete this map? Inner maps will become outer maps."
+                            class="rounded-md border border-red-300 px-3 py-2 text-xs font-semibold text-red-800 transition hover:bg-red-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </.form>
+                    </details>
+
+                    <details
+                      id="map-coordinates-properties"
+                      class="stone-soft-panel group mt-3 rounded-md border p-3"
+                    >
+                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                        Coordinates
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <p
+                        id="map-coordinate-readout"
+                        class="stone-heading mt-3 font-mono text-sm font-semibold"
+                      >
+                        X -- / Y --
+                      </p>
+                    </details>
+
+                    <details
+                      id="map-geography-properties"
+                      class="stone-soft-panel group mt-3 rounded-md border p-3"
+                    >
+                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                        Linked geography
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <label
+                        for="map-entity-link"
+                        class="stone-muted mt-3 block text-[10px] font-semibold uppercase tracking-wide"
+                      >
+                        Linked geography
+                      </label>
+                      <select
+                        id="map-entity-link"
+                        data-map-entity-link
+                        class="stone-button mt-2 w-full rounded-md border px-2.5 py-2 text-xs"
+                      >
+                        <option value="">Not linked</option>
+                        <optgroup :if={@continents != []} label="Continents">
+                          <option
+                            :for={continent <- @continents}
+                            value={"continent:#{continent.id}"}
+                            data-map-entity-name={continent.name}
+                          >
+                            {continent.name}
+                          </option>
+                        </optgroup>
+                        <optgroup :if={@provinces != []} label="Provinces">
+                          <option
+                            :for={province <- @provinces}
+                            value={"province:#{province.id}"}
+                            data-map-entity-name={province.name}
+                          >
+                            {province.name}
+                          </option>
+                        </optgroup>
+                        <optgroup :if={@holds != []} label="Holds">
+                          <option
+                            :for={hold <- @holds}
+                            value={"hold:#{hold.id}"}
+                            data-map-entity-name={hold.name}
+                          >
+                            {hold.name}
+                          </option>
+                        </optgroup>
+                        <optgroup :if={@locations != []} label="Locations">
+                          <option
+                            :for={location <- @locations}
+                            value={"location:#{location.id}"}
+                            data-map-entity-name={location.name}
+                          >
+                            {location.name}
+                          </option>
+                        </optgroup>
+                      </select>
+                      <p class="stone-muted mt-1.5 text-[11px] leading-4">
+                        Link one selected symbol to a world geography record.
+                      </p>
+                    </details>
+
+                    <details
+                      id="map-object-properties"
+                      class="stone-soft-panel group mt-3 rounded-md border p-3"
+                    >
+                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                        Selected object
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                          <p class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
+                            Selected object
+                          </p>
+                          <p
+                            id="map-selected-object-name"
+                            class="stone-heading mt-1 truncate text-sm font-semibold"
+                          >
+                            Nothing selected
+                          </p>
+                        </div>
+                        <button
+                          id="map-object-lock"
+                          type="button"
+                          data-map-action="toggle-lock"
+                          class="stone-button rounded border px-2 py-1 text-[11px] font-medium transition"
+                        >
+                          <span data-map-lock-label>Lock</span>
+                        </button>
+                      </div>
+
+                      <div class="mt-3 grid grid-cols-2 gap-2">
+                        <label class="stone-muted text-[10px] font-semibold uppercase">
+                          X
+                          <input
+                            id="map-object-x"
+                            data-map-property="x"
+                            type="number"
+                            disabled
+                            class="mt-1 w-full rounded border px-2 py-1.5 text-xs"
+                          />
+                        </label>
+                        <label class="stone-muted text-[10px] font-semibold uppercase">
+                          Y
+                          <input
+                            id="map-object-y"
+                            data-map-property="y"
+                            type="number"
+                            disabled
+                            class="mt-1 w-full rounded border px-2 py-1.5 text-xs"
+                          />
+                        </label>
+                        <label class="stone-muted col-span-2 text-[10px] font-semibold uppercase">
+                          Rotation
+                          <input
+                            id="map-object-angle"
+                            data-map-property="angle"
+                            type="number"
+                            min="-360"
+                            max="360"
+                            disabled
+                            class="mt-1 w-full rounded border px-2 py-1.5 text-xs"
+                          />
+                        </label>
+                        <label class="stone-muted col-span-2 text-[10px] font-semibold uppercase">
+                          <span class="flex justify-between gap-2">
+                            Opacity <span id="map-object-opacity-value">100%</span>
+                          </span>
+                          <input
+                            id="map-object-opacity"
+                            data-map-property="opacity"
+                            type="range"
+                            min="10"
+                            max="100"
+                            value="100"
+                            disabled
+                            class="mt-1 w-full accent-zinc-700"
+                          />
+                        </label>
+                      </div>
+
+                      <div class="mt-3 grid grid-cols-2 gap-2">
+                        <button
+                          id="map-center-object"
+                          type="button"
+                          data-map-action="center-object"
+                          class="stone-button col-span-2 rounded border px-2 py-1.5 text-[11px] font-medium transition"
+                        >
+                          Center on canvas
+                        </button>
+                        <button
+                          id="map-send-backward"
+                          type="button"
+                          data-map-action="send-backward"
+                          class="stone-button rounded border px-2 py-1.5 text-[11px] font-medium transition"
+                        >
+                          Send back
+                        </button>
+                        <button
+                          id="map-bring-forward"
+                          type="button"
+                          data-map-action="bring-forward"
+                          class="stone-button rounded border px-2 py-1.5 text-[11px] font-medium transition"
+                        >
+                          Bring forward
+                        </button>
+                      </div>
+                    </details>
+
+                    <details
+                      id="map-layer-properties"
+                      class="stone-soft-panel group mt-3 rounded-md border p-3"
+                    >
+                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                        Active layer
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <div class="mt-3 grid gap-2">
+                        <button
+                          id="map-layer-terrain"
+                          type="button"
+                          data-map-layer="terrain"
+                          class="stone-button stone-selected flex items-center justify-between rounded-md border px-3 py-2 text-xs font-medium transition"
+                        >
+                          Terrain <span class="stone-muted">1</span>
+                        </button>
+                        <button
+                          id="map-layer-features"
+                          type="button"
+                          data-map-layer="features"
+                          class="stone-button flex items-center justify-between rounded-md border px-3 py-2 text-xs font-medium transition"
+                        >
+                          Features <span class="stone-muted">2</span>
+                        </button>
+                        <button
+                          id="map-layer-labels"
+                          type="button"
+                          data-map-layer="labels"
+                          class="stone-button flex items-center justify-between rounded-md border px-3 py-2 text-xs font-medium transition"
+                        >
+                          Labels <span class="stone-muted">3</span>
+                        </button>
+                      </div>
+                    </details>
+
+                    <details
+                      id="map-controls-properties"
+                      class="stone-soft-panel group mt-3 rounded-md border p-3"
+                    >
+                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                        Controls
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <div class="stone-muted mt-2 space-y-1.5 text-xs leading-5">
+                        <p>Drag handles to resize or rotate.</p>
+                        <p>Double-click labels to edit.</p>
+                        <p>Delete removes the selection.</p>
+                        <p>Ctrl/Cmd + D duplicates the selection.</p>
+                        <p>Ctrl/Cmd + Z undoes a change.</p>
+                      </div>
+                    </details>
+
+                    <p id="map-icon-credit" class="stone-muted mt-4 text-[11px] leading-4">
+                      Map symbols by <a
+                        href="https://game-icons.net"
+                        target="_blank"
+                        rel="noreferrer"
+                        class="stone-breadcrumb-link"
+                      >
+                        Game-icons.net contributors
+                      </a>, licensed under CC BY 3.0.
+                    </p>
+
+                    <div id="ink-map-status" class="stone-muted mt-5 text-xs" aria-live="polite">
+                      Map ready
+                    </div>
+                  </aside>
+                </div>
+              </div>
+            </div>
           <% @section == "races" -> %>
             <div
               id="races-dashboard"

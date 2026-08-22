@@ -2,6 +2,7 @@ defmodule AncientStones.Worlds.Province do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias AncientStones.Maps.MapItem
   alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.Hold
@@ -22,6 +23,7 @@ defmodule AncientStones.Worlds.Province do
     belongs_to(:capital_hold, Hold)
     has_many(:holds, Hold)
     has_many(:political_offices, PoliticalOffice)
+    has_many(:map_items, MapItem)
 
     timestamps(type: :utc_datetime)
   end

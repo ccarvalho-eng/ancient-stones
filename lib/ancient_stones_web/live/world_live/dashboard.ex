@@ -2,6 +2,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   use AncientStonesWeb, :live_view
 
   alias AncientStones.Galaxies
+  alias AncientStones.Maps
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CharacterRole
@@ -17,6 +18,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
        search_query: "",
        timeline_detail_tab: "eras",
        expanded_action: "continent",
+       new_map_open?: false,
        open_folded_groups: MapSet.new()
      )}
   end
@@ -824,6 +826,114 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     {:noreply, assign_filtered_dashboard_records(socket, query)}
   end
 
+  def handle_event("create_map", %{"map" => attrs}, socket) do
+    case Maps.create_world_map(socket.assigns.world, attrs) do
+      {:ok, map_document} ->
+        {:noreply,
+         socket
+         |> assign(:new_map_open?, false)
+         |> push_patch(
+           to: ~p"/worlds/#{socket.assigns.world}/dashboard?section=map&map_id=#{map_document.id}"
+         )}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :map_create_form, to_form(changeset, as: :map))}
+    end
+  end
+
+  def handle_event("show_new_map", _params, socket) do
+    {:noreply, assign(socket, :new_map_open?, true)}
+  end
+
+  def handle_event("hide_new_map", _params, socket) do
+    {:noreply, assign(socket, :new_map_open?, false)}
+  end
+
+  def handle_event("update_map", %{"map_edit" => attrs}, socket) do
+    case Maps.update_world_map(socket.assigns.map_document, attrs) do
+      {:ok, map_document} ->
+        {:noreply,
+         socket
+         |> push_event("map_resized", %{
+           width: map_document.width,
+           height: map_document.height
+         })
+         |> push_patch(
+           to: ~p"/worlds/#{socket.assigns.world}/dashboard?section=map&map_id=#{map_document.id}"
+         )}
+
+      {:error, changeset} ->
+        message =
+          if stale_map_changeset?(changeset) do
+            "This map was updated elsewhere. Reload it before saving again."
+          else
+            "Review the map properties and try again."
+          end
+
+        {:noreply,
+         socket
+         |> assign(:map_edit_form, to_form(changeset, as: :map_edit))
+         |> put_flash(:error, message)}
+    end
+  end
+
+  def handle_event("delete_map", _params, socket) do
+    case Maps.delete_world_map(socket.assigns.map_document) do
+      {:ok, _map_document} ->
+        {:noreply,
+         push_patch(socket, to: ~p"/worlds/#{socket.assigns.world}/dashboard?section=map")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "The map could not be deleted.")}
+    end
+  end
+
+  def handle_event("save_map", %{"document" => document} = params, socket) do
+    attrs = %{
+      "document" => document,
+      "width" => params["width"],
+      "height" => params["height"]
+    }
+
+    save_result =
+      case socket.assigns.map_document do
+        nil -> {:error, :map_selection_required}
+        map_document -> Maps.save_map_document(map_document, attrs)
+      end
+
+    case save_result do
+      {:ok, map_document} ->
+        socket =
+          socket
+          |> assign(:map_documents, Maps.list_world_maps(socket.assigns.world))
+          |> assign(:map_document, map_document)
+          |> assign(
+            :map_edit_form,
+            map_document
+            |> Maps.change_world_map()
+            |> to_form(as: :map_edit)
+          )
+
+        {:reply, %{ok: true}, socket}
+
+      {:error, :map_selection_required} ->
+        {:reply, %{ok: false, error: "Create or select a map before saving."}, socket}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        error =
+          if stale_map_changeset?(changeset) do
+            "This map was updated elsewhere. Reload it before saving again."
+          else
+            "The map could not be saved."
+          end
+
+        {:reply, %{ok: false, error: error}, socket}
+
+      {:error, _reason} ->
+        {:reply, %{ok: false, error: "The map could not be saved."}, socket}
+    end
+  end
+
   defp create_and_reload(socket, callback) do
     case callback.() do
       {:ok, _record} ->
@@ -875,6 +985,25 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp assign_dashboard(socket, world_id, params, opts \\ []) do
     world = Worlds.get_world_dashboard!(world_id)
     section = normalize_section(params["section"])
+    map_documents = if section == "map", do: Maps.list_world_maps(world), else: []
+
+    map_document =
+      if section == "map" do
+        select_map_document(map_documents, params["map_id"])
+      end
+
+    map_create_form =
+      %AncientStones.Maps.MapDocument{world_id: world.id}
+      |> Maps.change_world_map()
+      |> to_form(as: :map)
+
+    map_edit_form =
+      if map_document do
+        map_document
+        |> Maps.change_world_map()
+        |> to_form(as: :map_edit)
+      end
+
     search_query = socket.assigns[:search_query] || ""
     expanded_action = selected_expanded_action(socket, section, params, opts)
     continents = sorted(world.continents)
@@ -984,6 +1113,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:world, world)
     |> assign(:page_title, world.name)
     |> assign(:section, section)
+    |> assign(:map_documents, map_documents)
+    |> assign(:map_document, map_document)
+    |> assign(:map_create_form, map_create_form)
+    |> assign(:map_edit_form, map_edit_form)
     |> assign(:expanded_action, expanded_action)
     |> assign(:world_form, data_form(:world, world_form_attrs(world)))
     |> assign(:galaxy_form, data_form(:galaxy, galaxy_form_attrs(world.galaxy)))
@@ -1001,6 +1134,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       select_record(civilizations, params["civilization_id"]) || first_record(civilizations)
     )
     |> assign(:continents, continents)
+    |> assign(:provinces, provinces)
     |> assign(:creature_types, creature_types)
     |> assign(:creatures, creatures)
     |> assign(:creature_locations, creature_locations)
@@ -1673,6 +1807,18 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp select_record(records, record_id) do
     Enum.find(records, &(&1.id == record_id))
+  end
+
+  defp select_map_document(map_documents, map_id) when map_id in [nil, ""] do
+    first_record(map_documents)
+  end
+
+  defp select_map_document(map_documents, map_id) do
+    select_record(map_documents, map_id)
+  end
+
+  defp stale_map_changeset?(changeset) do
+    Keyword.has_key?(changeset.errors, :lock_version)
   end
 
   defp get_continent_in_world(socket, continent_id) do
@@ -3390,7 +3536,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp normalize_section(section)
-       when section in ~w(bestiary calendar characters civilizations connections documents geography gods guilds items races skills spells timeline) do
+       when section in ~w(bestiary calendar characters civilizations connections documents geography gods guilds items map races skills spells timeline) do
     section
   end
 
@@ -3428,6 +3574,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp section_label("items") do
     "Items"
+  end
+
+  defp section_label("map") do
+    "Map Editor"
   end
 
   defp section_label("civilizations") do
@@ -4561,7 +4711,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     """
   end
 
-  attr :patch, :string, required: true
+  attr :patch, :string, default: nil
+  attr :navigate, :string, default: nil
   attr :selected, :boolean, required: true
   attr :label, :string, required: true
 
@@ -4569,6 +4720,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     ~H"""
     <.link
       patch={@patch}
+      navigate={@navigate}
       class={[
         "block px-3 py-2 text-sm transition hover:bg-zinc-50",
         @selected && "stone-selected stone-heading",
