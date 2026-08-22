@@ -1390,7 +1390,7 @@
       <% else %>
         <%= cond do %>
           <% @section == "map" -> %>
-            <div id="map-dashboard" class="min-h-[800px] bg-zinc-100 p-4">
+            <div id="map-dashboard" class="stone-map-dashboard min-h-[800px] p-4">
               <div class="stone-panel overflow-hidden rounded-md border shadow-sm">
                 <div class="stone-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
                   <div>
@@ -1805,8 +1805,8 @@
                     </div>
                   </aside>
 
-                  <main id="map-canvas-workspace" class="relative min-w-0 bg-zinc-200/70">
-                    <div class="stone-border flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+                  <main id="map-canvas-workspace" class="stone-panel relative min-w-0">
+                    <div class="stone-panel stone-border flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
                       <div class="flex items-center gap-2">
                         <button
                           id="map-undo"
@@ -1830,8 +1830,9 @@
                           id="map-delete-selection"
                           type="button"
                           data-map-action="delete"
-                          class="stone-danger-button inline-flex size-9 items-center justify-center rounded-md border transition"
+                          class="stone-button inline-flex size-9 items-center justify-center rounded-md border transition"
                           aria-label="Delete selected object"
+                          title="Delete selected object"
                         >
                           <.icon name="hero-trash" class="size-4" />
                         </button>
@@ -1905,16 +1906,19 @@
                           id="map-save"
                           type="button"
                           data-map-action="save"
-                          class="stone-primary-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold shadow-sm transition duration-150 hover:-translate-y-0.5 hover:brightness-75 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-2 active:translate-y-0 active:shadow-sm"
+                          class="stone-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
                         >
                           <.icon name="hero-check" class="size-4" /> Save
                         </button>
                       </div>
                     </div>
-                    <div id="map-canvas-scroller" class="max-h-[680px] overflow-auto p-5">
+                    <div
+                      id="map-canvas-scroller"
+                      class="stone-map-workspace max-h-[680px] overflow-auto p-5"
+                    >
                       <div
                         id="ink-map-stage"
-                        class="relative mx-auto w-max overflow-hidden rounded-md border border-zinc-400 bg-[#e7ddc4] shadow-lg"
+                        class="stone-map-stage relative mx-auto w-max overflow-hidden rounded-md border"
                       >
                         <canvas id="ink-map-canvas"></canvas>
                         <div
@@ -1933,7 +1937,7 @@
                     </div>
                     <div
                       id="map-zoom-controls"
-                      class="stone-soft-panel absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-md border p-1 shadow-lg"
+                      class="stone-panel absolute bottom-3 right-3 z-30 flex items-center gap-1 rounded-md border p-1 shadow-lg"
                     >
                       <button
                         id="map-zoom-out"
@@ -2062,9 +2066,9 @@
                             type="button"
                             phx-click="delete_map"
                             data-confirm="Delete this map? Inner maps will become outer maps."
-                            class="rounded-md border border-red-300 px-3 py-2 text-xs font-semibold text-red-800 transition hover:bg-red-50"
+                            class="stone-danger-button rounded-md border px-3 py-2 text-xs font-semibold transition"
                           >
-                            Delete
+                            Delete map
                           </button>
                         </div>
                       </.form>

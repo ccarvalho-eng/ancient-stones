@@ -1,7 +1,12 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import {appendDistinctPoint, roughenCoastline, zoomFromPinch} from "./map_geometry.mjs"
+import {
+  appendDistinctPoint,
+  contrastingInk,
+  roughenCoastline,
+  zoomFromPinch,
+} from "./map_geometry.mjs"
 
 test("appendDistinctPoint ignores consecutive points that are too close", () => {
   const points = [{x: 10, y: 10}]
@@ -28,4 +33,9 @@ test("zoomFromPinch scales and clamps the canvas zoom", () => {
   assert.equal(zoomFromPinch(1.5, 100, 300), 4)
   assert.equal(zoomFromPinch(0.5, 100, 10), 0.05)
   assert.equal(zoomFromPinch(1, 0, 200), 1)
+})
+
+test("contrastingInk keeps tools visible on light and dark canvases", () => {
+  assert.equal(contrastingInk("#21252b"), "#e6e2da")
+  assert.equal(contrastingInk("#e7ddc4"), "#342f28")
 })

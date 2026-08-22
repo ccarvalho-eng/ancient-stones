@@ -12,7 +12,7 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=map")
 
-    assert has_element?(view, "#map-dashboard")
+    assert has_element?(view, "#map-dashboard.stone-map-dashboard")
     refute has_element?(view, "#dashboard-search-form")
     refute has_element?(view, "#dashboard-search-form-mobile")
     assert has_element?(view, "[data-map-editor][phx-hook='InkMap']")
@@ -48,10 +48,17 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     assert has_element?(view, "#map-icon-grid[data-map-icon-grid]")
     assert has_element?(view, "#map-add-label[data-map-action='add-text']")
     assert has_element?(view, "#map-duplicate-selection[data-map-action='duplicate']")
+
+    assert has_element?(
+             view,
+             "#map-delete-selection.stone-button[title='Delete selected object']"
+           )
+
     assert has_element?(view, "#map-icon-credit a[href='https://game-icons.net']")
     assert has_element?(view, "#map-zoom[min='5'][max='400']")
-    assert has_element?(view, "#map-canvas-workspace > #map-zoom-controls")
-    assert has_element?(view, "#map-canvas-scroller")
+    assert has_element?(view, "#map-canvas-workspace.stone-panel > #map-zoom-controls")
+    assert has_element?(view, "#map-canvas-scroller.stone-map-workspace")
+    assert has_element?(view, "#ink-map-stage.stone-map-stage")
     assert has_element?(view, "#map-zoom-in")
     assert has_element?(view, "#map-zoom-out")
     assert has_element?(view, "#map-fullscreen[data-map-action='fullscreen']")
@@ -73,7 +80,7 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
              "#map-entity-link option[value='continent:#{continent.id}']"
            )
 
-    assert has_element?(view, "#map-save")
+    assert has_element?(view, "#map-save.stone-button")
   end
 
   test "persists a valid canvas document for the current world", %{conn: conn} do
@@ -177,6 +184,7 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     assert has_element?(view, "#map-properties")
     assert has_element?(view, "details#map-properties:not([open])")
     assert has_element?(view, "#map-edit-form")
+    assert has_element?(view, "#map-delete.stone-danger-button")
     assert has_element?(view, "#map_edit_width[min='640'][max='8192']")
     assert has_element?(view, "#map_edit_height[min='480'][max='8192']")
 

@@ -255,6 +255,24 @@
   background: var(--stone-button-hover);
 }
 
+.stone-map-dashboard {
+  background: var(--stone-bg);
+}
+
+.stone-map-workspace {
+  background: var(--stone-surface);
+}
+
+.stone-map-stage {
+  background: var(--stone-surface);
+  border-color: var(--stone-border-strong);
+  box-shadow: 0 14px 36px color-mix(in srgb, #000, transparent 72%);
+}
+
+.ink-map-editor .stone-soft-panel {
+  background: var(--stone-surface);
+}
+
 .stone-record-card {
   background: var(--stone-surface);
   border-color: var(--stone-border);
