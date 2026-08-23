@@ -33,6 +33,9 @@ defmodule AncientStones.Worlds.World do
     field :primary_star_name, :string
     field :orbital_period_days, :integer
     field :axial_tilt_degrees, :decimal
+    field :day_length_hours, :decimal
+    field :mean_radius_km, :integer
+    field :map_projection, :string
 
     belongs_to(:galaxy, Galaxy)
 
@@ -69,7 +72,10 @@ defmodule AncientStones.Worlds.World do
       :description,
       :primary_star_name,
       :orbital_period_days,
-      :axial_tilt_degrees
+      :axial_tilt_degrees,
+      :day_length_hours,
+      :mean_radius_km,
+      :map_projection
     ])
     |> validate_required([:name])
     |> validate_number(:orbital_period_days, greater_than: 0)
@@ -77,6 +83,10 @@ defmodule AncientStones.Worlds.World do
       greater_than_or_equal_to: 0,
       less_than_or_equal_to: 90
     )
+    |> validate_number(:day_length_hours, greater_than: 0)
+    |> validate_number(:mean_radius_km, greater_than: 0)
+    |> check_constraint(:day_length_hours, name: :worlds_day_length_hours_positive)
+    |> check_constraint(:mean_radius_km, name: :worlds_mean_radius_km_positive)
     |> foreign_key_constraint(:galaxy_id)
   end
 end

@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.Location do
   import Ecto.Changeset
 
   alias AncientStones.Maps.MapItem
+  alias AncientStones.Worlds.CharacterLocation
   alias AncientStones.Worlds.CivilizationLocation
   alias AncientStones.Worlds.CreatureLocation
   alias AncientStones.Worlds.Geography
@@ -24,6 +25,8 @@ defmodule AncientStones.Worlds.Location do
     belongs_to(:parent_location, Location)
     belongs_to(:location_type, LocationType)
     has_many(:child_locations, Location, foreign_key: :parent_location_id)
+    has_many(:character_locations, CharacterLocation)
+    has_many(:characters, through: [:character_locations, :character])
     has_many(:civilization_locations, CivilizationLocation)
     has_many(:civilizations, through: [:civilization_locations, :civilization])
     has_many(:creature_locations, CreatureLocation)

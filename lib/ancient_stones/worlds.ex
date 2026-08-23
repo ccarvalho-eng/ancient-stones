@@ -135,8 +135,9 @@ defmodule AncientStones.Worlds do
             political_offices: [:character],
             locations: [
               :location_type,
+              character_locations: [:character],
               creature_locations: [creature: [:creature_type]],
-              child_locations: [:location_type]
+              child_locations: [:location_type, character_locations: [:character]]
             ]
           ]
         ]
