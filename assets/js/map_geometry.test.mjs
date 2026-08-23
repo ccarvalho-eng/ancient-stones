@@ -4,7 +4,9 @@ import test from "node:test"
 import {
   appendDistinctPoint,
   contrastingInk,
+  editorCanvasBackground,
   erasableInkTarget,
+  gridVisiblePreference,
   insertMidpoint,
   removeVertex,
   roughenCoastline,
@@ -69,4 +71,15 @@ test("erasableInkTarget only accepts pencil strokes", () => {
   assert.equal(erasableInkTarget({mapKind: "landmass"}), null)
   assert.equal(erasableInkTarget({mapKind: "label"}), null)
   assert.equal(erasableInkTarget(null), null)
+})
+
+test("gridVisiblePreference defaults to visible and remembers opting out", () => {
+  assert.equal(gridVisiblePreference(null), true)
+  assert.equal(gridVisiblePreference("true"), true)
+  assert.equal(gridVisiblePreference("false"), false)
+})
+
+test("editorCanvasBackground reveals the grid without losing the map color", () => {
+  assert.equal(editorCanvasBackground(true, "#e7ddc4"), "")
+  assert.equal(editorCanvasBackground(false, "#e7ddc4"), "#e7ddc4")
 })

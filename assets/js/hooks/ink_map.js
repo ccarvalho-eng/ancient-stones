@@ -16,7 +16,9 @@ import {mapIconPaths, mapIcons} from "../map_icons"
 import {
   appendDistinctPoint,
   contrastingInk,
+  editorCanvasBackground,
   erasableInkTarget,
+  gridVisiblePreference,
   insertMidpoint,
   removeVertex,
   roughenCoastline,
@@ -42,7 +44,7 @@ const serializableProperties = [
 ]
 const layerOrder = {terrain: 0, features: 1, labels: 2}
 const parchment = "#e7ddc4"
-const darkCanvas = "#21252b"
+const gridPreferenceKey = "ancient-stones:map-grid-visible"
 
 const textureBrushes = {
   forest: {path: mapIconPaths["pine-tree"], filled: true, spacing: 1.1, jitter: 0.35},
@@ -90,9 +92,8 @@ const InkMap = {
       selection: true,
     })
 
-    this.canvas.backgroundColor = this.mapBackground
-    this.canvas.lowerCanvasEl.style.backgroundColor = this.mapBackground
-    this.setGrid(true)
+    this.gridVisible = this.loadGridPreference()
+    this.applyCanvasAppearance()
     this.setSnap(false)
     this.setGuides(true)
     this.setZoom(1)
@@ -115,6 +116,7 @@ const InkMap = {
     this.syncSaveState()
 
     this.canvas.loadFromJSON(mapDocument).then(() => {
+      this.applyCanvasAppearance()
       this.ensureItemIds()
       this.syncInspector()
       this.canvas.requestRenderAll()
@@ -631,9 +633,7 @@ const InkMap = {
     this.hasExplicitBackground = true
     this.mapBackground = color
     this.inkColor = contrastingInk(color)
-    this.canvas.backgroundColor = color
-    this.canvas.lowerCanvasEl.style.backgroundColor = color
-    this.canvas.requestRenderAll()
+    this.applyCanvasAppearance()
     this.changed("Water color updated")
   },
 
@@ -909,7 +909,7 @@ const InkMap = {
       "zoom-out": () => this.setZoom(this.zoom - 0.1),
       "zoom-reset": () => this.setZoom(1),
       "zoom-fit": () => this.zoomToFit(),
-      "toggle-grid": () => this.setGrid(!this.gridVisible),
+      "toggle-grid": () => this.toggleGrid(),
       "toggle-snap": () => this.setSnap(!this.snapEnabled),
       "toggle-guides": () => this.setGuides(!this.guidesEnabled),
       "center-object": () => this.centerSelection(),
@@ -1246,12 +1246,40 @@ const InkMap = {
 
   setGrid(visible) {
     this.gridVisible = visible
+    this.canvas.backgroundColor = editorCanvasBackground(visible, this.mapBackground)
     this.canvas.lowerCanvasEl.style.backgroundImage = visible
       ? "linear-gradient(rgba(52, 47, 40, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(52, 47, 40, 0.09) 1px, transparent 1px)"
       : "none"
     const gridSize = 32 * (this.zoom || 1)
     this.canvas.lowerCanvasEl.style.backgroundSize = `${gridSize}px ${gridSize}px`
-    this.el.querySelector("[data-map-action='toggle-grid']")?.classList.toggle("stone-selected", visible)
+    const button = this.el.querySelector("[data-map-action='toggle-grid']")
+    button?.classList.toggle("stone-selected", visible)
+    button?.setAttribute("aria-pressed", visible.toString())
+    this.canvas.requestRenderAll()
+  },
+
+  toggleGrid() {
+    const visible = !this.gridVisible
+    this.setGrid(visible)
+
+    try {
+      window.localStorage.setItem(gridPreferenceKey, visible.toString())
+    } catch (_error) {
+      // The grid still works when browser storage is unavailable.
+    }
+  },
+
+  applyCanvasAppearance() {
+    this.canvas.lowerCanvasEl.style.backgroundColor = this.mapBackground
+    this.setGrid(this.gridVisible)
+  },
+
+  loadGridPreference() {
+    try {
+      return gridVisiblePreference(window.localStorage.getItem(gridPreferenceKey))
+    } catch (_error) {
+      return true
+    }
   },
 
   setSnap(enabled) {
@@ -1356,10 +1384,10 @@ const InkMap = {
       ? document.mapBackground
       : this.defaultCanvasBackground()
     this.inkColor = contrastingInk(this.mapBackground)
-    this.canvas.backgroundColor = this.mapBackground
-    this.canvas.lowerCanvasEl.style.backgroundColor = this.mapBackground
+    this.applyCanvasAppearance()
     this.syncBackgroundInput()
     this.canvas.loadFromJSON(document).then(() => {
+      this.applyCanvasAppearance()
       this.ensureItemIds()
       this.canvas.requestRenderAll()
       this.restoring = false
@@ -1430,10 +1458,7 @@ const InkMap = {
   },
 
   defaultCanvasBackground() {
-    if (this.themeRoot?.classList.contains("stone-theme-dark")) return darkCanvas
-    if (this.themeRoot?.classList.contains("stone-theme-light")) return parchment
-
-    return this.themeMedia.matches ? darkCanvas : parchment
+    return parchment
   },
 
   syncImplicitCanvasTheme() {
@@ -1441,10 +1466,8 @@ const InkMap = {
 
     this.mapBackground = this.defaultCanvasBackground()
     this.inkColor = contrastingInk(this.mapBackground)
-    this.canvas.backgroundColor = this.mapBackground
-    this.canvas.lowerCanvasEl.style.backgroundColor = this.mapBackground
+    this.applyCanvasAppearance()
     this.syncBackgroundInput()
-    this.canvas.requestRenderAll()
   },
 
   syncBackgroundInput() {

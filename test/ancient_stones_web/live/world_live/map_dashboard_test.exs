@@ -236,14 +236,18 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     view |> element("#map-new") |> render_click()
     assert has_element?(view, "#map-create-dialog")
 
-    view
-    |> form("#map-create-form",
-      map: %{"name" => "Tamriel", "kind" => "region", "parent_map_id" => ""}
-    )
-    |> render_submit()
+    redirect =
+      view
+      |> form("#map-create-form",
+        map: %{"name" => "Tamriel", "kind" => "region", "parent_map_id" => ""}
+      )
+      |> render_submit()
 
     [map] = Maps.list_world_maps(world)
-    assert_patch(view, ~p"/worlds/#{world}/dashboard?section=map&map_id=#{map.id}")
+    path = ~p"/worlds/#{world}/dashboard?section=map&map_id=#{map.id}"
+    assert {:ok, view, _html} = follow_redirect(redirect, conn, path)
+
+    assert has_element?(view, "#ink-map-editor-#{map.id}[phx-hook='InkMap']")
     refute has_element?(view, "#world-map-list")
     assert has_element?(view, "#map-properties")
     assert has_element?(view, "details#map-properties:not([open])")
