@@ -47,6 +47,12 @@ defmodule AncientStonesWeb.MapLive.IndexTest do
     assert_patch(view, ~p"/maps?world_id=#{nirn.id}")
     assert has_element?(view, "#maps-#{tamriel.id}")
     refute has_element?(view, "#maps-#{oblivion.id}")
+
+    assert has_element?(
+             view,
+             "#maps-breadcrumb a[href='/worlds/#{nirn.id}/dashboard']",
+             nirn.name
+           )
   end
 
   test "deletes a map from the library and refreshes the count", %{conn: conn} do

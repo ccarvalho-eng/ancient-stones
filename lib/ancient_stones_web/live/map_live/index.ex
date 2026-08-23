@@ -112,6 +112,21 @@ defmodule AncientStonesWeb.MapLive.Index do
           <div class="stone-workspace min-w-0">
             <header class="stone-topbar flex h-16 items-center justify-between border-b px-5">
               <div>
+                <nav
+                  :if={@selected_world}
+                  id="maps-breadcrumb"
+                  class="stone-muted mb-0.5 flex items-center gap-1.5 text-xs font-medium"
+                  aria-label="Breadcrumb"
+                >
+                  <.link
+                    navigate={~p"/worlds/#{@selected_world}/dashboard"}
+                    class="stone-breadcrumb-link"
+                  >
+                    {@selected_world.name}
+                  </.link>
+                  <.icon name="hero-chevron-right" class="size-3.5" />
+                  <span class="stone-heading">Maps</span>
+                </nav>
                 <h2 class="stone-heading text-sm font-semibold">Maps</h2>
                 <p class="stone-muted text-xs">Open outer and inner maps in the world editor.</p>
               </div>
