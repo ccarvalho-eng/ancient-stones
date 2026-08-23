@@ -189,18 +189,34 @@
               <h2 class="text-sm font-semibold text-zinc-800">Geography</h2>
               <p class="text-xs text-zinc-500">Continents, provinces, and holds</p>
             </div>
-            <div class="max-h-[800px] space-y-3 overflow-y-auto p-3 text-sm">
-              <div
+            <div
+              id="geography-tree"
+              phx-hook=".GeographyDisclosureState"
+              data-storage-key={"ancient-stones:world:#{@world.id}:geography-disclosures"}
+              data-disclosure-ready="false"
+              class="max-h-[800px] space-y-3 overflow-y-auto p-3 text-sm data-[disclosure-ready=false]:invisible"
+            >
+              <details
                 :for={continent <- sidebar_continents(@filtered_continents)}
+                id={"geography-continent-#{continent.id}"}
                 class={[
-                  "overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm",
+                  "stone-geography-continent group/continent overflow-hidden rounded-md border border-zinc-300 shadow-sm",
                   selected_continent?(@selected_path, continent) && "stone-selected"
                 ]}
               >
-                <div class="flex items-stretch bg-zinc-50">
+                <summary
+                  id={"geography-continent-summary-#{continent.id}"}
+                  class="stone-geography-continent-summary flex cursor-pointer list-none items-stretch [&::-webkit-details-marker]:hidden"
+                >
+                  <span class="stone-muted inline-flex w-8 shrink-0 items-center justify-center">
+                    <.icon
+                      name="hero-chevron-right"
+                      class="size-3.5 transition-transform group-open/continent:rotate-90"
+                    />
+                  </span>
                   <.link
                     patch={~p"/worlds/#{@world}/dashboard?continent_id=#{continent.id}"}
-                    class="block min-w-0 flex-1 px-3 py-2.5 transition hover:bg-zinc-100"
+                    class="block min-w-0 flex-1 px-3 py-2.5"
                   >
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                       Continent
@@ -214,25 +230,35 @@
                     phx-click="delete_continent"
                     phx-value-id={continent.id}
                     data-confirm={"Delete #{continent.name} and all nested geography?"}
-                    class="stone-muted inline-flex w-10 shrink-0 items-center justify-center border-l border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
+                    class="stone-muted inline-flex w-10 shrink-0 items-center justify-center border-l border-zinc-300 transition hover:text-zinc-700"
                     aria-label={"Delete #{continent.name}"}
                   >
                     <.icon name="hero-trash" class="size-3.5" />
                   </button>
-                </div>
+                </summary>
 
-                <div class="space-y-2 border-t border-zinc-100 bg-white p-2">
-                  <div
+                <div class="stone-geography-continent-body space-y-2 border-t border-zinc-200 p-2">
+                  <details
                     :for={province <- sorted(continent.provinces)}
+                    id={"geography-province-#{province.id}"}
                     class={[
-                      "overflow-hidden rounded-md border border-zinc-100 bg-zinc-50",
+                      "group/province overflow-hidden rounded-md border border-zinc-100 bg-zinc-50",
                       selected_province?(@selected_path, province) && "stone-selected"
                     ]}
                   >
-                    <div class="flex items-stretch">
+                    <summary
+                      id={"geography-province-summary-#{province.id}"}
+                      class="stone-geography-province-summary flex cursor-pointer list-none items-stretch [&::-webkit-details-marker]:hidden"
+                    >
+                      <span class="stone-muted inline-flex w-8 shrink-0 items-center justify-center">
+                        <.icon
+                          name="hero-chevron-right"
+                          class="size-3.5 transition-transform group-open/province:rotate-90"
+                        />
+                      </span>
                       <.link
                         patch={~p"/worlds/#{@world}/dashboard?province_id=#{province.id}"}
-                        class="block min-w-0 flex-1 px-3 py-2 transition hover:bg-zinc-100"
+                        class="block min-w-0 flex-1 px-3 py-2"
                       >
                         <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                           Province
@@ -250,12 +276,12 @@
                         phx-click="delete_province"
                         phx-value-id={province.id}
                         data-confirm={"Delete #{province.name} and all nested holds and locations?"}
-                        class="stone-muted inline-flex w-10 shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                        class="stone-muted inline-flex w-10 shrink-0 items-center justify-center border-l border-zinc-100 transition hover:text-zinc-700"
                         aria-label={"Delete #{province.name}"}
                       >
                         <.icon name="hero-trash" class="size-3.5" />
                       </button>
-                    </div>
+                    </summary>
 
                     <div
                       :if={province.holds != []}
@@ -267,7 +293,7 @@
                       <div
                         :for={hold <- sorted(province.holds)}
                         class={[
-                          "flex items-stretch overflow-hidden rounded-md border transition",
+                          "stone-geography-hold flex items-stretch overflow-hidden rounded-md border transition",
                           @selected_hold && @selected_hold.id == hold.id &&
                             "border-zinc-300 bg-zinc-100",
                           (!@selected_hold || @selected_hold.id != hold.id) &&
@@ -276,7 +302,7 @@
                       >
                         <.link
                           patch={~p"/worlds/#{@world}/dashboard?hold_id=#{hold.id}"}
-                          class="block min-w-0 flex-1 px-3 py-2 transition hover:bg-zinc-50"
+                          class="block min-w-0 flex-1 px-3 py-2"
                         >
                           <div class="flex items-center justify-between gap-2">
                             <span class="truncate font-medium text-zinc-800">
@@ -302,17 +328,83 @@
                           phx-click="delete_hold"
                           phx-value-id={hold.id}
                           data-confirm={"Delete #{hold.name} and its locations?"}
-                          class="stone-muted inline-flex w-10 shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                          class="stone-muted inline-flex w-10 shrink-0 items-center justify-center border-l border-zinc-100 transition hover:text-zinc-700"
                           aria-label={"Delete #{hold.name}"}
                         >
                           <.icon name="hero-trash" class="size-3.5" />
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </details>
                 </div>
-              </div>
+              </details>
             </div>
+            <script :type={Phoenix.LiveView.ColocatedHook} name=".GeographyDisclosureState">
+              export default {
+                mounted() {
+                  this.disclosureSelector =
+                    "details[id^='geography-continent-'], details[id^='geography-province-']"
+                  this.boundDisclosures = new WeakSet()
+                  this.bindDisclosures()
+                  this.restoreDisclosures()
+                  this.revealDisclosures()
+                },
+
+                updated() {
+                  this.bindDisclosures()
+                  this.restoreDisclosures()
+                  this.revealDisclosures()
+                },
+
+                bindDisclosures() {
+                  this.el.querySelectorAll(this.disclosureSelector).forEach((disclosure) => {
+                    if (this.boundDisclosures.has(disclosure)) return
+
+                    this.boundDisclosures.add(disclosure)
+                    disclosure.addEventListener("toggle", () => this.persistDisclosures())
+                  })
+                },
+
+                restoreDisclosures() {
+                  const storedIds = this.storedDisclosureIds()
+                  if (storedIds === null) return
+
+                  const openIds = new Set(storedIds)
+
+                  this.el.querySelectorAll(this.disclosureSelector).forEach((disclosure) => {
+                    disclosure.open = openIds.has(disclosure.id)
+                  })
+                },
+
+                storedDisclosureIds() {
+                  try {
+                    const storedValue = window.localStorage.getItem(this.el.dataset.storageKey)
+                    if (storedValue === null) return null
+
+                    const value = JSON.parse(storedValue)
+                    return Array.isArray(value) ? value : null
+                  } catch (_error) {
+                    return null
+                  }
+                },
+
+                persistDisclosures() {
+                  const openIds = Array.from(this.el.querySelectorAll(this.disclosureSelector))
+                    .filter((disclosure) => disclosure.open)
+                    .map((disclosure) => disclosure.id)
+
+                  try {
+                    window.localStorage.setItem(this.el.dataset.storageKey, JSON.stringify(openIds))
+                  } catch (_error) {
+                    // Disclosure persistence is optional when storage is unavailable.
+                  }
+                },
+
+                revealDisclosures() {
+                  this.el.dataset.disclosureReady = "true"
+                }
+              }
+            </script>
           </aside>
 
           <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
