@@ -3336,10 +3336,17 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp grouped_lore_connections(lore_connections) do
     lore_connections
-    |> Enum.group_by(&lore_connection_endpoint_label(&1, :source))
-    |> Enum.sort_by(fn {source, _source_lore_connections} ->
-      source
+    |> Enum.group_by(&lore_connection_source_kind/1)
+    |> Enum.sort_by(fn {source_kind, _source_lore_connections} ->
+      source_kind
     end)
+  end
+
+  defp lore_connection_source_kind(lore_connection) do
+    case lore_connection_endpoint_record(lore_connection, :source) do
+      {kind, _record} -> lore_connection_kind_label(kind)
+      nil -> "Unassigned"
+    end
   end
 
   defp grouped_gods(gods) do
@@ -3770,6 +3777,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
        when document_id not in [nil, ""] do
     if Keyword.get(opts, :select_action, false) do
       "document_edit"
+    end
+  end
+
+  defp selected_record_action("connections", %{"connection_id" => connection_id}, opts)
+       when connection_id not in [nil, ""] do
+    if Keyword.get(opts, :select_action, false) do
+      "lore_connection_edit"
     end
   end
 

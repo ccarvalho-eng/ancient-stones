@@ -1144,21 +1144,54 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     )
     |> render_submit()
 
-    assert has_element?(view, "#folded-connections-character-maven-black-briar:not([open])")
+    assert has_element?(view, "#folded-connections-character:not([open])")
 
     assert has_element?(
              view,
-             "#folded-connections-character-maven-black-briar summary",
+             "#folded-connections-character summary",
              "2"
            )
 
     view
-    |> element("#folded-connections-character-maven-black-briar summary")
+    |> element("#folded-connections-character summary")
     |> render_click()
 
-    assert has_element?(view, "#folded-connections-character-maven-black-briar[open]")
+    assert has_element?(view, "#folded-connections-character[open]")
+
+    assert has_element?(
+             view,
+             "#connection-#{lore_connection.id}",
+             "Character / Maven Black-Briar"
+           )
+
     assert has_element?(view, "#connection-list", "Black-Briar Patronage")
     assert has_element?(view, "#connection-list", "Riften Protection")
+
+    view
+    |> element("#connection-#{lore_connection.id} a")
+    |> render_click()
+
+    assert has_element?(view, "#connection-edit-form")
+
+    view
+    |> form("#connection-edit-form",
+      lore_connection_edit: %{
+        name: "Black-Briar Compact",
+        source_entity: "character:#{character.id}",
+        target_entity: "guild:#{guild.id}",
+        connection_type: "patron",
+        status: "tense",
+        started_at: "4E 201",
+        ended_at: "",
+        description: "Maven's compact with the guild has become strained."
+      }
+    )
+    |> render_submit()
+
+    lore_connection = Repo.get!(LoreConnection, lore_connection.id)
+    assert lore_connection.name == "Black-Briar Compact"
+    assert lore_connection.status == "tense"
+    assert has_element?(view, "#connection-details", "Black-Briar Compact")
   end
 
   test "creates characters from the characters section", %{conn: conn} do
