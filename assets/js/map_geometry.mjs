@@ -65,3 +65,11 @@ export function removeVertex(points, vertexIndex) {
 export function erasableInkTarget(target) {
   return target?.mapKind === "ink" ? target : null
 }
+
+export function gridVisiblePreference(value) {
+  return value !== "false"
+}
+
+export function editorCanvasBackground(gridVisible, mapBackground) {
+  return gridVisible ? "" : mapBackground
+}

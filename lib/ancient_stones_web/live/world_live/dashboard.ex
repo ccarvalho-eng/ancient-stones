@@ -857,7 +857,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         {:noreply,
          socket
          |> assign(:new_map_open?, false)
-         |> push_patch(
+         |> push_navigate(
            to: ~p"/worlds/#{socket.assigns.world}/dashboard?section=map&map_id=#{map_document.id}"
          )}
 
