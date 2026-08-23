@@ -45,6 +45,12 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert has_element?(view, "#geography-dashboard.stone-theme-system")
     assert has_element?(view, "#geography-dashboard[phx-hook='AncientStonesTheme']")
+
+    assert has_element?(
+             view,
+             "#geography-tree[data-storage-key='ancient-stones:world:#{world.id}:geography-disclosures'][data-disclosure-ready='false']"
+           )
+
     assert has_element?(view, "#action-list")
     assert has_element?(view, "#continent-form")
     refute has_element?(view, "#province-form")
@@ -55,6 +61,23 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     open_action(view, "continent")
 
     refute has_element?(view, "#continent-form")
+  end
+
+  test "renders geography cards collapsed regardless of the selected path", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
+    dashboard = Worlds.get_world_dashboard!(world.id)
+    continent = hd(dashboard.continents)
+    province = hd(continent.provinces)
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
+
+    assert has_element?(view, "details#geography-continent-#{continent.id}:not([open])")
+
+    {:ok, view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?province_id=#{province.id}")
+
+    assert has_element?(view, "details#geography-continent-#{continent.id}:not([open])")
+    assert has_element?(view, "details#geography-province-#{province.id}:not([open])")
   end
 
   test "updates world name from the action form", %{conn: conn} do
@@ -1107,7 +1130,27 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert lore_connection.source_character.name == "Maven Black-Briar"
     assert lore_connection.target_guild.name == "Thieves Guild"
     assert lore_connection.connection_type == "patron"
+
+    view
+    |> form("#connection-form",
+      lore_connection: %{
+        name: "Riften Protection",
+        source_entity: "character:#{character.id}",
+        target_entity: "location:#{riften.id}",
+        connection_type: "patron",
+        status: "active",
+        description: "Maven's influence protects commerce throughout Riften."
+      }
+    )
+    |> render_submit()
+
     assert has_element?(view, "#folded-connections-character-maven-black-briar:not([open])")
+
+    assert has_element?(
+             view,
+             "#folded-connections-character-maven-black-briar summary",
+             "2"
+           )
 
     view
     |> element("#folded-connections-character-maven-black-briar summary")
@@ -1115,6 +1158,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert has_element?(view, "#folded-connections-character-maven-black-briar[open]")
     assert has_element?(view, "#connection-list", "Black-Briar Patronage")
+    assert has_element?(view, "#connection-list", "Riften Protection")
   end
 
   test "creates characters from the characters section", %{conn: conn} do

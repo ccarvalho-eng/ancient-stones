@@ -302,6 +302,33 @@
   color: #b91c1c;
 }
 
+.stone-page .stone-geography-continent {
+  background-color: var(--stone-surface);
+}
+
+.stone-page .stone-geography-continent-summary {
+  background-color: var(--stone-surface-muted);
+  transition: background-color 120ms ease;
+}
+
+.stone-page .stone-geography-continent-summary:hover {
+  background-color: var(--stone-surface-raised);
+}
+
+.stone-page .stone-geography-continent-body {
+  background-color: var(--stone-surface);
+}
+
+.stone-page .stone-geography-province-summary,
+.stone-page .stone-geography-hold {
+  transition: background-color 120ms ease;
+}
+
+.stone-page .stone-geography-province-summary:hover,
+.stone-page .stone-geography-hold:hover {
+  background-color: var(--stone-surface-raised);
+}
+
 .stone-theme-dark .stone-danger-button:hover,
 .stone-theme-system .stone-danger-button:hover {
   color: #fca5a5;
