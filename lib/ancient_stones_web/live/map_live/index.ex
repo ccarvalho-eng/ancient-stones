@@ -2,16 +2,43 @@ defmodule AncientStonesWeb.MapLive.Index do
   use AncientStonesWeb, :live_view
 
   alias AncientStones.Maps
+  alias AncientStones.Worlds
 
   def mount(_params, _session, socket) do
-    maps = Maps.list_maps()
+    worlds = Worlds.list_worlds()
 
     {:ok,
      socket
      |> assign(:page_title, "Maps")
      |> assign(:theme, "system")
+     |> assign(:worlds, worlds)
+     |> assign(:selected_world, nil)
+     |> assign(:map_count, 0)
+     |> assign(:world_filter_form, to_form(%{"world_id" => ""}, as: :world_filter))
+     |> stream(:maps, [])}
+  end
+
+  def handle_params(params, _uri, socket) do
+    selected_world = Enum.find(socket.assigns.worlds, &(&1.id == params["world_id"]))
+    maps = if selected_world, do: Maps.list_world_maps(selected_world), else: Maps.list_maps()
+
+    {:noreply,
+     socket
+     |> assign(:selected_world, selected_world)
      |> assign(:map_count, length(maps))
-     |> stream(:maps, maps)}
+     |> assign(
+       :world_filter_form,
+       to_form(%{"world_id" => selected_world_id(selected_world)}, as: :world_filter)
+     )
+     |> stream(:maps, maps, reset: true)}
+  end
+
+  def handle_event("filter_world", %{"world_filter" => %{"world_id" => ""}}, socket) do
+    {:noreply, push_patch(socket, to: ~p"/maps")}
+  end
+
+  def handle_event("filter_world", %{"world_filter" => %{"world_id" => world_id}}, socket) do
+    {:noreply, push_patch(socket, to: ~p"/maps?world_id=#{world_id}")}
   end
 
   def render(assigns) do
@@ -73,6 +100,20 @@ defmodule AncientStonesWeb.MapLive.Index do
             </header>
 
             <main class="min-h-[800px] p-4">
+              <.form
+                for={@world_filter_form}
+                id="map-world-filter"
+                phx-change="filter_world"
+                class="stone-panel mb-4 rounded-md border p-4"
+              >
+                <.input
+                  field={@world_filter_form[:world_id]}
+                  type="select"
+                  label="World"
+                  options={[{"All worlds", ""} | Enum.map(@worlds, &{&1.name, &1.id})]}
+                />
+              </.form>
+
               <section class="stone-panel overflow-hidden rounded-md border">
                 <.panel_header
                   title="Map library"
@@ -104,7 +145,7 @@ defmodule AncientStonesWeb.MapLive.Index do
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
                         <p class="stone-muted text-[10px] font-semibold uppercase tracking-[0.16em]">
-                          {map.world.name}
+                          {map_world_name(map, @selected_world)}
                         </p>
                         <h3 class="stone-heading mt-1 truncate text-base font-semibold">
                           {map.name}
@@ -140,5 +181,21 @@ defmodule AncientStonesWeb.MapLive.Index do
       </div>
     </Layouts.app>
     """
+  end
+
+  defp selected_world_id(nil) do
+    ""
+  end
+
+  defp selected_world_id(world) do
+    world.id
+  end
+
+  defp map_world_name(_map, selected_world) when not is_nil(selected_world) do
+    selected_world.name
+  end
+
+  defp map_world_name(map, _selected_world) do
+    map.world.name
   end
 end

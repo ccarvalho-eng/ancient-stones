@@ -398,21 +398,14 @@ defmodule AncientStonesWeb.WorldLive.Index do
                         options={Templates.options()}
                       />
                       <.input field={@world_form[:template_galaxy]} type="hidden" />
-                      <div
-                        :if={@world_form[:template_galaxy].value not in [nil, ""]}
-                        class="stone-panel-muted stone-muted rounded-md border px-3 py-2 text-xs"
-                      >
-                        Template galaxy:
-                        <strong class="stone-heading font-semibold">
-                          {@world_form[:template_galaxy].value}
-                        </strong>
-                      </div>
                       <.input
                         field={@world_form[:galaxy_id]}
                         type="select"
                         label="Galaxy"
-                        prompt="None"
-                        options={@galaxy_options}
+                        prompt={
+                          if(@world_form[:template_galaxy].value in [nil, ""], do: "None", else: nil)
+                        }
+                        options={world_galaxy_options(@world_form, @galaxy_options)}
                       />
                     </div>
                     <div class="stone-border border-t pt-3">
@@ -492,7 +485,13 @@ defmodule AncientStonesWeb.WorldLive.Index do
         world_params
       else
         defaults = Templates.defaults(template)
-        galaxy_id = template_galaxy_id(defaults[:galaxy], socket.assigns.galaxy_options)
+
+        galaxy_id =
+          template_galaxy_selection(
+            defaults[:galaxy],
+            socket.assigns.galaxy_options,
+            world_params["galaxy_id"]
+          )
 
         %{
           "name" => defaults.name,
@@ -765,6 +764,14 @@ defmodule AncientStonesWeb.WorldLive.Index do
     {:ok, nil}
   end
 
+  defp get_optional_galaxy(socket, "__template_galaxy__") do
+    if Templates.defaults(socket.assigns.current_template)[:galaxy] do
+      {:ok, nil}
+    else
+      {:error, :record_outside_scope}
+    end
+  end
+
   defp get_optional_galaxy(socket, galaxy_id) do
     if Enum.any?(socket.assigns.galaxy_options, fn {_name, id} -> id == galaxy_id end) do
       {:ok, Galaxies.get_galaxy!(galaxy_id)}
@@ -782,6 +789,28 @@ defmodule AncientStonesWeb.WorldLive.Index do
       {^template_galaxy, id} -> id
       _option -> nil
     end)
+  end
+
+  defp template_galaxy_selection(nil, galaxy_options, fallback_id) do
+    Enum.find_value(galaxy_options, fn
+      {_name, ^fallback_id} -> fallback_id
+      _option -> nil
+    end)
+  end
+
+  defp template_galaxy_selection(template_galaxy, galaxy_options, _fallback_id) do
+    template_galaxy_id(template_galaxy, galaxy_options) || "__template_galaxy__"
+  end
+
+  defp world_galaxy_options(world_form, galaxy_options) do
+    template_galaxy = world_form[:template_galaxy].value
+
+    if template_galaxy in [nil, ""] or
+         Enum.any?(galaxy_options, fn {name, _id} -> name == template_galaxy end) do
+      galaxy_options
+    else
+      [{template_galaxy, "__template_galaxy__"} | galaxy_options]
+    end
   end
 
   defp world_count(%{worlds: worlds}) when is_list(worlds) do

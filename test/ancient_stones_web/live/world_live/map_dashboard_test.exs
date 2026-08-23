@@ -6,6 +6,29 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
   alias AncientStones.Maps
   alias AncientStones.Worlds
 
+  test "lists only the current world's maps inside the dashboard", %{conn: conn} do
+    {:ok, nirn} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, tamriel} = Maps.create_world_map(nirn, %{"name" => "Tamriel"})
+    {:ok, mundus} = Worlds.create_world(%{name: "Mundus"})
+    {:ok, oblivion} = Maps.create_world_map(mundus, %{"name" => "Oblivion"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{nirn}/dashboard?section=maps")
+
+    assert has_element?(view, "#world-map-library")
+    assert has_element?(view, "#world-map-#{tamriel.id}")
+    refute has_element?(view, "#world-map-#{oblivion.id}")
+
+    assert has_element?(
+             view,
+             "#world-map-#{tamriel.id}[href='/worlds/#{nirn.id}/dashboard?section=map&map_id=#{tamriel.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#map-library-new[href='/worlds/#{nirn.id}/dashboard?section=map&new_map=true']"
+           )
+  end
+
   test "renders the map editor inside the world dashboard", %{conn: conn} do
     {:ok, world} = Worlds.create_world(%{name: "Nirn"})
     {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
@@ -125,6 +148,47 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
 
     assert [%{kind: "mountain", x: 320.5, y: 210.25}, %{object_type: "IText"}] =
              Maps.list_world_map_items(world)
+  end
+
+  test "uploads a local reference image and pushes it to the editor", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, map_document} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=map&map_id=#{map_document.id}")
+
+    view |> element("#map-add-reference") |> render_click()
+    assert has_element?(view, "#map-reference-dialog")
+    assert has_element?(view, "#map-reference-upload-form")
+
+    content =
+      Base.decode64!(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+      )
+
+    upload =
+      file_input(view, "#map-reference-upload-form", :map_reference, [
+        %{
+          last_modified: 1_710_000_000_000,
+          name: "reference.png",
+          content: content,
+          size: byte_size(content),
+          type: "image/png"
+        }
+      ])
+
+    render_upload(upload, "reference.png")
+
+    view
+    |> form("#map-reference-upload-form", reference: %{"opacity" => "40"})
+    |> render_submit()
+
+    assert_push_event(view, "map_reference_uploaded", %{url: url, opacity: 0.4})
+    assert url =~ ~r{\A/uploads/map-references/[0-9a-f-]+\.png\z}
+    refute has_element?(view, "#map-reference-dialog")
+
+    stored = Application.app_dir(:ancient_stones, "priv/static#{url}")
+    on_exit(fn -> File.rm(stored) end)
   end
 
   test "does not fall back to another map for an invalid map id", %{conn: conn} do

@@ -228,8 +228,14 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     |> render_change()
 
     assert has_element?(view, "#world_name[value='Nirn']")
-    assert has_element?(view, "#dashboard-world-form", "Template galaxy:")
-    assert has_element?(view, "#dashboard-world-form", "Mundus")
+
+    assert has_element?(
+             view,
+             "#world_galaxy_id option[selected][value='__template_galaxy__']",
+             "Mundus"
+           )
+
+    refute has_element?(view, "#dashboard-world-form", "Template galaxy:")
     assert render(view) =~ "The mortal world where myth, empire, wilderness, and old magic shape"
   end
 
