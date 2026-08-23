@@ -1173,6 +1173,12 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert has_element?(view, "#connection-edit-form")
 
+    assert has_element?(
+             view,
+             "#connection-type-description",
+             "provides protection, resources, status, or access"
+           )
+
     view
     |> form("#connection-edit-form",
       lore_connection_edit: %{

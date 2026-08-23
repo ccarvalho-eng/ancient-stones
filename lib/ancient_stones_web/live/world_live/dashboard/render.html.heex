@@ -3980,6 +3980,20 @@
                         value={display_value(@selected_lore_connection.ended_at)}
                       />
                     </div>
+
+                    <div
+                      id="connection-type-description"
+                      class="stone-panel-muted rounded-md border px-3 py-3"
+                    >
+                      <p class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
+                        Relationship meaning
+                      </p>
+                      <p class="stone-heading mt-1 text-sm leading-6">
+                        {AncientStones.Worlds.LoreConnection.connection_type_description(
+                          @selected_lore_connection.connection_type
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </main>
