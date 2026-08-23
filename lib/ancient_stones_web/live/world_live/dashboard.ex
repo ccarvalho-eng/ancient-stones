@@ -949,13 +949,17 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end
   end
 
-  def handle_event("delete_map", _params, socket) do
-    case Maps.delete_world_map(socket.assigns.map_document) do
+  def handle_event("delete_map", %{"id" => id}, socket) do
+    map_document = Maps.get_world_map(socket.assigns.world, id)
+
+    case map_document && Maps.delete_world_map(map_document) do
       {:ok, _map_document} ->
         {:noreply,
-         push_patch(socket, to: ~p"/worlds/#{socket.assigns.world}/dashboard?section=map")}
+         socket
+         |> put_flash(:info, "Map deleted.")
+         |> push_navigate(to: ~p"/worlds/#{socket.assigns.world}/dashboard?section=maps")}
 
-      {:error, _changeset} ->
+      _error ->
         {:noreply, put_flash(socket, :error, "The map could not be deleted.")}
     end
   end

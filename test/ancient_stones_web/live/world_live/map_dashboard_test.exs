@@ -272,4 +272,24 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     assert updated_map.width == 3200
     assert updated_map.height == 1800
   end
+
+  test "deletes the selected map and remounts the map library", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, map} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=map&map_id=#{map.id}")
+
+    redirect =
+      view
+      |> element("#map-delete")
+      |> render_click()
+
+    path = ~p"/worlds/#{world}/dashboard?section=maps"
+    assert {:ok, view, _html} = follow_redirect(redirect, conn, path)
+
+    refute Maps.get_world_map(world, map.id)
+    assert has_element?(view, "#world-map-list")
+    refute has_element?(view, "#ink-map-editor-#{map.id}")
+  end
 end
