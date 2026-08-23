@@ -47,3 +47,21 @@ export function contrastingInk(background) {
 
   return luminance < 0.45 ? "#e6e2da" : "#342f28"
 }
+
+export function insertMidpoint(points, edgeIndex) {
+  const point = points[edgeIndex]
+  const next = points[(edgeIndex + 1) % points.length]
+  const midpoint = {x: (point.x + next.x) / 2, y: (point.y + next.y) / 2}
+
+  return [...points.slice(0, edgeIndex + 1), midpoint, ...points.slice(edgeIndex + 1)]
+}
+
+export function removeVertex(points, vertexIndex) {
+  if (points.length <= 3) return points
+
+  return points.filter((_point, index) => index !== vertexIndex)
+}
+
+export function erasableInkTarget(target) {
+  return target?.mapKind === "ink" ? target : null
+}

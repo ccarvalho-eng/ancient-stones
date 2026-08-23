@@ -25,4 +25,24 @@ defmodule AncientStonesWeb.MapLive.IndexTest do
 
     assert has_element?(view, "#maps-empty")
   end
+
+  test "lists only maps from the selected world", %{conn: conn} do
+    {:ok, nirn} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, tamriel} = Maps.create_world_map(nirn, %{"name" => "Tamriel"})
+    {:ok, mundus} = Worlds.create_world(%{name: "Mundus"})
+    {:ok, oblivion} = Maps.create_world_map(mundus, %{"name" => "Oblivion"})
+
+    {:ok, view, _html} = live(conn, ~p"/maps?world_id=#{nirn.id}")
+
+    assert has_element?(view, "#maps-#{tamriel.id}")
+    refute has_element?(view, "#maps-#{oblivion.id}")
+
+    view
+    |> form("#map-world-filter", world_filter: %{world_id: mundus.id})
+    |> render_change()
+
+    assert_patch(view, ~p"/maps?world_id=#{mundus.id}")
+    assert has_element?(view, "#maps-#{oblivion.id}")
+    refute has_element?(view, "#maps-#{tamriel.id}")
+  end
 end

@@ -1496,6 +1496,114 @@
                 </div>
 
                 <div
+                  :if={@reference_upload_open?}
+                  id="map-reference-dialog"
+                  class="fixed inset-0 z-50 grid place-items-center bg-zinc-950/45 p-4 backdrop-blur-[2px]"
+                  phx-window-keydown="hide_reference_upload"
+                  phx-key="Escape"
+                >
+                  <div
+                    class="stone-panel w-full max-w-lg overflow-hidden rounded-lg border shadow-2xl"
+                    phx-click-away="hide_reference_upload"
+                  >
+                    <div class="stone-border flex items-center justify-between border-b px-4 py-3">
+                      <div>
+                        <p class="stone-muted text-[10px] font-semibold uppercase tracking-wide">
+                          Trace layer
+                        </p>
+                        <h3 class="stone-heading text-base font-semibold">Add reference image</h3>
+                      </div>
+                      <button
+                        id="map-reference-close"
+                        type="button"
+                        phx-click="hide_reference_upload"
+                        aria-label="Close reference image form"
+                        class="stone-button rounded-md border p-2"
+                      >
+                        <.icon name="hero-x-mark" class="size-4" />
+                      </button>
+                    </div>
+                    <.form
+                      for={@reference_upload_form}
+                      id="map-reference-upload-form"
+                      phx-change="validate_reference_upload"
+                      phx-submit="upload_map_reference"
+                      class="grid gap-4 p-4"
+                    >
+                      <label
+                        for={@uploads.map_reference.ref}
+                        class="stone-soft-panel grid cursor-pointer place-items-center gap-2 rounded-md border border-dashed p-6 text-center"
+                      >
+                        <.icon name="hero-photo" class="stone-muted size-7" />
+                        <span class="stone-heading text-sm font-semibold">Choose map image</span>
+                        <span class="stone-muted text-xs">PNG, JPEG, or WebP up to 10 MB</span>
+                      </label>
+                      <.live_file_input
+                        upload={@uploads.map_reference}
+                        class="sr-only"
+                      />
+                      <div
+                        :for={entry <- @uploads.map_reference.entries}
+                        id={"map-reference-entry-#{entry.ref}"}
+                        class="stone-soft-panel rounded-md border p-3"
+                      >
+                        <div class="flex items-center justify-between gap-3">
+                          <span class="stone-heading truncate text-xs font-medium">{entry.client_name}</span>
+                          <span class="stone-muted text-xs">{entry.progress}%</span>
+                        </div>
+                        <p
+                          :for={error <- upload_errors(@uploads.map_reference, entry)}
+                          class="mt-2 text-xs text-red-600"
+                        >
+                          {reference_upload_error(error)}
+                        </p>
+                      </div>
+                      <p
+                        :for={error <- upload_errors(@uploads.map_reference)}
+                        class="text-xs text-red-600"
+                      >
+                        {reference_upload_error(error)}
+                      </p>
+                      <label
+                        for="map-reference-opacity"
+                        class="stone-heading text-sm font-medium"
+                      >
+                        Initial opacity
+                      </label>
+                      <input
+                        id="map-reference-opacity"
+                        name="reference[opacity]"
+                        type="range"
+                        value={@reference_upload_form[:opacity].value}
+                        min="10"
+                        max="100"
+                        step="5"
+                        class="w-full accent-zinc-700"
+                      />
+                      <p class="stone-muted text-xs">
+                        The reference stays editable but is excluded from PNG exports.
+                      </p>
+                      <div class="flex justify-end gap-2">
+                        <button
+                          id="map-reference-cancel"
+                          type="button"
+                          phx-click="hide_reference_upload"
+                          class="stone-button rounded-md border px-4 py-2 text-sm font-semibold"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          id="map-reference-submit"
+                          type="submit"
+                          class="stone-button rounded-md border px-4 py-2 text-sm font-semibold"
+                        >
+                          Add reference
+                        </button>
+                      </div>
+                    </.form>
+                  </div>
+                </div>
+                <div
                   id={"ink-map-editor-#{if(@map_document, do: @map_document.id, else: "new")}"}
                   data-map-editor
                   phx-hook="InkMap"
@@ -1526,14 +1634,14 @@
                             class="stone-muted size-4 transition group-open:rotate-180"
                           />
                         </summary>
-                        <div class="mt-2 grid grid-cols-3 gap-2">
+                        <div class="mt-2 grid grid-cols-4 gap-2">
                           <button
                             id="map-select-tool"
                             type="button"
                             data-map-tool="select"
                             aria-label="Select"
                             title="Select"
-                            class="stone-button stone-selected inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                            class="stone-button stone-selected inline-flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs font-medium transition"
                           >
                             <.icon name="hero-cursor-arrow-rays" class="size-4" />
                           </button>
@@ -1543,9 +1651,19 @@
                             data-map-tool="ink"
                             aria-label="Ink"
                             title="Ink"
-                            class="stone-button inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                            class="stone-button inline-flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs font-medium transition"
                           >
                             <.icon name="hero-pencil" class="size-4" />
+                          </button>
+                          <button
+                            id="map-eraser-tool"
+                            type="button"
+                            data-map-tool="eraser"
+                            aria-label="Eraser"
+                            title="Eraser"
+                            class="stone-button inline-flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs font-medium transition"
+                          >
+                            <.icon name="hero-backspace" class="size-4" />
                           </button>
                           <button
                             id="map-pan-tool"
@@ -1553,7 +1671,7 @@
                             data-map-tool="pan"
                             aria-label="Pan"
                             title="Pan"
-                            class="stone-button inline-flex items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
+                            class="stone-button inline-flex items-center justify-center gap-2 rounded-md border px-2 py-2 text-xs font-medium transition"
                           >
                             <.icon name="hero-hand-raised" class="size-4" />
                           </button>
@@ -1565,6 +1683,15 @@
                           class="stone-button mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
                         >
                           <.icon name="hero-language" class="size-4" /> Text label
+                        </button>
+                        <button
+                          id="map-add-reference"
+                          type="button"
+                          phx-click="show_reference_upload"
+                          disabled={is_nil(@map_document)}
+                          class="stone-button mt-2 inline-flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <.icon name="hero-photo" class="size-4" /> Reference image
                         </button>
                         <div class="mt-3 grid gap-2">
                           <label class="stone-muted block text-xs" for="map-brush-size">

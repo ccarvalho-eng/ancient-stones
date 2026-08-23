@@ -3,6 +3,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   alias AncientStones.Galaxies
   alias AncientStones.Maps
+  alias AncientStones.Maps.ReferenceImage
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CharacterRole
@@ -12,15 +13,39 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   def mount(_params, _session, socket) do
     {:ok,
-     assign(socket,
+     socket
+     |> assign(
        page_title: "World Details",
        theme: "system",
        search_query: "",
        timeline_detail_tab: "eras",
        expanded_action: "continent",
        new_map_open?: false,
+       reference_upload_open?: false,
+       reference_upload_form: to_form(%{"opacity" => "45"}, as: :reference),
        open_folded_groups: MapSet.new()
+     )
+     |> allow_upload(:map_reference,
+       accept: ~w(.jpg .jpeg .png .webp),
+       max_entries: 1,
+       max_file_size: 10_000_000
      )}
+  end
+
+  def reference_upload_error(:too_large) do
+    "Image must be smaller than 10 MB."
+  end
+
+  def reference_upload_error(:not_accepted) do
+    "Choose a PNG, JPEG, or WebP image."
+  end
+
+  def reference_upload_error(:too_many_files) do
+    "Upload one reference image at a time."
+  end
+
+  def reference_upload_error(_error) do
+    "The image could not be uploaded."
   end
 
   def handle_params(%{"id" => id} = params, _uri, socket) do
@@ -847,6 +872,53 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   def handle_event("hide_new_map", _params, socket) do
     {:noreply, assign(socket, :new_map_open?, false)}
+  end
+
+  def handle_event("show_reference_upload", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:reference_upload_open?, true)
+     |> assign(:reference_upload_form, to_form(%{"opacity" => "45"}, as: :reference))}
+  end
+
+  def handle_event("hide_reference_upload", _params, socket) do
+    socket =
+      Enum.reduce(socket.assigns.uploads.map_reference.entries, socket, fn entry, socket ->
+        cancel_upload(socket, :map_reference, entry.ref)
+      end)
+
+    {:noreply, assign(socket, :reference_upload_open?, false)}
+  end
+
+  def handle_event("validate_reference_upload", %{"reference" => params}, socket) do
+    {:noreply, assign(socket, :reference_upload_form, to_form(params, as: :reference))}
+  end
+
+  def handle_event("upload_map_reference", %{"reference" => params}, socket) do
+    opacity =
+      case Integer.parse(to_string(params["opacity"])) do
+        {value, ""} -> value |> max(10) |> min(100) |> Kernel./(100)
+        _error -> 0.45
+      end
+
+    results =
+      consume_uploaded_entries(socket, :map_reference, fn %{path: path}, _entry ->
+        {:ok, ReferenceImage.store(path)}
+      end)
+
+    case results do
+      [{:ok, url}] ->
+        {:noreply,
+         socket
+         |> assign(:reference_upload_open?, false)
+         |> push_event("map_reference_uploaded", %{url: url, opacity: opacity})}
+
+      [{:error, _reason}] ->
+        {:noreply, put_flash(socket, :error, "The reference image could not be stored.")}
+
+      _results ->
+        {:noreply, put_flash(socket, :error, "Choose an image before adding a reference.")}
+    end
   end
 
   def handle_event("update_map", %{"map_edit" => attrs}, socket) do

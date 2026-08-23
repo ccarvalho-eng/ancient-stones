@@ -4,6 +4,9 @@ import test from "node:test"
 import {
   appendDistinctPoint,
   contrastingInk,
+  erasableInkTarget,
+  insertMidpoint,
+  removeVertex,
   roughenCoastline,
   zoomFromPinch,
 } from "./map_geometry.mjs"
@@ -38,4 +41,32 @@ test("zoomFromPinch scales and clamps the canvas zoom", () => {
 test("contrastingInk keeps tools visible on light and dark canvases", () => {
   assert.equal(contrastingInk("#21252b"), "#e6e2da")
   assert.equal(contrastingInk("#e7ddc4"), "#342f28")
+})
+
+test("insertMidpoint adds a vertex between coastline points", () => {
+  const points = [{x: 0, y: 0}, {x: 10, y: 0}, {x: 10, y: 10}]
+
+  assert.deepEqual(insertMidpoint(points, 0), [
+    {x: 0, y: 0},
+    {x: 5, y: 0},
+    {x: 10, y: 0},
+    {x: 10, y: 10},
+  ])
+})
+
+test("removeVertex preserves the polygon minimum", () => {
+  const triangle = [{x: 0, y: 0}, {x: 10, y: 0}, {x: 10, y: 10}]
+  const polygon = [...triangle, {x: 0, y: 10}]
+
+  assert.equal(removeVertex(triangle, 0), triangle)
+  assert.deepEqual(removeVertex(polygon, 1), [triangle[0], triangle[2], polygon[3]])
+})
+
+test("erasableInkTarget only accepts pencil strokes", () => {
+  const ink = {mapKind: "ink"}
+
+  assert.equal(erasableInkTarget(ink), ink)
+  assert.equal(erasableInkTarget({mapKind: "landmass"}), null)
+  assert.equal(erasableInkTarget({mapKind: "label"}), null)
+  assert.equal(erasableInkTarget(null), null)
 })

@@ -1,6 +1,8 @@
 import {
   ActiveSelection,
   Canvas,
+  Control,
+  FabricImage,
   Group,
   IText,
   Path,
@@ -8,11 +10,15 @@ import {
   Point,
   Polygon,
   controlsUtils,
+  util,
 } from "../../vendor/fabric.mjs"
 import {mapIconPaths, mapIcons} from "../map_icons"
 import {
   appendDistinctPoint,
   contrastingInk,
+  erasableInkTarget,
+  insertMidpoint,
+  removeVertex,
   roughenCoastline,
   zoomFromPinch,
 } from "../map_geometry.mjs"
@@ -31,6 +37,8 @@ const serializableProperties = [
   "mapLocked",
   "mapCoastRoughness",
   "mapLandColor",
+  "mapExcludeFromExport",
+  "mapReferenceSrc",
 ]
 const layerOrder = {terrain: 0, features: 1, labels: 2}
 const parchment = "#e7ddc4"
@@ -96,6 +104,9 @@ const InkMap = {
     this.handleFullscreenChange = () => this.syncFullscreenState()
     document.addEventListener("fullscreenchange", this.handleFullscreenChange)
     this.handleEvent("map_resized", ({width, height}) => this.resizeMap(width, height))
+    this.handleEvent("map_reference_uploaded", ({url, opacity}) => {
+      this.addReferenceImage(url, opacity)
+    })
     this.handleThemeChange = () => this.syncImplicitCanvasTheme()
     this.themeObserver = new MutationObserver(this.handleThemeChange)
     if (this.themeRoot) this.themeObserver.observe(this.themeRoot, {attributes: true, attributeFilter: ["class"]})
@@ -150,6 +161,12 @@ const InkMap = {
       this.changed("Stroke added")
     })
     this.canvas.on("mouse:down", (event) => {
+      if (this.eraserTool) {
+        this.erasingInk = true
+        this.eraseInkAt(event)
+        return
+      }
+
       if (this.landmassTool) this.addLandmassPoint(event)
       else {
         this.startTextureStroke(event)
@@ -157,6 +174,11 @@ const InkMap = {
       }
     })
     this.canvas.on("mouse:move", (event) => {
+      if (this.eraserTool && this.erasingInk) {
+        this.eraseInkAt(event)
+        return
+      }
+
       if (this.landmassTool) this.previewLandmass(event)
       else {
         this.continueTextureStroke(event)
@@ -193,9 +215,30 @@ const InkMap = {
       this.showCoordinates()
       this.syncEntityLink()
     })
+    this.canvas.on("mouse:up", () => this.finishInkErasing())
     this.canvas.on("mouse:dblclick", ({target}) => {
       if (target?.mapKind === "landmass") this.toggleLandmassEditing(target)
     })
+  },
+
+  eraseInkAt(event) {
+    const target = erasableInkTarget(event.target)
+    if (!target) return
+
+    this.canvas.discardActiveObject()
+    this.canvas.remove(target)
+    this.erasedInk = true
+    this.canvas.requestRenderAll()
+  },
+
+  finishInkErasing() {
+    if (!this.erasingInk) return
+
+    this.erasingInk = false
+    if (!this.erasedInk) return
+
+    this.erasedInk = false
+    this.changed("Ink erased")
   },
 
   bindControls() {
@@ -337,18 +380,23 @@ const InkMap = {
   },
 
   setTool(tool) {
+    if (this.eraserTool && tool !== "eraser") this.finishInkErasing()
+
     const drawing = tool === "ink"
+    const erasing = tool === "eraser"
     const panning = tool === "pan"
     const landmass = tool === "landmass"
     const texture = tool.startsWith("texture-") ? tool.replace("texture-", "") : null
     if (!landmass && this.landmassDraft) this.cancelLandmass()
     this.canvas.isDrawingMode = drawing
-    this.canvas.selection = !drawing && !texture && !panning && !landmass
+    this.canvas.selection = !drawing && !erasing && !texture && !panning && !landmass
     this.canvas.skipTargetFind = Boolean(texture) || panning || landmass
-    this.canvas.defaultCursor = panning ? "grab" : landmass ? "crosshair" : "default"
-    this.canvas.hoverCursor = panning ? "grab" : landmass ? "crosshair" : "move"
+    this.canvas.defaultCursor = panning ? "grab" : landmass || erasing ? "crosshair" : "default"
+    this.canvas.hoverCursor = panning ? "grab" : landmass || erasing ? "crosshair" : "move"
+    this.canvas.targetFindTolerance = erasing ? 10 : 0
     this.textureTool = textureBrushes[texture] ? texture : null
     this.landmassTool = landmass
+    this.eraserTool = erasing
 
     if (drawing) {
       const brush = new PencilBrush(this.canvas)
@@ -367,7 +415,9 @@ const InkMap = {
 
     const toolName = this.textureTool
       ? `${this.textureTool[0].toUpperCase()}${this.textureTool.slice(1)} texture active`
-      : drawing
+      : erasing
+        ? "Eraser active: drag across pencil strokes"
+        : drawing
         ? "Ink tool active"
         : panning
           ? "Pan tool active"
@@ -595,13 +645,120 @@ const InkMap = {
 
     object.mapEditing = !object.mapEditing
     object.controls = object.mapEditing
-      ? controlsUtils.createPolyControls(object)
+      ? this.createLandmassControls(object)
       : controlsUtils.createObjectDefaultControls()
     object.set({cornerColor: "#92400e", cornerStyle: "circle", transparentCorners: false})
     object.setCoords()
     this.canvas.setActiveObject(object)
     this.canvas.requestRenderAll()
-    this.setStatus(object.mapEditing ? "Coastline vertex editing active" : "Coastline editing finished")
+    this.setStatus(
+      object.mapEditing
+        ? "Click midpoint handles to add points. Alt/Option-click a vertex to remove it."
+        : "Coastline editing finished",
+    )
+  },
+
+  createLandmassControls(object) {
+    const controls = controlsUtils.createPolyControls(object)
+
+    object.points.forEach((_point, index) => {
+      const vertexControl = controls[`p${index}`]
+      const originalMouseUp = vertexControl.mouseUpHandler
+
+      vertexControl.mouseUpHandler = (eventData, transform, ...args) => {
+        if (eventData.e?.altKey) {
+          this.removeLandmassVertex(transform.target, index)
+          return true
+        }
+
+        return originalMouseUp?.(eventData, transform, ...args) || false
+      }
+
+      controls[`m${index}`] = new Control({
+        cursorStyle: "copy",
+        sizeX: 8,
+        sizeY: 8,
+        positionHandler: (_dimensions, _matrix, target) => {
+          const point = target.points[index]
+          const next = target.points[(index + 1) % target.points.length]
+          const midpoint = new Point((point.x + next.x) / 2, (point.y + next.y) / 2)
+          const localPoint = midpoint.subtract(target.pathOffset)
+          const matrix = util.multiplyTransformMatrices(
+            target.canvas.viewportTransform,
+            target.calcTransformMatrix(),
+          )
+
+          return localPoint.transform(matrix)
+        },
+        mouseUpHandler: (_eventData, transform) => {
+          this.insertLandmassVertex(transform.target, index)
+          return true
+        },
+      })
+    })
+
+    return controls
+  },
+
+  insertLandmassVertex(object, edgeIndex) {
+    object.points = insertMidpoint(object.points, edgeIndex)
+    object.controls = this.createLandmassControls(object)
+    object.dirty = true
+    object.setCoords()
+    this.canvas.requestRenderAll()
+    this.changed("Coastline point added")
+  },
+
+  removeLandmassVertex(object, vertexIndex) {
+    const points = removeVertex(object.points, vertexIndex)
+
+    if (points === object.points) {
+      this.setStatus("A landmass must keep at least 3 coastline points")
+      return
+    }
+
+    const center = object.getCenterPoint()
+    object.points = points
+    object.setDimensions()
+    object.setPositionByOrigin(center, "center", "center")
+    object.controls = this.createLandmassControls(object)
+    object.dirty = true
+    object.setCoords()
+    this.canvas.requestRenderAll()
+    this.changed("Coastline point removed")
+  },
+
+  addReferenceImage(url, opacity) {
+    FabricImage.fromURL(url).then((image) => {
+      const scale = Math.min(
+        (this.width * 0.8) / image.width,
+        (this.height * 0.8) / image.height,
+        1,
+      )
+
+      image.set({
+        left: this.width / 2,
+        top: this.height / 2,
+        originX: "center",
+        originY: "center",
+        opacity: Math.min(1, Math.max(0.1, Number(opacity) || 0.45)),
+        scaleX: scale,
+        scaleY: scale,
+        mapKind: "reference-image",
+        mapLayer: "terrain",
+        mapIconName: "Reference image",
+        mapItemId: newItemId(),
+        mapExcludeFromExport: true,
+        mapReferenceSrc: url,
+      })
+
+      this.canvas.add(image)
+      this.canvas.sendObjectToBack(image)
+      this.canvas.setActiveObject(image)
+      this.canvas.requestRenderAll()
+      this.setLayer("terrain")
+      this.changed("Reference image added")
+    }).catch(() => this.setStatus("The reference image could not be loaded"))
   },
 
   startPan(event) {
@@ -1008,6 +1165,11 @@ const InkMap = {
     })
 
     const document = this.canvas.toJSON(serializableProperties)
+    document.objects.forEach((object) => {
+      if (object.mapKind === "reference-image" && object.mapReferenceSrc) {
+        object.src = object.mapReferenceSrc
+      }
+    })
     document.mapBackground = this.mapBackground
     document.mapBackgroundExplicit = this.hasExplicitBackground
     return document
@@ -1241,16 +1403,24 @@ const InkMap = {
 
   exportPng() {
     const background = this.canvas.backgroundColor
-    this.canvas.backgroundColor = this.mapBackground
-    this.canvas.requestRenderAll()
+    const excludedObjects = this.canvas.getObjects().filter((object) => object.mapExcludeFromExport)
+    const visibility = excludedObjects.map((object) => object.visible)
 
-    const link = document.createElement("a")
-    link.download = "world-map.png"
-    link.href = this.canvas.toDataURL({format: "png", multiplier: 1})
-    link.click()
+    try {
+      excludedObjects.forEach((object) => object.set({visible: false}))
+      this.canvas.backgroundColor = this.mapBackground
+      this.canvas.requestRenderAll()
 
-    this.canvas.backgroundColor = background
-    this.canvas.requestRenderAll()
+      const link = document.createElement("a")
+      link.download = "world-map.png"
+      link.href = this.canvas.toDataURL({format: "png", multiplier: 1})
+      link.click()
+    } finally {
+      excludedObjects.forEach((object, index) => object.set({visible: visibility[index]}))
+      this.canvas.backgroundColor = background
+      this.canvas.requestRenderAll()
+    }
+
     this.setStatus("PNG exported")
   },
 

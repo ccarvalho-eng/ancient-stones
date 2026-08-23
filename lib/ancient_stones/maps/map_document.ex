@@ -7,7 +7,8 @@ defmodule AncientStones.Maps.MapDocument do
 
   @max_document_bytes 2_000_000
   @max_objects 2_000
-  @allowed_object_types ~w(Path Group IText Textbox Polygon path group i-text textbox polygon)
+  @allowed_object_types ~w(Path Group IText Textbox Polygon Image path group i-text textbox polygon image)
+  @reference_image_path ~r{\A/uploads/map-references/[0-9a-f-]+\.(png|jpg|webp)\z}
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -107,12 +108,17 @@ defmodule AncientStones.Maps.MapDocument do
     is_list(points) and length(points) >= 3 and Enum.all?(points, &valid_point?/1)
   end
 
+  defp valid_object_data?(type, %{"src" => src, "mapReferenceSrc" => reference_src})
+       when type in ~w(Image image) do
+    src == reference_src and is_binary(src) and Regex.match?(@reference_image_path, src)
+  end
+
   defp valid_object_data?(_type, _object) do
     false
   end
 
   defp valid_geometry?(object) do
-    Enum.all?(~w(left top angle scaleX scaleY opacity mapX mapY), fn field ->
+    Enum.all?(~w(left top width height angle scaleX scaleY opacity mapX mapY), fn field ->
       not Map.has_key?(object, field) or finite_number?(object[field])
     end)
   end

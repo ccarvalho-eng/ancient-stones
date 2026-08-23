@@ -42,6 +42,7 @@ defmodule AncientStones.Maps do
     world_id
     |> world_maps_query()
     |> Repo.all()
+    |> Repo.preload(:parent_map)
   end
 
   def change_world_map(%MapDocument{} = map_document, attrs \\ %{}) do
