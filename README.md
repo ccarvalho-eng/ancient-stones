@@ -1,82 +1,121 @@
 # Ancient Stones
 
-Ancient Stones is a Phoenix and LiveView world-building dashboard for creating RPG settings, campaign references, and fiction worlds. It models a world as editable lore, geography, politics, commerce, calendars, characters, documents, inventories, skills, creatures, and relationships instead of treating setting notes as flat text.
+Ancient Stones is a Phoenix LiveView workspace for building RPG settings, campaign references, and fictional worlds. It combines structured lore management with an interactive map editor, so geography, characters, politics, calendars, and locations can evolve together instead of living in disconnected notes.
 
-The current app focuses on a Nordic fantasy framework: worlds, galaxies, continents, provinces, holds, locations, races, character roles, guilds, gods, civilizations, politics, calendars, timelines, creatures, skills, spells, items, inventories, local commerce, coordinates, and discovered or hidden places. You can start from a Skyrim-inspired template or create a blank world and define your own structure.
+The application is designed as a generic world-building system. A Skyrim-inspired template is included as an optional example dataset, not as a limitation on the settings Ancient Stones can model.
 
-Ancient Stones is a project, not a packaged library.
+## Highlights
 
-## What It Does
+### World-building dashboard
 
-- Create worlds from a blank canvas or the Skyrim-inspired template.
-- Organize geography from galaxy and world down to continent, province, hold, and location.
-- Browse and edit world-building records from a compact dashboard.
-- Track races, character roles, guilds, gods, civilizations, calendars, timelines, characters, politics, creatures, skills, spells, items, and character inventories.
-- Model regional details such as terrain, climate, capitals, political offices, local commerce, location types, map coordinates, and visibility.
-- Keep calendars aligned to a planet's orbital year while allowing different eras to use different month structures.
-- Use a starter data set inspired by Skyrim as a reference structure for RPGs, games, or book settings.
+- Create blank worlds or start from a populated reference template.
+- Organize galaxies, worlds, continents, provinces, holds, and locations.
+- Edit records directly from a consistent select-and-form dashboard workflow.
+- Define custom weekday and calendar structures.
+- Track civilizations, races, characters, roles, guilds, gods, political offices, and relationships.
+- Catalog creatures, skills, perks, spells, items, inventories, documents, timelines, and regional commerce.
+- Record coordinates, capitals, terrain, climate, visibility, and other location details.
 
-## Status
+### Atlas map editor
 
-This is early project work. The data model is already broad enough to explore an RPG-maker style workflow, but it is not complete game tooling yet. The strongest areas today are geography, template creation, character relationships, skill/perk references, item catalogs, and the builder dashboard.
+- Create and manage multiple maps for each world, including outer and nested maps.
+- Draw freehand ink, erase strokes, and construct editable landmass polygons.
+- Paint reusable terrain textures for forests, mountains, grasslands, marshes, deserts, roads, and water.
+- Place searchable medieval and fantasy symbols powered by [Game-icons.net](https://game-icons.net/).
+- Add, drag, duplicate, layer, lock, and precisely position symbols and text labels.
+- Use zoom, pinch gestures, pan mode, grid preferences, snapping, center guides, and focus mode.
+- Upload a reference image as a non-exported tracing layer.
+- Persist canvas documents and indexed map objects in PostgreSQL.
+- Export finished maps as PNG files.
 
-See [docs/skyrim_template.md](docs/skyrim_template.md) for the current template coverage and known gaps.
+## Project Status
+
+Ancient Stones is active early-stage software rather than a packaged library or production service. Its primary world-building and map-authoring workflows are functional, but the data model, editor tools, storage strategy, and deployment story are still evolving.
+
+Reference images currently use local application storage. That is suitable for development, but a production deployment should move uploads to durable object storage.
+
+See [docs/skyrim_template.md](docs/skyrim_template.md) for the reference template's coverage and known gaps.
+
+## Technology
+
+- Elixir and Phoenix 1.8
+- Phoenix LiveView 1.2
+- Ecto and PostgreSQL
+- Tailwind CSS 4
+- Fabric.js canvas rendering
+- ExUnit and LiveViewTest
 
 ## Requirements
 
 - Elixir 1.17 or later
-- Erlang/OTP compatible with the Elixir version above
+- A compatible Erlang/OTP release
 - PostgreSQL
 
-## Setup
+The development database defaults to a local PostgreSQL instance using the `postgres` user and password. Adjust `config/dev.exs` if your environment differs.
 
-Install dependencies, create the database, run migrations, and build assets:
+## Getting Started
+
+Install dependencies, create and migrate the database, load seeds, and build assets:
 
 ```sh
 mix setup
 ```
 
-Start the Phoenix server:
+Start the development server:
 
 ```sh
 mix phx.server
 ```
 
-Open:
+Visit [http://localhost:4000](http://localhost:4000).
 
-```text
-http://localhost:4000
-```
+## Main Routes
+
+| Route | Purpose |
+| --- | --- |
+| `/` or `/worlds` | Browse and edit galaxies and worlds |
+| `/worlds/new` | Create a blank or template-based world |
+| `/worlds/:id` | View a world summary |
+| `/worlds/:id/dashboard` | Manage a world's lore and maps |
+| `/maps` | Browse and filter the global map library |
 
 ## Development
 
-Run the project checks:
+Run the complete project checks before submitting changes:
 
 ```sh
 mix precommit
 ```
 
-Useful commands:
+Common commands:
 
 ```sh
-mix test
-mix format
-mix ecto.reset
+mix test          # Run the test suite
+mix format        # Format Elixir and HEEx files
+mix assets.build  # Compile CSS and JavaScript assets
+mix ecto.reset    # Recreate, migrate, and seed the database
 ```
 
-## Main Routes
+## Project Structure
 
-- `/` and `/worlds`: world and galaxy workspace
-- `/worlds/new`: world creation flow
-- `/worlds/:id/dashboard`: builder dashboard for a world
-- `/worlds/:id`: world summary page
+| Path | Contents |
+| --- | --- |
+| `lib/ancient_stones` | Domain contexts, schemas, and persistence logic |
+| `lib/ancient_stones_web/live` | LiveView pages and dashboard workflows |
+| `assets/js/hooks` | Interactive map editor and browser integrations |
+| `assets/css` | Tailwind entry point and application styling |
+| `priv/repo/migrations` | PostgreSQL schema history |
+| `priv/repo/seeds.exs` | Development seed data |
+| `test` | Context, LiveView, and JavaScript regression coverage |
 
-## Template Notes
+## Template and Asset Attribution
 
-The Skyrim-inspired template is included as a starter data set for testing and design exploration. It is meant to demonstrate the framework and provide recognizable structure, not to be a complete canonical database.
+The Skyrim-inspired template demonstrates the framework with a recognizable world structure. It is not intended to be a complete canonical database.
 
 Ancient Stones is not affiliated with Bethesda, ZeniMax, or The Elder Scrolls. Skyrim and The Elder Scrolls names belong to their respective owners.
 
-## Project Direction
+Map symbols are sourced from [Game-icons.net](https://game-icons.net/) and retain their respective creator credits and licenses.
 
-The long-term goal is a focused world-building workspace that can help people design their own RPG setting, prepare a game database, or organize lore for fiction writing. The current shape leans into Nordic fantasy because that gives the framework concrete constraints: capitals, jarls, housecarls, guilds, gods, ruins, dangerous regions, local markets, skills, weapons, spells, and other familiar RPG concepts.
+## Direction
+
+The long-term goal is a focused, extensible workspace for designing original RPG worlds, preparing campaign material, organizing fiction lore, and producing maps whose objects remain connected to the underlying world model.
