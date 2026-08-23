@@ -118,12 +118,9 @@ defmodule AncientStonesWeb.MapLive.Index do
                   class="stone-muted mb-0.5 flex items-center gap-1.5 text-xs font-medium"
                   aria-label="Breadcrumb"
                 >
-                  <.link
-                    navigate={~p"/worlds/#{@selected_world}/dashboard"}
-                    class="stone-breadcrumb-link"
-                  >
-                    {@selected_world.name}
-                  </.link>
+                  <.link navigate={~p"/worlds"} class="stone-breadcrumb-link">Worlds</.link>
+                  <.icon name="hero-chevron-right" class="size-3.5" />
+                  <span>{@selected_world.name}</span>
                   <.icon name="hero-chevron-right" class="size-3.5" />
                   <span class="stone-heading">Maps</span>
                 </nav>
