@@ -16,8 +16,10 @@ defmodule AncientStonesWeb.MapLive.IndexTest do
 
     assert has_element?(
              view,
-             "#maps-#{map.id}[href='/worlds/#{world.id}/dashboard?section=map&map_id=#{map.id}']"
+             "#map-open-#{map.id}[href='/worlds/#{world.id}/dashboard?section=map&map_id=#{map.id}']"
            )
+
+    assert has_element?(view, "#map-delete-#{map.id}[data-confirm]")
   end
 
   test "shows an empty state", %{conn: conn} do
@@ -45,5 +47,20 @@ defmodule AncientStonesWeb.MapLive.IndexTest do
     assert_patch(view, ~p"/maps?world_id=#{nirn.id}")
     assert has_element?(view, "#maps-#{tamriel.id}")
     refute has_element?(view, "#maps-#{oblivion.id}")
+  end
+
+  test "deletes a map from the library and refreshes the count", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, map} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, view, _html} = live(conn, ~p"/maps")
+
+    view
+    |> element("#map-delete-#{map.id}")
+    |> render_click()
+
+    refute Maps.get_world_map(world, map.id)
+    refute has_element?(view, "#maps-#{map.id}")
+    assert has_element?(view, "#maps-navigation strong", "0")
   end
 end

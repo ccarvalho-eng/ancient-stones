@@ -41,6 +41,25 @@ defmodule AncientStonesWeb.MapLive.Index do
     {:noreply, push_patch(socket, to: ~p"/maps?world_id=#{world_id}")}
   end
 
+  def handle_event("delete_map", %{"id" => id, "world-id" => world_id}, socket) do
+    world = Enum.find(socket.assigns.worlds, &(&1.id == world_id))
+    map_document = world && Maps.get_world_map(world, id)
+
+    case map_document && Maps.delete_world_map(map_document) do
+      {:ok, _map_document} ->
+        maps = maps_for(socket.assigns.selected_world)
+
+        {:noreply,
+         socket
+         |> assign(:map_count, length(maps))
+         |> put_flash(:info, "Map deleted.")
+         |> stream(:maps, maps, reset: true)}
+
+      _error ->
+        {:noreply, put_flash(socket, :error, "The map could not be deleted.")}
+    end
+  end
+
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
@@ -136,43 +155,65 @@ defmodule AncientStonesWeb.MapLive.Index do
                     <p class="mt-1 text-xs">Open a world and create its first map.</p>
                   </div>
 
-                  <.link
+                  <article
                     :for={{id, map} <- @streams.maps}
                     id={id}
-                    navigate={~p"/worlds/#{map.world_id}/dashboard?section=map&map_id=#{map.id}"}
                     class="stone-button group rounded-md border p-4 transition hover:-translate-y-0.5 hover:shadow-md"
                   >
-                    <div class="flex items-start justify-between gap-3">
-                      <div class="min-w-0">
-                        <p class="stone-muted text-[10px] font-semibold uppercase tracking-[0.16em]">
-                          {map_world_name(map, @selected_world)}
-                        </p>
-                        <h3 class="stone-heading mt-1 truncate text-base font-semibold">
-                          {map.name}
-                        </h3>
-                      </div>
-                      <span class="rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
-                        {map.kind}
-                      </span>
-                    </div>
-                    <p class="stone-muted mt-4 flex items-center gap-1.5 text-xs">
-                      <.icon name="hero-arrow-turn-down-right" class="size-3.5" />
-                      {if map.parent_map, do: "Inside #{map.parent_map.name}", else: "Outer map"}
-                    </p>
-                    <p
-                      :if={map.description not in [nil, ""]}
-                      class="stone-muted mt-2 line-clamp-2 text-xs"
+                    <.link
+                      id={"map-open-#{map.id}"}
+                      navigate={~p"/worlds/#{map.world_id}/dashboard?section=map&map_id=#{map.id}"}
+                      class="block"
                     >
-                      {map.description}
-                    </p>
-                    <span class="stone-heading mt-4 inline-flex items-center gap-1 text-xs font-semibold">
-                      Open editor
-                      <.icon
-                        name="hero-arrow-right"
-                        class="size-3.5 transition group-hover:translate-x-0.5"
-                      />
-                    </span>
-                  </.link>
+                      <div class="flex items-start justify-between gap-3">
+                        <div class="min-w-0">
+                          <p class="stone-muted text-[10px] font-semibold uppercase tracking-[0.16em]">
+                            {map_world_name(map, @selected_world)}
+                          </p>
+                          <h3 class="stone-heading mt-1 truncate text-base font-semibold">
+                            {map.name}
+                          </h3>
+                        </div>
+                        <span class="rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
+                          {map.kind}
+                        </span>
+                      </div>
+                      <p class="stone-muted mt-4 flex items-center gap-1.5 text-xs">
+                        <.icon name="hero-arrow-turn-down-right" class="size-3.5" />
+                        {if map.parent_map, do: "Inside #{map.parent_map.name}", else: "Outer map"}
+                      </p>
+                      <p
+                        :if={map.description not in [nil, ""]}
+                        class="stone-muted mt-2 line-clamp-2 text-xs"
+                      >
+                        {map.description}
+                      </p>
+                    </.link>
+                    <div class="mt-4 flex items-center justify-between gap-3">
+                      <.link
+                        navigate={~p"/worlds/#{map.world_id}/dashboard?section=map&map_id=#{map.id}"}
+                        class="stone-heading inline-flex items-center gap-1 text-xs font-semibold"
+                      >
+                        Open editor
+                        <.icon
+                          name="hero-arrow-right"
+                          class="size-3.5 transition group-hover:translate-x-0.5"
+                        />
+                      </.link>
+                      <button
+                        id={"map-delete-#{map.id}"}
+                        type="button"
+                        phx-click="delete_map"
+                        phx-value-id={map.id}
+                        phx-value-world-id={map.world_id}
+                        data-confirm="Delete this map? Inner maps will become outer maps."
+                        aria-label={"Delete #{map.name}"}
+                        class="stone-danger-button inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition"
+                      >
+                        <.icon name="hero-trash" class="size-3.5" /> Delete
+                      </button>
+                    </div>
+                  </article>
                 </div>
               </section>
             </main>
@@ -189,6 +230,14 @@ defmodule AncientStonesWeb.MapLive.Index do
 
   defp selected_world_id(world) do
     world.id
+  end
+
+  defp maps_for(nil) do
+    Maps.list_maps()
+  end
+
+  defp maps_for(world) do
+    Maps.list_world_maps(world)
   end
 
   defp map_world_name(_map, selected_world) when not is_nil(selected_world) do
