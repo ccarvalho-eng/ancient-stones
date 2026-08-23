@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.PoliticalOffice do
   import Ecto.Changeset
 
   alias AncientStones.Worlds.Character
+  alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.World
@@ -16,6 +17,7 @@ defmodule AncientStones.Worlds.PoliticalOffice do
     field :description, :string
 
     belongs_to(:world, World)
+    belongs_to(:continent, Continent)
     belongs_to(:province, Province)
     belongs_to(:hold, Hold)
     belongs_to(:character, Character)
@@ -27,12 +29,15 @@ defmodule AncientStones.Worlds.PoliticalOffice do
     political_office
     |> cast(attrs, [:office, :scope, :politics, :description])
     |> validate_required([:office, :scope, :world_id])
-    |> validate_inclusion(:scope, ["province", "hold"])
+    |> validate_inclusion(:scope, ["continent", "province", "hold"])
     |> validate_high_king_scope()
     |> foreign_key_constraint(:world_id)
+    |> foreign_key_constraint(:continent_id)
     |> foreign_key_constraint(:province_id)
     |> foreign_key_constraint(:hold_id)
     |> foreign_key_constraint(:character_id)
+    |> check_constraint(:scope, name: :political_offices_scope_target)
+    |> unique_constraint(:office, name: :political_offices_continent_id_office_index)
     |> unique_constraint(:office, name: :political_offices_province_id_office_index)
     |> unique_constraint(:office, name: :political_offices_hold_id_office_index)
   end
@@ -41,8 +46,8 @@ defmodule AncientStones.Worlds.PoliticalOffice do
     office = get_field(changeset, :office)
     scope = get_field(changeset, :scope)
 
-    if normalized_office(office) == "high king" && scope != "province" do
-      add_error(changeset, :office, "must be scoped to a province")
+    if normalized_office(office) == "high king" && scope not in ["continent", "province"] do
+      add_error(changeset, :office, "must be scoped to a continent or province")
     else
       changeset
     end

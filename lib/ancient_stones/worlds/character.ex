@@ -4,6 +4,7 @@ defmodule AncientStones.Worlds.Character do
 
   alias AncientStones.Worlds.CharacterInventoryCategory
   alias AncientStones.Worlds.CharacterInventoryItem
+  alias AncientStones.Worlds.CharacterLocation
   alias AncientStones.Worlds.CharacterOccupation
   alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.CharacterSkill
@@ -57,6 +58,8 @@ defmodule AncientStones.Worlds.Character do
     belongs_to(:race, Race)
     belongs_to(:guild, Guild)
     belongs_to(:home_location, Location)
+    has_many(:character_locations, CharacterLocation)
+    has_many(:locations, through: [:character_locations, :location])
     has_many(:character_occupations, CharacterOccupation)
     has_many(:character_skills, CharacterSkill)
     has_many(:inventory_categories, CharacterInventoryCategory)

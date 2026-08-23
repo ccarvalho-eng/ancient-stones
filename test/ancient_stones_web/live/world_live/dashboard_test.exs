@@ -1294,13 +1294,18 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#character_character_role_id option[value='#{character_role.id}']")
   end
 
-  test "groups characters without a role without using their names as roles", %{conn: conn} do
+  test "groups characters without a race by their primary profession", %{conn: conn} do
     {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
-    {:ok, _character} = Worlds.create_character(world, %{name: "Nameless Wanderer"})
+    {:ok, character} = Worlds.create_character(world, %{name: "Nameless Wanderer"})
+    {:ok, occupation} = Worlds.create_occupation(world, %{name: "Wayfarer"})
+
+    {:ok, _character_occupation} =
+      Worlds.create_character_occupation(character, occupation, %{primary: true})
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=characters")
 
-    assert has_element?(view, "#character-list summary", "No Race")
+    assert has_element?(view, "#character-list summary", "Wayfarer")
+    refute has_element?(view, "#character-list summary", "No Race")
     refute has_element?(view, "#character-list summary", "Nameless Wanderer")
   end
 
@@ -1903,6 +1908,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     |> render_submit()
 
     calendar = Worlds.get_calendar!(calendar.id)
+    continent = Repo.get!(AncientStones.Worlds.Continent, calendar.continent_id)
     [month] = calendar.months
 
     assert Enum.any?(calendar.months, &(&1.name == "Frostfall"))
@@ -1911,6 +1917,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#calendar-details", "31 days")
     assert has_element?(view, "#calendar-details", "Aligned")
     assert has_element?(view, "#calendar-details", "270.0 deg")
+    assert has_element?(view, "#calendar-continents")
+    assert has_element?(view, "#calendar-continent-#{continent.id}", continent.name)
     assert has_element?(view, "#calendar-weekdays", "Montak")
     assert has_element?(view, "#calendar-weekdays", "Midtak")
     assert has_element?(view, "#calendar-weekdays", "Fretak")
@@ -2068,6 +2076,22 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     province = skyrim_province(dashboard)
     whiterun = Enum.find(province.holds, &(&1.name == "Whiterun"))
     riverwood = Enum.find(whiterun.locations, &(&1.name == "Riverwood"))
+    character = hd(dashboard.characters)
+
+    continent_office =
+      Repo.insert!(%AncientStones.Worlds.PoliticalOffice{
+        world_id: world.id,
+        continent_id: tamriel.id,
+        character_id: character.id,
+        office: "High King",
+        scope: "continent"
+      })
+
+    Repo.insert!(%AncientStones.Worlds.CharacterLocation{
+      character_id: character.id,
+      location_id: riverwood.id,
+      relationship: "resident"
+    })
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
 
@@ -2080,6 +2104,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert_patch(view, ~p"/worlds/#{world}/dashboard?continent_id=#{tamriel.id}")
     assert has_element?(view, "#continent-details")
     assert has_element?(view, "#continent-details", "Provinces")
+    assert has_element?(view, "#continent-leadership")
+    assert has_element?(view, "#continent-office-#{continent_office.id}", character.name)
     refute has_element?(view, "#province-details")
     refute has_element?(view, "#hold-details")
     refute has_element?(view, "#location-details")
@@ -2120,6 +2146,15 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert has_element?(view, "#location-details")
     assert has_element?(view, "#location-details", "Region")
+    assert has_element?(view, "#location-characters")
+
+    assert has_element?(
+             view,
+             "#location-character-#{character.id}",
+             character.name
+           )
+
+    assert has_element?(view, "#location-character-#{character.id}", "Resident")
     refute has_element?(view, "#hold-details")
     refute has_element?(view, "#political-office-details")
     refute has_element?(view, "#hold-commerce-details")

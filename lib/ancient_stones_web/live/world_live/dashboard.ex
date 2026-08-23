@@ -1109,6 +1109,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     timeline_eras = flat_timeline_eras(timelines)
     timeline_events = flat_timeline_events(timelines)
     selected_calendar = select_record(calendars, params["calendar_id"]) || first_record(calendars)
+    selected_calendar_continents = calendar_continents(selected_calendar, continents)
 
     selected_calendar_month =
       select_record(calendar_months(selected_calendar), params["calendar_month_id"])
@@ -1144,7 +1145,12 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     selected_hold_commerce_entries = selected_hold_commerce_entries(selected_hold)
     selected_hold_locations = selected_hold_locations(selected_hold)
     selected_location = select_location(selected_hold_locations, params["location_id"])
+    selected_location_characters = selected_location_characters(selected_location)
     selected_continent = select_record(continents, params["continent_id"])
+
+    selected_continent_political_offices =
+      continent_political_offices(selected_continent, political_offices)
+
     selected_province = select_record(provinces, params["province_id"])
 
     selected_path =
@@ -1199,6 +1205,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:galaxy_form, data_form(:galaxy, galaxy_form_attrs(world.galaxy)))
     |> assign(:calendars, calendars)
     |> assign(:selected_calendar, selected_calendar)
+    |> assign(:selected_calendar_continents, selected_calendar_continents)
     |> assign(:selected_calendar_month, selected_calendar_month)
     |> assign(:characters, characters)
     |> assign(:character_roles, character_roles)
@@ -1211,6 +1218,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       select_record(civilizations, params["civilization_id"]) || first_record(civilizations)
     )
     |> assign(:continents, continents)
+    |> assign(:selected_continent_political_offices, selected_continent_political_offices)
     |> assign(:provinces, provinces)
     |> assign(:creature_types, creature_types)
     |> assign(:creatures, creatures)
@@ -1248,6 +1256,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:selected_hold_commerce_entries, selected_hold_commerce_entries)
     |> assign(:selected_hold_locations, selected_hold_locations)
     |> assign(:selected_location, selected_location)
+    |> assign(:selected_location_characters, selected_location_characters)
     |> assign(:selected_path, selected_path)
     |> assign(:continent_options, option_list(continents))
     |> assign(:calendar_options, option_list(calendars))
@@ -1872,6 +1881,36 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp select_location(locations, location_id) do
     Enum.find(locations, &(&1.id == location_id))
+  end
+
+  defp selected_location_characters(nil) do
+    []
+  end
+
+  defp selected_location_characters(location) do
+    Enum.sort_by(location.character_locations, fn character_location ->
+      {character_location.relationship, character_location.character.name}
+    end)
+  end
+
+  defp calendar_continents(nil, _continents) do
+    []
+  end
+
+  defp calendar_continents(calendar, continents) do
+    Enum.filter(continents, fn continent ->
+      Enum.any?(continent.calendars, &(&1.id == calendar.id))
+    end)
+  end
+
+  defp continent_political_offices(nil, _political_offices) do
+    []
+  end
+
+  defp continent_political_offices(continent, political_offices) do
+    political_offices
+    |> Enum.filter(&(&1.continent_id == continent.id))
+    |> Enum.sort_by(& &1.office)
   end
 
   defp select_record(_records, nil) do
@@ -3247,17 +3286,31 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp grouped_characters(characters) do
     characters
-    |> Enum.group_by(&character_race_group_name/1)
-    |> Enum.sort_by(fn {race, _characters} -> String.downcase(race) end)
-    |> Enum.map(fn {race, characters} -> {race, sorted_characters_by_role(characters)} end)
+    |> Enum.group_by(&character_group_name/1)
+    |> Enum.sort_by(fn {group_name, _characters} -> String.downcase(group_name) end)
+    |> Enum.map(fn {group_name, characters} ->
+      {group_name, sorted_characters_by_role(characters)}
+    end)
   end
 
-  defp character_race_group_name(%{race: %{name: name}}) when name not in [nil, ""] do
+  defp character_group_name(%{race: %{name: name}}) when name not in [nil, ""] do
     name
   end
 
-  defp character_race_group_name(_character) do
-    "No Race"
+  defp character_group_name(%{character_occupations: occupations}) when is_list(occupations) do
+    occupations
+    |> Enum.sort_by(fn character_occupation ->
+      {character_occupation.primary != true, character_occupation.occupation.name}
+    end)
+    |> List.first()
+    |> case do
+      %{occupation: %{name: name}} when name not in [nil, ""] -> name
+      _character_occupation -> "Unassigned"
+    end
+  end
+
+  defp character_group_name(_character) do
+    "Unassigned"
   end
 
   defp sorted_characters_by_role(characters) do
@@ -4652,6 +4705,12 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp child_locations(location, locations) do
     Enum.filter(locations, &(&1.parent_location_id == location.id))
+  end
+
+  defp character_location_relationship_label(relationship) do
+    relationship
+    |> String.replace("_", " ")
+    |> String.capitalize()
   end
 
   defp terrain_icon(nil) do
