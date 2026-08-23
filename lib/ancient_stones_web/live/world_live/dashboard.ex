@@ -183,6 +183,84 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  def handle_event("save_trade_route", %{"trade_route" => params}, socket) do
+    with {:ok, origin_hold} <- economy_record(socket.assigns.holds, params["origin_hold_id"]),
+         {:ok, destination_hold} <-
+           economy_record(socket.assigns.holds, params["destination_hold_id"]) do
+      refs = %{origin_hold: origin_hold, destination_hold: destination_hold}
+
+      save_economy_record(socket, socket.assigns.selected_trade_route, fn
+        nil -> Worlds.create_trade_route(socket.assigns.world, params, refs)
+        route -> Worlds.update_trade_route(route, params, refs)
+      end)
+    else
+      {:error, _reason} -> {:noreply, put_flash(socket, :error, "Invalid route endpoints")}
+    end
+  end
+
+  def handle_event("save_trade_flow", %{"trade_flow" => params}, socket) do
+    with {:ok, route} <- economy_record(socket.assigns.trade_routes, params["trade_route_id"]),
+         {:ok, currency} <- economy_record(socket.assigns.currencies, params["currency_id"]) do
+      save_economy_record(socket, socket.assigns.selected_trade_flow, fn
+        nil -> Worlds.create_trade_flow(route, params, %{currency: currency})
+        flow -> Worlds.update_trade_flow(flow, params, %{currency: currency})
+      end)
+    else
+      {:error, _reason} -> {:noreply, put_flash(socket, :error, "Invalid trade flow references")}
+    end
+  end
+
+  def handle_event("save_tax_policy", %{"tax_policy" => params}, socket) do
+    with {:ok, jurisdiction_refs} <- economy_jurisdiction_refs(socket, params["jurisdiction"]),
+         {:ok, office} <-
+           optional_economy_record(
+             socket.assigns.political_offices,
+             params["collecting_office_id"]
+           ),
+         {:ok, currency} <-
+           optional_economy_record(socket.assigns.currencies, params["currency_id"]) do
+      refs =
+        jurisdiction_refs |> Map.put(:collecting_office, office) |> Map.put(:currency, currency)
+
+      save_economy_record(socket, socket.assigns.selected_tax_policy, fn
+        nil -> Worlds.create_tax_policy(socket.assigns.world, params, refs)
+        policy -> Worlds.update_tax_policy(policy, params, refs)
+      end)
+    else
+      {:error, _reason} -> {:noreply, put_flash(socket, :error, "Invalid tax policy references")}
+    end
+  end
+
+  def handle_event("save_tax_exemption", %{"tax_exemption" => params}, socket) do
+    with {:ok, policy} <- economy_record(socket.assigns.tax_policies, params["tax_policy_id"]),
+         {:ok, beneficiary_refs} <- economy_beneficiary_refs(socket, params["beneficiary"]) do
+      save_economy_record(socket, socket.assigns.selected_tax_exemption, fn
+        nil -> Worlds.create_tax_exemption(policy, params, beneficiary_refs)
+        exemption -> Worlds.update_tax_exemption(exemption, params, beneficiary_refs)
+      end)
+    else
+      {:error, _reason} -> {:noreply, put_flash(socket, :error, "Invalid exemption references")}
+    end
+  end
+
+  def handle_event("save_tax_revenue_share", %{"tax_revenue_share" => params}, socket) do
+    with {:ok, policy} <- economy_record(socket.assigns.tax_policies, params["tax_policy_id"]),
+         {:ok, office} <-
+           economy_record(socket.assigns.political_offices, params["political_office_id"]) do
+      save_economy_record(socket, socket.assigns.selected_tax_revenue_share, fn
+        nil -> Worlds.create_tax_revenue_share(policy, params, %{political_office: office})
+        share -> Worlds.update_tax_revenue_share(share, params, %{political_office: office})
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Invalid revenue share references")}
+    end
+  end
+
+  def handle_event("delete_economy_record", %{"kind" => kind, "id" => id}, socket) do
+    delete_and_reload(socket, fn -> delete_economy_record(socket, kind, id) end)
+  end
+
   def handle_event("delete_continent", %{"id" => id}, socket) do
     delete_and_reload(socket, fn ->
       with {:ok, continent} <- get_continent_in_world(socket, id) do
@@ -1101,6 +1179,40 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     location_types = sorted(world.location_types)
     occupations = sorted(world.occupations)
     political_offices = world.political_offices
+    currencies = continents |> Enum.map(& &1.currency) |> Enum.reject(&is_nil/1)
+
+    {trade_routes, trade_flows, tax_policies, tax_exemptions} =
+      if section == "economy" do
+        {
+          Worlds.list_trade_routes(world),
+          Worlds.list_trade_flows(world),
+          Worlds.list_tax_policies(world),
+          Worlds.list_tax_exemptions(world)
+        }
+      else
+        {[], [], [], []}
+      end
+
+    selected_trade_route = select_record(trade_routes, params["trade_route_id"])
+    selected_trade_flow = select_record(trade_flows, params["trade_flow_id"])
+    selected_tax_policy = select_record(tax_policies, params["tax_policy_id"])
+    selected_tax_exemption = select_record(tax_exemptions, params["tax_exemption_id"])
+
+    tax_revenue_shares =
+      if selected_tax_policy, do: Worlds.list_tax_revenue_shares(selected_tax_policy), else: []
+
+    selected_tax_revenue_share =
+      select_record(tax_revenue_shares, params["tax_revenue_share_id"])
+
+    economy_mode =
+      economy_mode(params,
+        route: selected_trade_route,
+        flow: selected_trade_flow,
+        policy: selected_tax_policy,
+        exemption: selected_tax_exemption,
+        share: selected_tax_revenue_share
+      )
+
     races = sorted(world.races)
     lore_connections = sorted_lore_connections(world.lore_connections)
     skills = sorted(world.skills)
@@ -1277,6 +1389,27 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:item_options, option_list(items))
     |> assign(:occupation_options, option_list(occupations))
     |> assign(:political_offices, political_offices)
+    |> assign(:currencies, currencies)
+    |> assign(:trade_routes, trade_routes)
+    |> assign(:trade_flows, trade_flows)
+    |> assign(:tax_policies, tax_policies)
+    |> assign(:tax_exemptions, tax_exemptions)
+    |> assign(:tax_revenue_shares, tax_revenue_shares)
+    |> assign(:selected_trade_route, selected_trade_route)
+    |> assign(:selected_trade_flow, selected_trade_flow)
+    |> assign(:selected_tax_policy, selected_tax_policy)
+    |> assign(:selected_tax_exemption, selected_tax_exemption)
+    |> assign(:selected_tax_revenue_share, selected_tax_revenue_share)
+    |> assign(:economy_mode, economy_mode)
+    |> assign(:economy_hold_options, option_list(holds))
+    |> assign(:trade_route_options, option_list(trade_routes))
+    |> assign(:economy_currency_options, option_list(currencies))
+    |> assign(:economy_office_options, political_office_options(political_offices))
+    |> assign(:jurisdiction_options, economy_jurisdiction_options(continents, provinces, holds))
+    |> assign(
+      :beneficiary_options,
+      economy_beneficiary_options(guilds, trade_routes, continents, provinces, holds)
+    )
     |> assign(:selected_province_political_offices, selected_province_political_offices)
     |> assign(:selected_hold_political_offices, selected_hold_political_offices)
     |> assign(:selected_political_offices, selected_political_offices)
@@ -1337,6 +1470,33 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         "currency" => commerce_currency(selected_hold_commerce_entries, selected_path.continent),
         "frequency" => "monthly"
       })
+    )
+    |> assign(
+      :trade_route_form,
+      data_form(:trade_route, trade_route_form_attrs(selected_trade_route, holds))
+    )
+    |> assign(
+      :trade_flow_form,
+      data_form(:trade_flow, trade_flow_form_attrs(selected_trade_flow, trade_routes, currencies))
+    )
+    |> assign(
+      :tax_policy_form,
+      data_form(:tax_policy, tax_policy_form_attrs(selected_tax_policy, continents, currencies))
+    )
+    |> assign(
+      :tax_exemption_form,
+      data_form(:tax_exemption, tax_exemption_form_attrs(selected_tax_exemption, tax_policies))
+    )
+    |> assign(
+      :tax_revenue_share_form,
+      data_form(
+        :tax_revenue_share,
+        tax_revenue_share_form_attrs(
+          selected_tax_revenue_share,
+          selected_tax_policy,
+          political_offices
+        )
+      )
     )
     |> assign(
       :political_office_form,
@@ -1807,7 +1967,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "civilization_id" => selected_record_id(socket.assigns[:selected_civilization]),
       "timeline_id" => selected_record_id(socket.assigns[:selected_timeline]),
       "calendar_id" => selected_record_id(socket.assigns[:selected_calendar]),
-      "calendar_month_id" => selected_record_id(socket.assigns[:selected_calendar_month])
+      "calendar_month_id" => selected_record_id(socket.assigns[:selected_calendar_month]),
+      "trade_route_id" => selected_record_id(socket.assigns[:selected_trade_route]),
+      "trade_flow_id" => selected_record_id(socket.assigns[:selected_trade_flow]),
+      "tax_policy_id" => selected_record_id(socket.assigns[:selected_tax_policy]),
+      "tax_exemption_id" => selected_record_id(socket.assigns[:selected_tax_exemption]),
+      "tax_revenue_share_id" => selected_record_id(socket.assigns[:selected_tax_revenue_share]),
+      "mode" => socket.assigns[:economy_mode]
     }
   end
 
@@ -3500,6 +3666,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     "#{political_office.office} / #{record_name(political_office.province)}"
   end
 
+  defp political_office_label(%{scope: "continent"} = political_office) do
+    "#{political_office.office} / #{record_name(political_office.continent)}"
+  end
+
   defp political_office_label(%{scope: "hold"} = political_office) do
     "#{political_office.office} / #{record_name(political_office.hold)}"
   end
@@ -3673,7 +3843,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp normalize_section(section)
-       when section in ~w(bestiary calendar characters civilizations connections documents geography gods guilds items map maps races skills spells timeline) do
+       when section in ~w(bestiary calendar characters civilizations connections documents economy geography gods guilds items map maps races skills spells timeline) do
     section
   end
 
@@ -3731,6 +3901,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp section_label("connections") do
     "Connections"
+  end
+
+  defp section_label("economy") do
+    "Economy"
   end
 
   defp section_label("calendar") do
@@ -3876,6 +4050,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp default_expanded_action("connections") do
     "lore_connection"
+  end
+
+  defp default_expanded_action("economy") do
+    nil
   end
 
   defp default_expanded_action("calendar") do
@@ -4613,6 +4791,239 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp sorted_lore_connections(records) do
     Enum.sort_by(records, &lore_connection_name/1)
+  end
+
+  defp save_economy_record(socket, selected, callback) do
+    if selected do
+      update_and_reload(socket, fn -> callback.(selected) end)
+    else
+      create_and_reload(socket, fn -> callback.(nil) end)
+    end
+  end
+
+  defp economy_record(records, id) do
+    case select_record(records, id) do
+      nil -> {:error, :not_found}
+      record -> {:ok, record}
+    end
+  end
+
+  defp optional_economy_record(_records, id) when id in [nil, ""], do: {:ok, nil}
+  defp optional_economy_record(records, id), do: economy_record(records, id)
+
+  defp economy_jurisdiction_refs(socket, value) do
+    with {:ok, kind, id} <- economy_typed_value(value),
+         {:ok, record} <- economy_geography_record(socket, kind, id) do
+      {:ok, Map.put(%{continent: nil, province: nil, hold: nil}, kind, record)}
+    end
+  end
+
+  defp economy_beneficiary_refs(socket, value) do
+    with {:ok, kind, id} <- economy_typed_value(value),
+         {:ok, record} <- economy_beneficiary_record(socket, kind, id) do
+      empty = %{guild: nil, trade_route: nil, continent: nil, province: nil, hold: nil}
+      {:ok, Map.put(empty, kind, record)}
+    end
+  end
+
+  defp economy_geography_record(socket, :continent, id),
+    do: economy_record(socket.assigns.continents, id)
+
+  defp economy_geography_record(socket, :province, id),
+    do: economy_record(socket.assigns.provinces, id)
+
+  defp economy_geography_record(socket, :hold, id), do: economy_record(socket.assigns.holds, id)
+
+  defp economy_beneficiary_record(socket, :guild, id),
+    do: economy_record(socket.assigns.guilds, id)
+
+  defp economy_beneficiary_record(socket, :trade_route, id),
+    do: economy_record(socket.assigns.trade_routes, id)
+
+  defp economy_beneficiary_record(socket, kind, id) when kind in [:continent, :province, :hold] do
+    economy_geography_record(socket, kind, id)
+  end
+
+  defp economy_typed_value(value) when is_binary(value) do
+    case String.split(value, ":", parts: 2) do
+      [kind, id] when kind in ~w(continent province hold guild trade_route) and id != "" ->
+        {:ok, String.to_existing_atom(kind), id}
+
+      _other ->
+        {:error, :invalid_reference}
+    end
+  end
+
+  defp economy_typed_value(_value), do: {:error, :invalid_reference}
+
+  defp delete_economy_record(socket, "trade_route", id),
+    do: delete_selected(socket.assigns.trade_routes, id, &Worlds.delete_trade_route/1)
+
+  defp delete_economy_record(socket, "trade_flow", id),
+    do: delete_selected(socket.assigns.trade_flows, id, &Worlds.delete_trade_flow/1)
+
+  defp delete_economy_record(socket, "tax_policy", id),
+    do: delete_selected(socket.assigns.tax_policies, id, &Worlds.delete_tax_policy/1)
+
+  defp delete_economy_record(socket, "tax_exemption", id),
+    do: delete_selected(socket.assigns.tax_exemptions, id, &Worlds.delete_tax_exemption/1)
+
+  defp delete_economy_record(socket, "tax_revenue_share", id),
+    do: delete_selected(socket.assigns.tax_revenue_shares, id, &Worlds.delete_tax_revenue_share/1)
+
+  defp delete_economy_record(_socket, _kind, _id), do: {:error, :not_found}
+
+  defp delete_selected(records, id, callback) do
+    with {:ok, record} <- economy_record(records, id), do: callback.(record)
+  end
+
+  defp economy_mode(params, selected_records) do
+    requested = params["mode"]
+    selected = Enum.find_value(selected_records, fn {mode, record} -> if record, do: mode end)
+
+    if requested in ~w(route flow policy exemption share) do
+      String.to_existing_atom(requested)
+    else
+      selected || :route
+    end
+  end
+
+  defp economy_jurisdiction_options(continents, provinces, holds) do
+    typed_options("Continent", "continent", continents) ++
+      typed_options("Province", "province", provinces) ++ typed_options("Hold", "hold", holds)
+  end
+
+  defp economy_beneficiary_options(guilds, routes, continents, provinces, holds) do
+    typed_options("Guild", "guild", guilds) ++
+      typed_options("Route", "trade_route", routes) ++
+      economy_jurisdiction_options(continents, provinces, holds)
+  end
+
+  defp typed_options(label, kind, records) do
+    Enum.map(records, &{"#{label} / #{&1.name}", "#{kind}:#{&1.id}"})
+  end
+
+  defp trade_route_form_attrs(nil, holds) do
+    %{
+      "origin_hold_id" => first_id(holds),
+      "destination_hold_id" => selected_record_id(Enum.at(holds, 1)),
+      "transport_mode" => "road",
+      "status" => "active"
+    }
+  end
+
+  defp trade_route_form_attrs(route, _holds) do
+    Map.take(Map.from_struct(route), [
+      :name,
+      :origin_hold_id,
+      :destination_hold_id,
+      :transport_mode,
+      :distance_km,
+      :seasonality,
+      :risk,
+      :status,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp trade_flow_form_attrs(nil, routes, currencies) do
+    %{
+      "trade_route_id" => first_id(routes),
+      "currency_id" => first_id(currencies),
+      "frequency" => "annual"
+    }
+  end
+
+  defp trade_flow_form_attrs(flow, _routes, _currencies) do
+    Map.take(Map.from_struct(flow), [
+      :trade_route_id,
+      :currency_id,
+      :commodity,
+      :category,
+      :quantity,
+      :unit,
+      :declared_value,
+      :frequency,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp tax_policy_form_attrs(nil, continents, currencies) do
+    %{
+      "jurisdiction" => typed_id("continent", List.first(continents)),
+      "currency_id" => first_id(currencies),
+      "tax_type" => "import_tariff",
+      "rate_basis" => "percentage",
+      "direction" => "any",
+      "status" => "active"
+    }
+  end
+
+  defp tax_policy_form_attrs(policy, _continents, _currencies) do
+    policy
+    |> Map.from_struct()
+    |> Map.take([
+      :name,
+      :collecting_office_id,
+      :currency_id,
+      :tax_type,
+      :rate_basis,
+      :rate,
+      :commodity,
+      :category,
+      :direction,
+      :effective_from,
+      :effective_to,
+      :status,
+      :description
+    ])
+    |> string_keys()
+    |> Map.put("jurisdiction", policy_jurisdiction(policy))
+  end
+
+  defp tax_exemption_form_attrs(nil, policies) do
+    %{"tax_policy_id" => first_id(policies), "exemption_percentage" => "100"}
+  end
+
+  defp tax_exemption_form_attrs(exemption, _policies) do
+    exemption
+    |> Map.from_struct()
+    |> Map.take([
+      :tax_policy_id,
+      :name,
+      :exemption_percentage,
+      :effective_from,
+      :effective_to,
+      :description
+    ])
+    |> string_keys()
+    |> Map.put("beneficiary", exemption_beneficiary(exemption))
+  end
+
+  defp tax_revenue_share_form_attrs(nil, policy, offices) do
+    %{"tax_policy_id" => selected_record_id(policy), "political_office_id" => first_id(offices)}
+  end
+
+  defp tax_revenue_share_form_attrs(share, _policy, _offices) do
+    Map.take(Map.from_struct(share), [:tax_policy_id, :political_office_id, :percentage])
+    |> string_keys()
+  end
+
+  defp policy_jurisdiction(%{continent_id: id}) when not is_nil(id), do: "continent:#{id}"
+  defp policy_jurisdiction(%{province_id: id}) when not is_nil(id), do: "province:#{id}"
+  defp policy_jurisdiction(%{hold_id: id}) when not is_nil(id), do: "hold:#{id}"
+  defp exemption_beneficiary(%{guild_id: id}) when not is_nil(id), do: "guild:#{id}"
+  defp exemption_beneficiary(%{trade_route_id: id}) when not is_nil(id), do: "trade_route:#{id}"
+  defp exemption_beneficiary(%{continent_id: id}) when not is_nil(id), do: "continent:#{id}"
+  defp exemption_beneficiary(%{province_id: id}) when not is_nil(id), do: "province:#{id}"
+  defp exemption_beneficiary(%{hold_id: id}) when not is_nil(id), do: "hold:#{id}"
+  defp typed_id(_kind, nil), do: nil
+  defp typed_id(kind, record), do: "#{kind}:#{record.id}"
+
+  defp string_keys(map) do
+    Map.new(map, fn {key, value} -> {Atom.to_string(key), value} end)
   end
 
   defp sidebar_continents(continents) do

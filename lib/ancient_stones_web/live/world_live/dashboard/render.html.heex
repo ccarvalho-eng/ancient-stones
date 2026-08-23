@@ -88,6 +88,11 @@
                     label="Connections"
                   />
                   <.section_menu_link
+                    patch={~p"/worlds/#{@world}/dashboard?section=economy"}
+                    selected={@section == "economy"}
+                    label="Economy"
+                  />
+                  <.section_menu_link
                     patch={~p"/worlds/#{@world}/dashboard?section=characters"}
                     selected={@section == "characters"}
                     label="Characters"
@@ -129,7 +134,7 @@
 
           <div class="flex items-center gap-3">
             <.form
-              :if={@section not in ~w(map maps)}
+              :if={@section not in ~w(map maps economy)}
               for={@search_form}
               id="dashboard-search-form"
               phx-change="search_dashboard"
@@ -5940,6 +5945,32 @@
                 </div>
               </aside>
             </div>
+          <% @section == "economy" -> %>
+            <AncientStonesWeb.WorldLive.EconomyComponents.economy_dashboard
+              world={@world}
+              mode={@economy_mode}
+              trade_routes={@trade_routes}
+              trade_flows={@trade_flows}
+              tax_policies={@tax_policies}
+              tax_exemptions={@tax_exemptions}
+              tax_revenue_shares={@tax_revenue_shares}
+              selected_trade_route={@selected_trade_route}
+              selected_trade_flow={@selected_trade_flow}
+              selected_tax_policy={@selected_tax_policy}
+              selected_tax_exemption={@selected_tax_exemption}
+              selected_tax_revenue_share={@selected_tax_revenue_share}
+              trade_route_form={@trade_route_form}
+              trade_flow_form={@trade_flow_form}
+              tax_policy_form={@tax_policy_form}
+              tax_exemption_form={@tax_exemption_form}
+              tax_revenue_share_form={@tax_revenue_share_form}
+              hold_options={@economy_hold_options}
+              trade_route_options={@trade_route_options}
+              currency_options={@economy_currency_options}
+              office_options={@economy_office_options}
+              jurisdiction_options={@jurisdiction_options}
+              beneficiary_options={@beneficiary_options}
+            />
           <% @section == "calendar" -> %>
             <div
               id="calendar-dashboard"

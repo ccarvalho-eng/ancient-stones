@@ -41,6 +41,11 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.RaceTrait
+  alias AncientStones.Worlds.TaxExemption
+  alias AncientStones.Worlds.TaxPolicy
+  alias AncientStones.Worlds.TaxRevenueShare
+  alias AncientStones.Worlds.TradeFlow
+  alias AncientStones.Worlds.TradeRoute
   alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillLevel
@@ -159,7 +164,7 @@ defmodule AncientStones.Worlds do
       items: [item_effects: [:effect]],
       location_types: [:children],
       occupations: [],
-      political_offices: [:character, :province, :hold],
+      political_offices: [:character, :continent, :province, :hold],
       races: [:traits, civilization_races: [:civilization]],
       lore_connections: [
         :source_character,
@@ -1152,6 +1157,170 @@ defmodule AncientStones.Worlds do
   def delete_calendar(%Calendar{} = calendar) do
     Repo.delete(calendar)
   end
+
+  def list_trade_routes(%World{id: world_id}) do
+    TradeRoute
+    |> where([route], route.world_id == ^world_id)
+    |> order_by([route], asc: route.name)
+    |> Repo.all()
+    |> Repo.preload([:origin_hold, :destination_hold, :origin_location, :destination_location])
+  end
+
+  def get_trade_route!(id) do
+    TradeRoute
+    |> Repo.get!(id)
+    |> Repo.preload([:origin_hold, :destination_hold, :origin_location, :destination_location])
+  end
+
+  def change_trade_route(%TradeRoute{} = route, attrs \\ %{}) do
+    TradeRoute.changeset(route, attrs)
+  end
+
+  def create_trade_route(%World{id: world_id}, attrs, refs) do
+    %TradeRoute{world_id: world_id}
+    |> TradeRoute.changeset(attrs, economic_ref_ids(refs, route_ref_fields()))
+    |> validate_trade_route_refs(world_id)
+    |> Repo.insert()
+  end
+
+  def update_trade_route(%TradeRoute{world_id: world_id} = route, attrs, refs \\ %{}) do
+    route
+    |> TradeRoute.changeset(attrs, economic_ref_ids(refs, route_ref_fields()))
+    |> validate_trade_route_refs(world_id)
+    |> Repo.update()
+  end
+
+  def delete_trade_route(%TradeRoute{} = route), do: Repo.delete(route)
+
+  def list_trade_flows(%World{id: world_id}) do
+    TradeFlow
+    |> join(:inner, [flow], route in assoc(flow, :trade_route))
+    |> where([_flow, route], route.world_id == ^world_id)
+    |> order_by([flow], asc: flow.commodity)
+    |> Repo.all()
+    |> Repo.preload([:currency, trade_route: [:origin_hold, :destination_hold]])
+  end
+
+  def get_trade_flow!(id) do
+    TradeFlow
+    |> Repo.get!(id)
+    |> Repo.preload([:currency, trade_route: [:origin_hold, :destination_hold]])
+  end
+
+  def change_trade_flow(%TradeFlow{} = flow, attrs \\ %{}), do: TradeFlow.changeset(flow, attrs)
+
+  def create_trade_flow(%TradeRoute{id: route_id, world_id: world_id}, attrs, refs \\ %{}) do
+    %TradeFlow{trade_route_id: route_id}
+    |> TradeFlow.changeset(attrs, economic_ref_ids(refs, currency: :currency_id))
+    |> validate_currency_ref(world_id)
+    |> Repo.insert()
+  end
+
+  def update_trade_flow(%TradeFlow{} = flow, attrs, refs \\ %{}) do
+    flow = Repo.preload(flow, :trade_route)
+
+    flow
+    |> TradeFlow.changeset(attrs, economic_ref_ids(refs, currency: :currency_id))
+    |> validate_currency_ref(flow.trade_route.world_id)
+    |> Repo.update()
+  end
+
+  def delete_trade_flow(%TradeFlow{} = flow), do: Repo.delete(flow)
+
+  def list_tax_policies(%World{id: world_id}) do
+    TaxPolicy
+    |> where([policy], policy.world_id == ^world_id)
+    |> order_by([policy], asc: policy.name)
+    |> Repo.all()
+    |> Repo.preload([:continent, :province, :hold, :collecting_office, :currency])
+  end
+
+  def get_tax_policy!(id) do
+    TaxPolicy
+    |> Repo.get!(id)
+    |> Repo.preload([
+      :continent,
+      :province,
+      :hold,
+      :collecting_office,
+      :currency,
+      tax_exemptions: [:guild, :trade_route, :continent, :province, :hold],
+      revenue_shares: [:political_office]
+    ])
+  end
+
+  def change_tax_policy(%TaxPolicy{} = policy, attrs \\ %{}),
+    do: TaxPolicy.changeset(policy, attrs)
+
+  def create_tax_policy(%World{id: world_id}, attrs, refs) do
+    %TaxPolicy{world_id: world_id}
+    |> TaxPolicy.changeset(attrs, economic_ref_ids(refs, policy_ref_fields()))
+    |> validate_tax_policy_refs(world_id)
+    |> Repo.insert()
+  end
+
+  def update_tax_policy(%TaxPolicy{world_id: world_id} = policy, attrs, refs \\ %{}) do
+    policy
+    |> TaxPolicy.changeset(attrs, economic_ref_ids(refs, policy_ref_fields()))
+    |> validate_tax_policy_refs(world_id)
+    |> Repo.update()
+  end
+
+  def delete_tax_policy(%TaxPolicy{} = policy), do: Repo.delete(policy)
+
+  def list_tax_exemptions(%World{id: world_id}) do
+    TaxExemption
+    |> join(:inner, [exemption], policy in assoc(exemption, :tax_policy))
+    |> where([_exemption, policy], policy.world_id == ^world_id)
+    |> order_by([exemption], asc: exemption.name)
+    |> Repo.all()
+    |> Repo.preload([:tax_policy, :guild, :trade_route, :continent, :province, :hold])
+  end
+
+  def change_tax_exemption(%TaxExemption{} = exemption, attrs \\ %{}) do
+    TaxExemption.changeset(exemption, attrs)
+  end
+
+  def create_tax_exemption(%TaxPolicy{id: policy_id, world_id: world_id}, attrs, refs) do
+    %TaxExemption{tax_policy_id: policy_id}
+    |> TaxExemption.changeset(attrs, economic_ref_ids(refs, exemption_ref_fields()))
+    |> validate_tax_exemption_refs(world_id)
+    |> Repo.insert()
+  end
+
+  def update_tax_exemption(%TaxExemption{} = exemption, attrs, refs \\ %{}) do
+    exemption = Repo.preload(exemption, :tax_policy)
+
+    exemption
+    |> TaxExemption.changeset(attrs, economic_ref_ids(refs, exemption_ref_fields()))
+    |> validate_tax_exemption_refs(exemption.tax_policy.world_id)
+    |> Repo.update()
+  end
+
+  def delete_tax_exemption(%TaxExemption{} = exemption), do: Repo.delete(exemption)
+
+  def list_tax_revenue_shares(%TaxPolicy{id: policy_id}) do
+    TaxRevenueShare
+    |> where([share], share.tax_policy_id == ^policy_id)
+    |> order_by([share], asc: share.percentage)
+    |> Repo.all()
+    |> Repo.preload(:political_office)
+  end
+
+  def change_tax_revenue_share(%TaxRevenueShare{} = share, attrs \\ %{}) do
+    TaxRevenueShare.changeset(share, attrs)
+  end
+
+  def create_tax_revenue_share(%TaxPolicy{} = policy, attrs, %{political_office: office}) do
+    persist_tax_revenue_share(policy, %TaxRevenueShare{}, attrs, office)
+  end
+
+  def update_tax_revenue_share(%TaxRevenueShare{} = share, attrs, %{political_office: office}) do
+    share = Repo.preload(share, :tax_policy)
+    persist_tax_revenue_share(share.tax_policy, share, attrs, office)
+  end
+
+  def delete_tax_revenue_share(%TaxRevenueShare{} = share), do: Repo.delete(share)
 
   defp skill_tree_attrs(attrs) do
     %{
@@ -2775,6 +2944,226 @@ defmodule AncientStones.Worlds do
     |> Enum.reduce(acc, fn child_data, child_acc ->
       create_template_location!(location, child_data, type_by_name, child_acc)
     end)
+  end
+
+  defp route_ref_fields do
+    [
+      origin_hold: :origin_hold_id,
+      destination_hold: :destination_hold_id,
+      origin_location: :origin_location_id,
+      destination_location: :destination_location_id
+    ]
+  end
+
+  defp policy_ref_fields do
+    [
+      continent: :continent_id,
+      province: :province_id,
+      hold: :hold_id,
+      collecting_office: :collecting_office_id,
+      currency: :currency_id
+    ]
+  end
+
+  defp exemption_ref_fields do
+    [
+      guild: :guild_id,
+      trade_route: :trade_route_id,
+      continent: :continent_id,
+      province: :province_id,
+      hold: :hold_id
+    ]
+  end
+
+  defp economic_ref_ids(refs, fields) do
+    fields
+    |> Enum.filter(fn {key, _field} -> Map.has_key?(refs, key) end)
+    |> Map.new(fn {key, field} -> {field, ref_id(Map.get(refs, key))} end)
+  end
+
+  defp ref_id(nil), do: nil
+  defp ref_id(%{id: id}), do: id
+
+  defp validate_trade_route_refs(changeset, world_id) do
+    origin_hold_id = Ecto.Changeset.get_field(changeset, :origin_hold_id)
+    destination_hold_id = Ecto.Changeset.get_field(changeset, :destination_hold_id)
+
+    changeset
+    |> validate_world_ref(:origin_hold_id, origin_hold_id, &hold_in_world?(&1, world_id))
+    |> validate_world_ref(
+      :destination_hold_id,
+      destination_hold_id,
+      &hold_in_world?(&1, world_id)
+    )
+    |> validate_location_endpoint(:origin_location_id, origin_hold_id)
+    |> validate_location_endpoint(:destination_location_id, destination_hold_id)
+  end
+
+  defp validate_currency_ref(changeset, world_id) do
+    id = Ecto.Changeset.get_field(changeset, :currency_id)
+    validate_world_ref(changeset, :currency_id, id, &currency_in_world?(&1, world_id))
+  end
+
+  defp validate_tax_policy_refs(changeset, world_id) do
+    changeset
+    |> validate_world_ref(
+      :continent_id,
+      Ecto.Changeset.get_field(changeset, :continent_id),
+      &continent_in_world?(&1, world_id)
+    )
+    |> validate_world_ref(
+      :province_id,
+      Ecto.Changeset.get_field(changeset, :province_id),
+      &province_in_world?(&1, world_id)
+    )
+    |> validate_world_ref(
+      :hold_id,
+      Ecto.Changeset.get_field(changeset, :hold_id),
+      &hold_in_world?(&1, world_id)
+    )
+    |> validate_world_ref(
+      :collecting_office_id,
+      Ecto.Changeset.get_field(changeset, :collecting_office_id),
+      &office_in_world?(&1, world_id)
+    )
+    |> validate_currency_ref(world_id)
+  end
+
+  defp validate_tax_exemption_refs(changeset, world_id) do
+    checks = [
+      {:guild_id, &guild_in_world?(&1, world_id)},
+      {:trade_route_id, &trade_route_in_world?(&1, world_id)},
+      {:continent_id, &continent_in_world?(&1, world_id)},
+      {:province_id, &province_in_world?(&1, world_id)},
+      {:hold_id, &hold_in_world?(&1, world_id)}
+    ]
+
+    Enum.reduce(checks, changeset, fn {field, validator}, acc ->
+      validate_world_ref(acc, field, Ecto.Changeset.get_field(acc, field), validator)
+    end)
+  end
+
+  defp validate_world_ref(changeset, _field, nil, _validator), do: changeset
+
+  defp validate_world_ref(changeset, field, id, validator) do
+    if validator.(id),
+      do: changeset,
+      else: Ecto.Changeset.add_error(changeset, field, "does not belong to this world")
+  end
+
+  defp validate_location_endpoint(changeset, field, hold_id) do
+    location_id = Ecto.Changeset.get_field(changeset, field)
+
+    cond do
+      is_nil(location_id) ->
+        changeset
+
+      is_nil(hold_id) ->
+        Ecto.Changeset.add_error(changeset, field, "requires an endpoint hold")
+
+      location_in_hold?(location_id, hold_id) ->
+        changeset
+
+      true ->
+        Ecto.Changeset.add_error(changeset, field, "must belong to its endpoint hold")
+    end
+  end
+
+  defp persist_tax_revenue_share(policy, share, attrs, office) do
+    Repo.transaction(fn ->
+      lock_tax_policy!(policy.id)
+
+      changeset =
+        share
+        |> TaxRevenueShare.changeset(attrs, %{
+          tax_policy_id: policy.id,
+          political_office_id: office.id
+        })
+        |> validate_world_ref(
+          :political_office_id,
+          office.id,
+          &office_in_world?(&1, policy.world_id)
+        )
+        |> validate_revenue_allocation(policy.id, share.id)
+
+      case Repo.insert_or_update(changeset) do
+        {:ok, saved_share} -> saved_share
+        {:error, failed_changeset} -> Repo.rollback(failed_changeset)
+      end
+    end)
+  end
+
+  defp validate_revenue_allocation(changeset, policy_id, share_id) do
+    query =
+      TaxRevenueShare
+      |> where([share], share.tax_policy_id == ^policy_id)
+      |> then(fn query ->
+        if share_id, do: where(query, [share], share.id != ^share_id), else: query
+      end)
+      |> select([share], sum(share.percentage))
+
+    allocated = Repo.one(query) || Decimal.new(0)
+    percentage = Ecto.Changeset.get_field(changeset, :percentage)
+
+    if percentage && Decimal.gt?(Decimal.add(allocated, percentage), Decimal.new(100)) do
+      Ecto.Changeset.add_error(changeset, :percentage, "would allocate more than 100%")
+    else
+      changeset
+    end
+  end
+
+  defp lock_tax_policy!(policy_id) do
+    TaxPolicy |> where([policy], policy.id == ^policy_id) |> lock("FOR UPDATE") |> Repo.one!()
+  end
+
+  defp hold_in_world?(id, world_id) do
+    Hold
+    |> join(:inner, [hold], province in assoc(hold, :province))
+    |> join(:inner, [_hold, province], continent in assoc(province, :continent))
+    |> where([hold, _province, continent], hold.id == ^id and continent.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
+  defp location_in_hold?(id, hold_id) do
+    Location
+    |> where([location], location.id == ^id and location.hold_id == ^hold_id)
+    |> Repo.exists?()
+  end
+
+  defp continent_in_world?(id, world_id) do
+    Continent
+    |> where([continent], continent.id == ^id and continent.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
+  defp province_in_world?(id, world_id) do
+    Province
+    |> join(:inner, [province], continent in assoc(province, :continent))
+    |> where([province, continent], province.id == ^id and continent.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
+  defp currency_in_world?(id, world_id) do
+    ContinentCurrency
+    |> join(:inner, [currency], continent in assoc(currency, :continent))
+    |> where([currency, continent], currency.id == ^id and continent.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
+  defp office_in_world?(id, world_id) do
+    PoliticalOffice
+    |> where([office], office.id == ^id and office.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
+  defp guild_in_world?(id, world_id) do
+    Guild |> where([guild], guild.id == ^id and guild.world_id == ^world_id) |> Repo.exists?()
+  end
+
+  defp trade_route_in_world?(id, world_id) do
+    TradeRoute
+    |> where([route], route.id == ^id and route.world_id == ^world_id)
+    |> Repo.exists?()
   end
 
   defp unwrap_transaction!({:ok, record}) do
