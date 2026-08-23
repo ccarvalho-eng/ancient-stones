@@ -3862,24 +3862,25 @@
 
                   <div
                     :for={
-                      {source, source_lore_connections} <-
+                      {source_kind, source_lore_connections} <-
                         grouped_lore_connections(@filtered_lore_connections)
                     }
                     class="overflow-hidden rounded-md border border-zinc-200 bg-white"
                   >
                     <.folded_group
-                      id={folded_group_dom_id("connections", source)}
-                      label={source}
+                      id={folded_group_dom_id("connections", source_kind)}
+                      label={source_kind}
                       count={length(source_lore_connections)}
                       open={
                         @search_query != "" ||
-                          folded_group_open?(@open_folded_groups, "connections", source)
+                          folded_group_open?(@open_folded_groups, "connections", source_kind)
                       }
-                      toggle_key={folded_group_key("connections", source)}
+                      toggle_key={folded_group_key("connections", source_kind)}
                     >
                       <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
                         <div
                           :for={lore_connection <- source_lore_connections}
+                          id={"connection-#{lore_connection.id}"}
                           class={[
                             "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
                             @selected_lore_connection &&
@@ -3896,6 +3897,9 @@
                             <div class="truncate text-sm font-semibold text-zinc-800">
                               {lore_connection_name(lore_connection)}
                             </div>
+                            <p class="mt-1 truncate text-xs font-medium text-zinc-500">
+                              {lore_connection_endpoint_label(lore_connection, :source)}
+                            </p>
                             <p class="mt-1 text-xs font-medium text-zinc-500">
                               {display_value(lore_connection.connection_type)} / {lore_connection_endpoint_label(
                                 lore_connection,
@@ -3975,6 +3979,20 @@
                         label="Ended"
                         value={display_value(@selected_lore_connection.ended_at)}
                       />
+                    </div>
+
+                    <div
+                      id="connection-type-description"
+                      class="stone-panel-muted rounded-md border px-3 py-3"
+                    >
+                      <p class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
+                        Relationship meaning
+                      </p>
+                      <p class="stone-heading mt-1 text-sm leading-6">
+                        {AncientStones.Worlds.LoreConnection.connection_type_description(
+                          @selected_lore_connection.connection_type
+                        )}
+                      </p>
                     </div>
                   </div>
                 </div>

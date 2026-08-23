@@ -29,6 +29,30 @@ defmodule AncientStones.Worlds.LoreConnection do
     {"Worships", "worships"}
   ]
 
+  @connection_type_descriptions %{
+    "ally" => "A cooperative relationship built on mutual aid, shared interests, or defense.",
+    "controls" =>
+      "The source holds direct authority, coercive power, or decisive influence over the target.",
+    "criminal contact" =>
+      "A covert relationship used to exchange illicit goods, information, protection, or access.",
+    "historical tie" =>
+      "A past relationship whose legacy still shapes present loyalties, claims, or conflict.",
+    "leader" => "The source formally directs the target's people, policy, or operations.",
+    "member" => "The source belongs to and participates in the target organization or community.",
+    "opposes" => "The source actively resists the target's goals, authority, or influence.",
+    "patron" =>
+      "The source provides protection, resources, status, or access in exchange for loyalty or service.",
+    "rival" =>
+      "The source competes with the target for status, resources, territory, or influence.",
+    "serves" => "The source owes formal duty, labor, or allegiance to the target.",
+    "teacher at" =>
+      "The source instructs or mentors people within the target institution or place.",
+    "trade" =>
+      "The parties exchange goods, services, coin, or access through an ongoing commercial relationship.",
+    "worships" =>
+      "The source offers religious devotion, rites, or service to the target deity or faith."
+  }
+
   @status_options [
     {"Active", "active"},
     {"Broken", "broken"},
@@ -85,6 +109,14 @@ defmodule AncientStones.Worlds.LoreConnection do
 
   def connection_type_options do
     @connection_type_options
+  end
+
+  def connection_type_description(connection_type) do
+    Map.get(
+      @connection_type_descriptions,
+      connection_type,
+      "No relationship description available."
+    )
   end
 
   def status_options do
