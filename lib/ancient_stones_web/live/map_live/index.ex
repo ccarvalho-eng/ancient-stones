@@ -19,8 +19,8 @@ defmodule AncientStonesWeb.MapLive.Index do
   end
 
   def handle_params(params, _uri, socket) do
-    selected_world = select_world(socket.assigns.worlds, params["world_id"])
-    maps = if selected_world, do: Maps.list_world_maps(selected_world), else: []
+    selected_world = Enum.find(socket.assigns.worlds, &(&1.id == params["world_id"]))
+    maps = if selected_world, do: Maps.list_world_maps(selected_world), else: Maps.list_maps()
 
     {:noreply,
      socket
@@ -31,6 +31,10 @@ defmodule AncientStonesWeb.MapLive.Index do
        to_form(%{"world_id" => selected_world_id(selected_world)}, as: :world_filter)
      )
      |> stream(:maps, maps, reset: true)}
+  end
+
+  def handle_event("filter_world", %{"world_filter" => %{"world_id" => ""}}, socket) do
+    {:noreply, push_patch(socket, to: ~p"/maps")}
   end
 
   def handle_event("filter_world", %{"world_filter" => %{"world_id" => world_id}}, socket) do
@@ -106,19 +110,14 @@ defmodule AncientStonesWeb.MapLive.Index do
                   field={@world_filter_form[:world_id]}
                   type="select"
                   label="World"
-                  options={Enum.map(@worlds, &{&1.name, &1.id})}
+                  options={[{"All worlds", ""} | Enum.map(@worlds, &{&1.name, &1.id})]}
                 />
               </.form>
 
               <section class="stone-panel overflow-hidden rounded-md border">
                 <.panel_header
                   title="Map library"
-                  subtitle={
-                    if(@selected_world,
-                      do: "Choose a map from #{@selected_world.name} to continue building it.",
-                      else: "Create a world before adding maps."
-                    )
-                  }
+                  subtitle="Choose a map to continue building it."
                   count={@map_count}
                   label="maps"
                 />
@@ -146,7 +145,7 @@ defmodule AncientStonesWeb.MapLive.Index do
                     <div class="flex items-start justify-between gap-3">
                       <div class="min-w-0">
                         <p class="stone-muted text-[10px] font-semibold uppercase tracking-[0.16em]">
-                          {@selected_world.name}
+                          {map_world_name(map, @selected_world)}
                         </p>
                         <h3 class="stone-heading mt-1 truncate text-base font-semibold">
                           {map.name}
@@ -184,19 +183,19 @@ defmodule AncientStonesWeb.MapLive.Index do
     """
   end
 
-  defp select_world([], _world_id) do
-    nil
-  end
-
-  defp select_world(worlds, world_id) do
-    Enum.find(worlds, List.first(worlds), &(&1.id == world_id))
-  end
-
   defp selected_world_id(nil) do
     ""
   end
 
   defp selected_world_id(world) do
     world.id
+  end
+
+  defp map_world_name(_map, selected_world) when not is_nil(selected_world) do
+    selected_world.name
+  end
+
+  defp map_world_name(map, _selected_world) do
+    map.world.name
   end
 end

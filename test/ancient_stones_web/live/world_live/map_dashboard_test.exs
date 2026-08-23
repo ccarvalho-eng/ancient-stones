@@ -6,6 +6,29 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
   alias AncientStones.Maps
   alias AncientStones.Worlds
 
+  test "lists only the current world's maps inside the dashboard", %{conn: conn} do
+    {:ok, nirn} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, tamriel} = Maps.create_world_map(nirn, %{"name" => "Tamriel"})
+    {:ok, mundus} = Worlds.create_world(%{name: "Mundus"})
+    {:ok, oblivion} = Maps.create_world_map(mundus, %{"name" => "Oblivion"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{nirn}/dashboard?section=maps")
+
+    assert has_element?(view, "#world-map-library")
+    assert has_element?(view, "#world-map-#{tamriel.id}")
+    refute has_element?(view, "#world-map-#{oblivion.id}")
+
+    assert has_element?(
+             view,
+             "#world-map-#{tamriel.id}[href='/worlds/#{nirn.id}/dashboard?section=map&map_id=#{tamriel.id}']"
+           )
+
+    assert has_element?(
+             view,
+             "#map-library-new[href='/worlds/#{nirn.id}/dashboard?section=map&new_map=true']"
+           )
+  end
+
   test "renders the map editor inside the world dashboard", %{conn: conn} do
     {:ok, world} = Worlds.create_world(%{name: "Nirn"})
     {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})

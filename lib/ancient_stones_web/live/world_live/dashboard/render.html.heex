@@ -53,8 +53,8 @@
                     label="Geography"
                   />
                   <.section_menu_link
-                    navigate={~p"/maps"}
-                    selected={false}
+                    patch={~p"/worlds/#{@world}/dashboard?section=maps"}
+                    selected={@section in ~w(map maps)}
                     label="Maps"
                   />
                   <.section_menu_link
@@ -129,7 +129,7 @@
 
           <div class="flex items-center gap-3">
             <.form
-              :if={@section != "map"}
+              :if={@section not in ~w(map maps)}
               for={@search_form}
               id="dashboard-search-form"
               phx-change="search_dashboard"
@@ -157,7 +157,7 @@
         </div>
 
         <.form
-          :if={@section != "map"}
+          :if={@section not in ~w(map maps)}
           for={@search_form}
           id="dashboard-search-form-mobile"
           phx-change="search_dashboard"
@@ -1389,6 +1389,74 @@
         </div>
       <% else %>
         <%= cond do %>
+          <% @section == "maps" -> %>
+            <div id="world-map-library" class="min-h-[800px] p-4">
+              <section class="stone-panel overflow-hidden rounded-md border shadow-sm">
+                <div class="stone-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+                  <div>
+                    <p class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
+                      {@world.name}
+                    </p>
+                    <h2 class="stone-heading text-base font-semibold">World maps</h2>
+                  </div>
+                  <.link
+                    id="map-library-new"
+                    patch={~p"/worlds/#{@world}/dashboard?section=map&new_map=true"}
+                    class="stone-primary-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <.icon name="hero-plus" class="size-4" /> New map
+                  </.link>
+                </div>
+
+                <div id="world-map-list" class="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div
+                    :if={@map_documents == []}
+                    id="world-map-list-empty"
+                    class="stone-muted rounded-md border border-dashed p-8 text-center md:col-span-2 xl:col-span-3"
+                  >
+                    <.icon name="hero-map" class="mx-auto size-8 opacity-50" />
+                    <p class="stone-heading mt-3 text-sm font-semibold">No maps yet</p>
+                    <p class="mt-1 text-xs">Create this world's first outer or inner map.</p>
+                  </div>
+
+                  <.link
+                    :for={map <- @map_documents}
+                    id={"world-map-#{map.id}"}
+                    patch={~p"/worlds/#{@world}/dashboard?section=map&map_id=#{map.id}"}
+                    class="stone-button group rounded-md border p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="stone-muted text-[10px] font-semibold uppercase tracking-[0.16em]">
+                          {if map.parent_map,
+                            do: "Inside #{map.parent_map.name}",
+                            else: "Outer map"}
+                        </p>
+                        <h3 class="stone-heading mt-1 truncate text-base font-semibold">
+                          {map.name}
+                        </h3>
+                      </div>
+                      <span class="rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
+                        {map.kind}
+                      </span>
+                    </div>
+                    <p
+                      :if={map.description not in [nil, ""]}
+                      class="stone-muted mt-3 line-clamp-2 text-xs"
+                    >
+                      {map.description}
+                    </p>
+                    <span class="stone-heading mt-4 inline-flex items-center gap-1 text-xs font-semibold">
+                      Open editor
+                      <.icon
+                        name="hero-arrow-right"
+                        class="size-3.5 transition group-hover:translate-x-0.5"
+                      />
+                    </span>
+                  </.link>
+                </div>
+              </section>
+            </div>
           <% @section == "map" -> %>
             <div id="map-dashboard" class="stone-map-dashboard min-h-[800px] p-4">
               <div class="stone-panel overflow-hidden rounded-md border shadow-sm">

@@ -1057,7 +1057,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp assign_dashboard(socket, world_id, params, opts \\ []) do
     world = Worlds.get_world_dashboard!(world_id)
     section = normalize_section(params["section"])
-    map_documents = if section == "map", do: Maps.list_world_maps(world), else: []
+    map_documents = if section in ~w(map maps), do: Maps.list_world_maps(world), else: []
 
     map_document =
       if section == "map" do
@@ -1189,6 +1189,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:map_document, map_document)
     |> assign(:map_create_form, map_create_form)
     |> assign(:map_edit_form, map_edit_form)
+    |> assign(:new_map_open?, params["new_map"] == "true")
     |> assign(:expanded_action, expanded_action)
     |> assign(:world_form, data_form(:world, world_form_attrs(world)))
     |> assign(:galaxy_form, data_form(:galaxy, galaxy_form_attrs(world.galaxy)))
@@ -3608,7 +3609,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp normalize_section(section)
-       when section in ~w(bestiary calendar characters civilizations connections documents geography gods guilds items map races skills spells timeline) do
+       when section in ~w(bestiary calendar characters civilizations connections documents geography gods guilds items map maps races skills spells timeline) do
     section
   end
 
@@ -3650,6 +3651,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp section_label("map") do
     "Map Editor"
+  end
+
+  defp section_label("maps") do
+    "Maps"
   end
 
   defp section_label("civilizations") do
