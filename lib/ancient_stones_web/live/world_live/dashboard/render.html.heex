@@ -1943,23 +1943,55 @@
                         </div>
                       </details>
 
-                      <details
+                      <div
                         id="map-symbols-panel"
-                        class="stone-soft-panel group rounded-md border p-3"
+                        class="stone-soft-panel rounded-md border p-3"
                       >
-                        <summary class="flex cursor-pointer list-none items-center justify-between gap-2">
+                        <div class="flex items-center justify-between gap-2">
                           <h3 class="stone-heading text-xs font-semibold uppercase tracking-wide">
                             Symbol library
                           </h3>
-                          <span class="flex items-center gap-1.5">
-                            <span id="map-icon-count" class="stone-muted text-[10px]">56 symbols</span>
-                            <.icon
-                              name="hero-chevron-down"
-                              class="stone-muted size-4 transition group-open:rotate-180"
-                            />
-                          </span>
-                        </summary>
-                        <div class="stone-search mt-2">
+                          <span id="map-icon-total" class="stone-muted text-[10px]">Loading catalog</span>
+                        </div>
+                        <button
+                          id="map-open-icon-library"
+                          type="button"
+                          data-map-action="open-icon-library"
+                          class="stone-button mt-3 inline-flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition"
+                        >
+                          <.icon name="hero-squares-2x2" class="size-4" /> Browse symbols
+                        </button>
+                      </div>
+                    </div>
+                  </aside>
+
+                  <dialog
+                    id="map-icon-dialog"
+                    data-map-icon-dialog
+                    class="stone-panel m-auto h-[min(72vh,640px)] w-[min(86vw,900px)] overflow-hidden rounded-lg border p-0 shadow-2xl backdrop:bg-zinc-950/60 backdrop:backdrop-blur-sm"
+                  >
+                    <div class="flex h-full min-h-0 flex-col">
+                      <header class="stone-border flex items-center justify-between gap-4 border-b px-5 py-4">
+                        <div>
+                          <p class="stone-muted text-[10px] font-semibold uppercase tracking-[0.16em]">
+                            Game Icons catalog
+                          </p>
+                          <h3 class="stone-heading mt-1 text-lg font-semibold">
+                            Choose a map symbol
+                          </h3>
+                        </div>
+                        <button
+                          id="map-close-icon-library"
+                          type="button"
+                          data-map-action="close-icon-library"
+                          class="stone-button inline-flex size-9 items-center justify-center rounded-md border transition"
+                          aria-label="Close symbol library"
+                        >
+                          <.icon name="hero-x-mark" class="size-4" />
+                        </button>
+                      </header>
+                      <div class="stone-border grid gap-3 border-b p-4 md:grid-cols-[minmax(0,1fr)_240px_auto_auto] md:items-center">
+                        <div class="stone-search">
                           <.icon
                             name="hero-magnifying-glass"
                             class="stone-search-icon pointer-events-none size-4"
@@ -1969,14 +2001,14 @@
                             data-map-icon-search
                             type="search"
                             autocomplete="off"
-                            placeholder="Search symbols"
+                            placeholder="Search 4,000+ symbols"
                             class="stone-search-input"
                           />
                         </div>
                         <select
                           id="map-icon-category"
                           data-map-icon-category
-                          class="stone-button mt-2 w-full rounded-md border px-2.5 py-2 text-xs"
+                          class="stone-button w-full rounded-md border px-2.5 py-2 text-xs"
                           aria-label="Filter map symbols"
                         >
                           <option value="all">All categories</option>
@@ -1989,16 +2021,25 @@
                           <option value="nordic">Nordic</option>
                           <option value="medieval">Medieval</option>
                         </select>
-                        <div
-                          id="map-icon-grid"
-                          data-map-icon-grid
-                          class="mt-2 grid max-h-[330px] grid-cols-3 gap-1.5 overflow-y-auto pr-1"
-                          aria-live="polite"
+                        <button
+                          id="map-clear-icon-filters"
+                          type="button"
+                          data-map-action="clear-icon-filters"
+                          class="stone-button inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold transition"
                         >
-                        </div>
-                      </details>
+                          <.icon name="hero-x-mark" class="size-3.5" /> Clear
+                        </button>
+                        <span id="map-icon-count" class="stone-muted text-right text-xs">Loading symbols</span>
+                      </div>
+                      <div
+                        id="map-icon-grid"
+                        data-map-icon-grid
+                        class="grid min-h-0 flex-1 auto-rows-[76px] content-start grid-cols-3 gap-2 overflow-y-auto p-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8"
+                        aria-live="polite"
+                      >
+                      </div>
                     </div>
-                  </aside>
+                  </dialog>
 
                   <main id="map-canvas-workspace" class="stone-panel relative min-w-0">
                     <div class="stone-panel stone-border flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">

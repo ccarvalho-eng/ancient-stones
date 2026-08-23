@@ -14,6 +14,11 @@ import {
 } from "../../vendor/fabric.mjs"
 import {mapIconPaths, mapIcons} from "../map_icons"
 import {
+  filterMapIcons,
+  gameIconCatalogUrl,
+  normalizeGameIcon,
+} from "../game_icon_library.mjs"
+import {
   appendDistinctPoint,
   contrastingInk,
   editorCanvasBackground,
@@ -77,6 +82,11 @@ const InkMap = {
     this.textureStroke = null
     this.panState = null
     this.landmassDraft = null
+    this.catalogIcons = []
+    this.catalogIconPaths = new Map()
+    this.catalogPathIndexes = new Map()
+    this.iconCatalogAbort = new AbortController()
+    this.iconSearchTimer = null
     this.themeRoot = this.el.closest(".stone-page")
     this.themeMedia = window.matchMedia("(prefers-color-scheme: dark)")
     this.hasExplicitBackground = mapDocument.mapBackgroundExplicit ?? Boolean(mapDocument.mapBackground)
@@ -102,6 +112,7 @@ const InkMap = {
     this.bindControls()
     this.bindPinchZoom()
     this.renderIconPicker()
+    this.loadIconCatalog()
     this.handleFullscreenChange = () => this.syncFullscreenState()
     document.addEventListener("fullscreenchange", this.handleFullscreenChange)
     this.handleEvent("map_resized", ({width, height}) => this.resizeMap(width, height))
@@ -145,6 +156,8 @@ const InkMap = {
     this.pinchTarget.removeEventListener("touchend", this.handleTouchEnd)
     this.pinchTarget.removeEventListener("touchcancel", this.handleTouchEnd)
     this.pinchTarget.removeEventListener("wheel", this.handlePinchWheel)
+    window.clearTimeout(this.iconSearchTimer)
+    this.iconCatalogAbort.abort()
     this.canvas.dispose()
   },
 
@@ -245,6 +258,12 @@ const InkMap = {
 
   bindControls() {
     this.handleClick = (event) => {
+      const dialog = this.el.querySelector("[data-map-icon-dialog]")
+      if (event.target === dialog) {
+        dialog.close()
+        return
+      }
+
       const control = event.target.closest("[data-map-tool], [data-map-asset], [data-map-action], [data-map-layer]")
 
       if (!control || !this.el.contains(control)) return
@@ -262,7 +281,13 @@ const InkMap = {
       } else if (event.target.matches("[data-map-zoom]")) {
         this.setZoom(Number.parseInt(event.target.value, 10) / 100)
       } else if (event.target.matches("[data-map-icon-search], [data-map-icon-category]")) {
-        this.renderIconPicker()
+        if (event.target.matches("[data-map-icon-category]")) {
+          event.target.dataset.mapCategoryChosen = "true"
+          this.renderIconPicker()
+        } else {
+          window.clearTimeout(this.iconSearchTimer)
+          this.iconSearchTimer = window.setTimeout(() => this.renderIconPicker(), 120)
+        }
       } else if (event.target.matches("[data-map-water-color]")) {
         this.setMapBackground(event.target.value)
       } else if (event.target.matches("[data-map-entity-link]")) {
@@ -801,11 +826,36 @@ const InkMap = {
     this.setStatus(`${layer[0].toUpperCase()}${layer.slice(1)} layer active`)
   },
 
-  addStamp(kind) {
-    const icon = mapIcons.find((candidate) => candidate.kind === kind)
-    if (!mapIconPaths[kind] || !icon) return
+  async addStamp(kind) {
+    const icon = [...mapIcons, ...this.catalogIcons].find((candidate) => candidate.kind === kind)
+    if (!icon) return
 
-    const path = new Path(mapIconPaths[kind], {
+    let pathData = mapIconPaths[kind] || this.catalogIconPaths.get(kind)
+
+    if (!pathData && icon.pathUrl) {
+      this.setStatus(`Loading ${icon.name}...`)
+
+      try {
+        let pathIndex = this.catalogPathIndexes.get(icon.pathUrl)
+
+        if (!pathIndex) {
+          const response = await fetch(icon.pathUrl, {signal: this.iconCatalogAbort.signal})
+          if (!response.ok) throw new Error(`Icon request failed with ${response.status}`)
+          pathIndex = await response.json()
+          this.catalogPathIndexes.set(icon.pathUrl, pathIndex)
+        }
+
+        pathData = pathIndex[icon.pathKey]
+        if (pathData) this.catalogIconPaths.set(kind, pathData)
+      } catch (_error) {
+        this.setStatus("The selected symbol could not be loaded")
+        return
+      }
+    }
+
+    if (!pathData) return
+
+    const path = new Path(pathData, {
       left: this.width / 2,
       top: this.height / 2,
       originX: "center",
@@ -825,6 +875,7 @@ const InkMap = {
     this.canvas.setActiveObject(path)
     this.canvas.requestRenderAll()
     this.setTool("select")
+    this.closeIconLibrary()
     this.changed(`${icon.name} placed`)
   },
 
@@ -834,22 +885,21 @@ const InkMap = {
 
     const search = this.el.querySelector("[data-map-icon-search]")?.value.trim().toLowerCase() || ""
     const category = this.el.querySelector("[data-map-icon-category]")?.value || "all"
-    const matches = mapIcons.filter((icon) => {
-      const categoryMatches = category === "all" || icon.category === category
-      return categoryMatches && (!search || icon.tags.includes(search))
-    })
+    const result = filterMapIcons([...mapIcons, ...this.catalogIcons], search, category)
 
-    const buttons = matches.map((icon) => {
+    const buttons = result.icons.map((icon) => {
       const button = document.createElement("button")
       button.type = "button"
       button.dataset.mapAsset = icon.kind
-      button.className = "stone-button group flex min-w-0 flex-col items-center gap-1 rounded-md border p-2 text-center transition"
+      button.className = "stone-button group flex h-full w-full min-w-0 flex-col items-center justify-center gap-1 rounded-md border p-2 text-center transition"
       button.title = `${icon.name} by ${icon.author}`
       button.setAttribute("aria-label", `Place ${icon.name}`)
 
       const preview = document.createElement("img")
-      preview.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(icon.source)}`
+      preview.src = icon.url || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(icon.source)}`
       preview.alt = ""
+      preview.loading = "lazy"
+      preview.decoding = "async"
       preview.className = "size-9 object-contain opacity-75 transition group-hover:opacity-100"
 
       const label = document.createElement("span")
@@ -863,7 +913,73 @@ const InkMap = {
     grid.replaceChildren(...buttons)
 
     const count = this.el.querySelector("#map-icon-count")
-    if (count) count.textContent = `${matches.length} symbols`
+    if (count) {
+      count.textContent = result.total > result.icons.length
+        ? `${result.icons.length} of ${result.total} symbols`
+        : `${result.total} symbols`
+    }
+  },
+
+  async loadIconCatalog() {
+    try {
+      const response = await fetch(gameIconCatalogUrl, {signal: this.iconCatalogAbort.signal})
+      if (!response.ok) throw new Error(`Catalog request failed with ${response.status}`)
+
+      const catalog = await response.json()
+      this.catalogIcons = catalog.icons.map(normalizeGameIcon)
+      this.renderIconCategories(catalog.categories)
+      const total = this.el.querySelector("#map-icon-total")
+      if (total) total.textContent = `${this.catalogIcons.length.toLocaleString()} symbols`
+      this.renderIconPicker()
+    } catch (error) {
+      if (error.name !== "AbortError") this.setStatus("The full symbol catalog could not be loaded")
+    }
+  },
+
+  renderIconCategories(categories) {
+    const select = this.el.querySelector("[data-map-icon-category]")
+    if (!select || !Array.isArray(categories)) return
+
+    const group = document.createElement("optgroup")
+    group.label = "Game Icons catalog"
+
+    const options = categories.map((category) => {
+      const option = document.createElement("option")
+      option.value = `game-icons:${category.id}`
+      option.textContent = `${category.label} (${category.count})`
+      return option
+    })
+
+    group.append(...options)
+    select.append(group)
+
+    if (!select.dataset.mapCategoryChosen && categories.some(({id}) => id === "viking")) {
+      select.value = "game-icons:viking"
+    }
+  },
+
+  openIconLibrary() {
+    const dialog = this.el.querySelector("[data-map-icon-dialog]")
+    if (!dialog) return
+
+    if (!dialog.open) dialog.showModal()
+    requestAnimationFrame(() => this.el.querySelector("[data-map-icon-search]")?.focus())
+  },
+
+  closeIconLibrary() {
+    const dialog = this.el.querySelector("[data-map-icon-dialog]")
+    if (dialog?.open) dialog.close()
+  },
+
+  clearIconFilters() {
+    const search = this.el.querySelector("[data-map-icon-search]")
+    const category = this.el.querySelector("[data-map-icon-category]")
+
+    window.clearTimeout(this.iconSearchTimer)
+    if (search) search.value = ""
+    if (category) category.value = "all"
+    this.renderIconPicker()
+    search?.focus()
   },
 
   addText() {
@@ -916,6 +1032,9 @@ const InkMap = {
       "bring-forward": () => this.reorderSelection("forward"),
       "send-backward": () => this.reorderSelection("backward"),
       "toggle-lock": () => this.toggleSelectionLock(),
+      "open-icon-library": () => this.openIconLibrary(),
+      "close-icon-library": () => this.closeIconLibrary(),
+      "clear-icon-filters": () => this.clearIconFilters(),
       fullscreen: () => this.toggleFullscreen(),
     }
 
