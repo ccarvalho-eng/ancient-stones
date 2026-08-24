@@ -5,10 +5,10 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
   @top 765
   @bottom 52
   @content_width @page_width - @margin * 2
-  @parchment {236, 226, 199}
-  @parchment_shadow {222, 208, 174}
-  @ink {35, 40, 36}
-  @rule {174, 149, 105}
+  @parchment {255, 255, 255}
+  @parchment_shadow {241, 241, 239}
+  @ink {20, 20, 20}
+  @rule {104, 104, 100}
 
   def render(guide) do
     Pdf.build([size: :a4, compress: true], fn pdf ->
@@ -58,9 +58,10 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       align: :center
     )
     |> cover_weave(684)
-    |> Pdf.set_font("Helvetica", size: 34, bold: true)
+    |> Pdf.set_font("Times", size: 38, bold: true)
     |> Pdf.text_wrap!({@margin, 574}, {@content_width, 110}, normalize(guide.world.name),
-      align: :center
+      align: :center,
+      leading: 44
     )
     |> Pdf.set_fill_color(@rule)
     |> Pdf.set_font("Helvetica", size: 13)
@@ -85,14 +86,15 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       align: :center
     )
     |> Pdf.set_fill_color(@parchment)
-    |> Pdf.set_font("Helvetica", size: 11)
+    |> Pdf.set_font("Times", size: 12)
     |> Pdf.text_wrap!(
       {@margin + 45, 302},
       {@content_width - 90, 125},
       normalize(
         guide.world.description || "A living record of lands, peoples, powers, and trade."
       ),
-      align: :center
+      align: :center,
+      leading: 17
     )
     |> cover_weave(230)
 
@@ -142,8 +144,11 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
   end
 
   defp geography(state, continents) do
-    Enum.reduce(continents, state, fn continent, acc ->
+    continents
+    |> Enum.with_index(1)
+    |> Enum.reduce(state, fn {continent, chapter_number}, acc ->
       acc
+      |> continent_cover(continent, chapter_number)
       |> content_page("Atlas - #{continent.name}")
       |> heading(continent.name, 25)
       |> paragraph(continent.description)
@@ -151,6 +156,80 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       |> offices(continent.offices)
       |> provinces(continent.provinces)
     end)
+  end
+
+  defp continent_cover(state, continent, chapter_number) do
+    province_count = length(continent.provinces)
+    hold_count = Enum.sum_by(continent.provinces, &length(&1.holds))
+
+    location_count =
+      continent.provinces
+      |> Enum.flat_map(& &1.holds)
+      |> Enum.sum_by(&length(&1.locations))
+
+    pdf =
+      state.pdf
+      |> Pdf.add_page()
+      |> Pdf.set_fill_color(@ink)
+      |> Pdf.rectangle({0, 0}, {@page_width, @page_height})
+      |> Pdf.fill()
+      |> Pdf.set_stroke_color(@rule)
+      |> Pdf.set_line_width(0.8)
+      |> Pdf.rectangle({38, 38}, {@page_width - 76, @page_height - 76})
+      |> Pdf.stroke()
+      |> Pdf.set_fill_color(@parchment)
+      |> Pdf.set_font("Helvetica", size: 9, bold: true)
+      |> Pdf.text_wrap!(
+        {@margin, 706},
+        {@content_width, 20},
+        "ATLAS / CONTINENT #{String.pad_leading(Integer.to_string(chapter_number), 2, "0")}",
+        align: :center
+      )
+      |> cover_weave(670)
+      |> Pdf.set_font("Times", size: 38, bold: true)
+      |> Pdf.text_wrap!(
+        {@margin, 526},
+        {@content_width, 120},
+        normalize(continent.name),
+        align: :center,
+        leading: 46
+      )
+      |> Pdf.set_fill_color(@rule)
+      |> Pdf.set_font("Helvetica", size: 9, bold: true)
+      |> Pdf.text_wrap!(
+        {@margin, 472},
+        {@content_width, 20},
+        "#{province_count} #{pluralize(province_count, "PROVINCE", "PROVINCES")} / " <>
+          "#{hold_count} #{pluralize(hold_count, "HOLD", "HOLDS")} / " <>
+          "#{location_count} #{pluralize(location_count, "LOCATION", "LOCATIONS")}",
+        align: :center
+      )
+      |> Pdf.set_fill_color(@parchment)
+      |> Pdf.set_font("Times", size: 12, italic: true)
+      |> Pdf.text_wrap!(
+        {@margin + 58, 310},
+        {@content_width - 116, 126},
+        normalize(continent.description || "No continental record has been written."),
+        align: :center,
+        leading: 18
+      )
+      |> cover_weave(236)
+
+    %{
+      state
+      | pdf: pdf,
+        y: @top,
+        page: state.page + 1,
+        running_title: continent.name
+    }
+  end
+
+  defp pluralize(1, singular, _plural) do
+    singular
+  end
+
+  defp pluralize(_count, _singular, plural) do
+    plural
   end
 
   defp calendar(state, nil) do
@@ -209,7 +288,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
   defp entity_table(state, label, entries) do
     state =
       state
-      |> ensure_space(70)
+      |> ensure_space(78)
       |> subheading(label)
 
     result =
@@ -343,7 +422,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     if blank?(text) do
       state
     else
-      draw_lines(state, text, 9, 13, @ink, false)
+      draw_lines(state, text, 9, 14, @ink, false)
     end
   end
 
@@ -374,7 +453,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     pdf =
       state.pdf
       |> Pdf.set_fill_color(color)
-      |> Pdf.set_font("Helvetica", size: font_size, bold: bold)
+      |> Pdf.set_font("Times", size: font_size, bold: bold)
 
     pdf =
       lines
@@ -400,21 +479,21 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
 
   defp fact_table(state, title, rows) do
     state
-    |> ensure_space(70)
+    |> ensure_space(78)
     |> subheading(title)
     |> fact_table(nil, rows)
   end
 
   defp table_row(state, label, value, index) do
-    label_width = 146
-    gap = 14
+    label_width = 154
+    gap = 18
     value_width = @content_width - label_width - gap
     label_lines = wrap(normalize(label), max_chars_for_width(label_width, 9))
     value_lines = wrap(normalize(value), max_chars_for_width(value_width, 8.5))
     line_count = max(length(label_lines), length(value_lines))
-    height = max(line_count, 1) * 12 + 10
+    height = max(line_count, 1) * 14 + 16
     state = ensure_space(state, height)
-    row_bottom = state.y - height + 5
+    row_bottom = state.y - height + 7
 
     pdf =
       state.pdf
@@ -423,8 +502,8 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       |> Pdf.set_line_width(0.35)
       |> Pdf.line({@margin, row_bottom}, {@page_width - @margin, row_bottom})
       |> Pdf.stroke()
-      |> draw_table_lines(label_lines, @margin + 6, state.y - 8, true)
-      |> draw_table_lines(value_lines, @margin + label_width + gap, state.y - 8, false)
+      |> draw_table_lines(label_lines, @margin + 8, state.y - 11, true)
+      |> draw_table_lines(value_lines, @margin + label_width + gap, state.y - 11, false)
 
     %{state | pdf: pdf, y: row_bottom}
   end
@@ -451,12 +530,12 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     lines
     |> Enum.with_index()
     |> Enum.reduce(pdf, fn {line, index}, document ->
-      Pdf.text_at(document, {x, y - index * 12}, line)
+      Pdf.text_at(document, {x, y - index * 14}, line)
     end)
   end
 
   defp table_spacing(state) do
-    %{state | y: state.y - 18}
+    %{state | y: state.y - 24}
   end
 
   defp world_facts(world) do

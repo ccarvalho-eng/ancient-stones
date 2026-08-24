@@ -1,7 +1,7 @@
 defmodule AncientStones.Worlds.WorldGuideTest do
   use AncientStones.DataCase, async: true
 
-  alias AncientStones.WorldExports.WorldGuidePdf
+  alias AncientStones.WorldExports.{WorldGuideEpub, WorldGuidePdf}
   alias AncientStones.Galaxies
   alias AncientStones.Worlds
   alias AncientStones.Worlds.WorldGuide
@@ -93,5 +93,47 @@ defmodule AncientStones.Worlds.WorldGuideTest do
 
     assert pdf =~ "%PDF-"
     assert byte_size(pdf) > 1_000
+  end
+
+  test "renders a navigable EPUB with continent chapters" do
+    guide = %{
+      world: %{
+        id: 1,
+        name: "Aldrun",
+        description: "An old world beneath Eldsol.",
+        axial_tilt_degrees: Decimal.new("24.5")
+      },
+      continents: [
+        %{
+          name: "Thyrven",
+          description: "A northern continent of fjords and broad inland plains."
+        }
+      ],
+      characters: [],
+      guilds: [],
+      trade_routes: [],
+      tax_policies: []
+    }
+
+    epub = WorldGuideEpub.render(guide)
+
+    assert <<"PK", _rest::binary>> = epub
+    assert {:ok, files} = :zip.unzip(epub, [:memory])
+    assert {~c"mimetype", "application/epub+zip"} in files
+
+    assert {~c"EPUB/package.opf", package} =
+             List.keyfind(files, ~c"EPUB/package.opf", 0)
+
+    assert package =~ guide.world.name
+
+    assert {~c"EPUB/overview.xhtml", overview} =
+             List.keyfind(files, ~c"EPUB/overview.xhtml", 0)
+
+    assert overview =~ "24.5"
+
+    assert {~c"EPUB/continent-1.xhtml", chapter} =
+             List.keyfind(files, ~c"EPUB/continent-1.xhtml", 0)
+
+    assert chapter =~ "Thyrven"
   end
 end

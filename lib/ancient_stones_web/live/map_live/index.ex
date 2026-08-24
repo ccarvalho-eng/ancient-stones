@@ -112,18 +112,6 @@ defmodule AncientStonesWeb.MapLive.Index do
           <div class="stone-workspace min-w-0">
             <header class="stone-topbar flex h-16 items-center justify-between border-b px-5">
               <div>
-                <nav
-                  :if={@selected_world}
-                  id="maps-breadcrumb"
-                  class="stone-muted mb-0.5 flex items-center gap-1.5 text-xs font-medium"
-                  aria-label="Breadcrumb"
-                >
-                  <.link navigate={~p"/worlds"} class="stone-breadcrumb-link">Worlds</.link>
-                  <.icon name="hero-chevron-right" class="size-3.5" />
-                  <span>{@selected_world.name}</span>
-                  <.icon name="hero-chevron-right" class="size-3.5" />
-                  <span class="stone-heading">Maps</span>
-                </nav>
                 <h2 class="stone-heading text-sm font-semibold">Maps</h2>
                 <p class="stone-muted text-xs">Open outer and inner maps in the world editor.</p>
               </div>
@@ -143,6 +131,23 @@ defmodule AncientStonesWeb.MapLive.Index do
                   label="World"
                   options={[{"All worlds", ""} | Enum.map(@worlds, &{&1.name, &1.id})]}
                 />
+                <div
+                  :if={@selected_world}
+                  id="maps-world-context"
+                  class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-stone-200 pt-3 dark:border-stone-700"
+                >
+                  <p class="text-sm text-stone-600 dark:text-stone-300">
+                    Showing maps for
+                    <strong class="font-semibold text-stone-950 dark:text-stone-50">{@selected_world.name}</strong>
+                  </p>
+                  <.link
+                    id="maps-clear-world-filter"
+                    navigate={~p"/maps"}
+                    class="rounded border border-stone-300 px-2.5 py-1.5 text-xs font-semibold text-stone-700 transition hover:border-stone-500 hover:bg-stone-100 dark:border-stone-600 dark:text-stone-200 dark:hover:border-stone-400 dark:hover:bg-stone-800"
+                  >
+                    Show all worlds
+                  </.link>
+                </div>
               </.form>
 
               <section class="stone-panel overflow-hidden rounded-md border">
