@@ -6,9 +6,8 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
   @bottom 52
   @content_width @page_width - @margin * 2
   @parchment {255, 255, 255}
-  @parchment_shadow {241, 241, 239}
   @ink {20, 20, 20}
-  @rule {104, 104, 100}
+  @rule {128, 128, 124}
 
   def render(guide) do
     Pdf.build([size: :a4, compress: true], fn pdf ->
@@ -38,18 +37,10 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
 
     pdf
     |> page_background()
-    |> Pdf.set_fill_color(@ink)
+    |> Pdf.set_fill_color(@parchment)
     |> Pdf.rectangle({0, 0}, {@page_width, @page_height})
     |> Pdf.fill()
-    |> Pdf.set_stroke_color(@rule)
-    |> Pdf.set_line_width(2)
-    |> Pdf.rectangle({34, 34}, {@page_width - 68, @page_height - 68})
-    |> Pdf.stroke()
-    |> Pdf.set_line_width(0.7)
-    |> Pdf.rectangle({43, 43}, {@page_width - 86, @page_height - 86})
-    |> Pdf.stroke()
-    |> cover_corner_marks()
-    |> Pdf.set_fill_color(@parchment)
+    |> Pdf.set_fill_color(@ink)
     |> Pdf.set_font("Helvetica", size: 11, bold: true)
     |> Pdf.text_wrap!(
       {@margin, 716},
@@ -57,7 +48,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       "ANCIENT STONES / NORTHERN ARCHIVE",
       align: :center
     )
-    |> cover_weave(684)
+    |> cover_rule(684)
     |> Pdf.set_font("Times", size: 38, bold: true)
     |> Pdf.text_wrap!({@margin, 574}, {@content_width, 110}, normalize(guide.world.name),
       align: :center,
@@ -71,7 +62,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       "ATLAS / GAZETTEER / CHRONICLE",
       align: :center
     )
-    |> Pdf.set_fill_color(@parchment)
+    |> Pdf.set_fill_color(@ink)
     |> Pdf.set_font("Helvetica", size: 10, bold: true)
     |> Pdf.text_wrap!(
       {@margin, 463},
@@ -85,7 +76,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       normalize("PRIMARY STAR / #{star_name}"),
       align: :center
     )
-    |> Pdf.set_fill_color(@parchment)
+    |> Pdf.set_fill_color(@ink)
     |> Pdf.set_font("Times", size: 12)
     |> Pdf.text_wrap!(
       {@margin + 45, 302},
@@ -96,7 +87,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       align: :center,
       leading: 17
     )
-    |> cover_weave(230)
+    |> cover_rule(230)
 
     %{pdf: pdf, y: @top, page: 1, running_title: guide.world.name}
   end
@@ -170,14 +161,10 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     pdf =
       state.pdf
       |> Pdf.add_page()
-      |> Pdf.set_fill_color(@ink)
+      |> Pdf.set_fill_color(@parchment)
       |> Pdf.rectangle({0, 0}, {@page_width, @page_height})
       |> Pdf.fill()
-      |> Pdf.set_stroke_color(@rule)
-      |> Pdf.set_line_width(0.8)
-      |> Pdf.rectangle({38, 38}, {@page_width - 76, @page_height - 76})
-      |> Pdf.stroke()
-      |> Pdf.set_fill_color(@parchment)
+      |> Pdf.set_fill_color(@ink)
       |> Pdf.set_font("Helvetica", size: 9, bold: true)
       |> Pdf.text_wrap!(
         {@margin, 706},
@@ -185,7 +172,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
         "ATLAS / CONTINENT #{String.pad_leading(Integer.to_string(chapter_number), 2, "0")}",
         align: :center
       )
-      |> cover_weave(670)
+      |> cover_rule(670)
       |> Pdf.set_font("Times", size: 38, bold: true)
       |> Pdf.text_wrap!(
         {@margin, 526},
@@ -204,7 +191,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
           "#{location_count} #{pluralize(location_count, "LOCATION", "LOCATIONS")}",
         align: :center
       )
-      |> Pdf.set_fill_color(@parchment)
+      |> Pdf.set_fill_color(@ink)
       |> Pdf.set_font("Times", size: 12, italic: true)
       |> Pdf.text_wrap!(
         {@margin + 58, 310},
@@ -213,7 +200,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
         align: :center,
         leading: 18
       )
-      |> cover_weave(236)
+      |> cover_rule(236)
 
     %{
       state
@@ -300,10 +287,10 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
           |> Enum.reject(&blank?/1)
           |> Enum.join(" / ")
 
-        table_row(acc, entry.name, detail, index)
+        entity_record(acc, entry.name, detail, index)
       end)
 
-    table_spacing(result)
+    section_spacing(result)
   end
 
   defp directory(state, title, entries) do
@@ -372,15 +359,13 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     pdf =
       pdf
       |> page_background()
-      |> Pdf.set_fill_color(@ink)
-      |> Pdf.rectangle({0, @page_height - 38}, {@page_width, 38})
-      |> Pdf.fill()
+      |> Pdf.set_stroke_color(@rule)
+      |> Pdf.set_line_width(0.6)
+      |> Pdf.line({@margin, @page_height - 44}, {@page_width - @margin, @page_height - 44})
+      |> Pdf.stroke()
       |> Pdf.set_fill_color(@rule)
-      |> Pdf.rectangle({0, @page_height - 41}, {@page_width, 3})
-      |> Pdf.fill()
-      |> Pdf.set_fill_color(@parchment)
       |> Pdf.set_font("Helvetica", size: 9, bold: true)
-      |> Pdf.text_at({@margin, @page_height - 25}, normalize(String.upcase(title)))
+      |> Pdf.text_at({@margin, @page_height - 31}, normalize(String.upcase(title)))
       |> Pdf.set_fill_color(@ink)
       |> Pdf.set_font("Helvetica", size: 8)
       |> Pdf.text_at({@page_width - @margin - 20, 28}, Integer.to_string(page))
@@ -393,10 +378,6 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     |> Pdf.set_fill_color(@parchment)
     |> Pdf.rectangle({0, 0}, {@page_width, @page_height})
     |> Pdf.fill()
-    |> Pdf.set_stroke_color(@parchment_shadow)
-    |> Pdf.set_line_width(0.5)
-    |> Pdf.rectangle({24, 24}, {@page_width - 48, @page_height - 48})
-    |> Pdf.stroke()
   end
 
   defp heading(state, text, size) do
@@ -428,18 +409,12 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
 
   defp rule(state) do
     state = ensure_space(state, 13)
-    center = @page_width / 2
 
     pdf =
       state.pdf
       |> Pdf.set_stroke_color(@rule)
-      |> Pdf.set_line_width(0.7)
-      |> Pdf.line({@margin, state.y}, {center - 14, state.y})
-      |> Pdf.line({center - 14, state.y}, {center - 7, state.y + 5})
-      |> Pdf.line({center - 7, state.y + 5}, {center, state.y})
-      |> Pdf.line({center, state.y}, {center + 7, state.y + 5})
-      |> Pdf.line({center + 7, state.y + 5}, {center + 14, state.y})
-      |> Pdf.line({center + 14, state.y}, {@page_width - @margin, state.y})
+      |> Pdf.set_line_width(0.6)
+      |> Pdf.line({@margin, state.y}, {@page_width - @margin, state.y})
       |> Pdf.stroke()
 
     %{state | pdf: pdf, y: state.y - 13}
@@ -471,10 +446,10 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       |> Enum.reject(fn {_label, value} -> blank?(value) end)
       |> Enum.with_index()
       |> Enum.reduce(state, fn {{label, value}, index}, acc ->
-        table_row(acc, label, value, index)
+        fact_record(acc, label, value, index)
       end)
 
-    table_spacing(result)
+    section_spacing(result)
   end
 
   defp fact_table(state, title, rows) do
@@ -484,58 +459,64 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     |> fact_table(nil, rows)
   end
 
-  defp table_row(state, label, value, index) do
-    label_width = 154
-    gap = 18
-    value_width = @content_width - label_width - gap
-    label_lines = wrap(normalize(label), max_chars_for_width(label_width, 9))
-    value_lines = wrap(normalize(value), max_chars_for_width(value_width, 8.5))
-    line_count = max(length(label_lines), length(value_lines))
-    height = max(line_count, 1) * 14 + 16
+  defp fact_record(state, label, value, _index) do
+    value_lines = wrap(normalize(value), max_chars_for_width(@content_width, 11))
+    height = 22 + max(length(value_lines), 1) * 16 + 14
     state = ensure_space(state, height)
-    row_bottom = state.y - height + 7
+    rule_y = state.y - height + 8
 
     pdf =
       state.pdf
-      |> maybe_fill_table_row(index, row_bottom, height)
-      |> Pdf.set_stroke_color(@rule)
-      |> Pdf.set_line_width(0.35)
-      |> Pdf.line({@margin, row_bottom}, {@page_width - @margin, row_bottom})
-      |> Pdf.stroke()
-      |> draw_table_lines(label_lines, @margin + 8, state.y - 11, true)
-      |> draw_table_lines(value_lines, @margin + label_width + gap, state.y - 11, false)
+      |> Pdf.set_fill_color(@rule)
+      |> Pdf.set_font("Helvetica", size: 7.5, bold: true)
+      |> Pdf.text_at({@margin, state.y}, normalize(String.upcase(label)))
+      |> draw_record_lines(value_lines, @margin, state.y - 19, 11, 16, false)
+      |> record_rule(rule_y)
 
-    %{state | pdf: pdf, y: row_bottom}
+    %{state | pdf: pdf, y: rule_y - 14}
   end
 
-  defp maybe_fill_table_row(pdf, index, row_bottom, height) do
-    if rem(index, 2) == 0 do
-      pdf
-      |> Pdf.set_fill_color(@parchment_shadow)
-      |> Pdf.rectangle({@margin, row_bottom}, {@content_width, height})
-      |> Pdf.fill()
-    else
-      pdf
-    end
+  defp entity_record(state, name, detail, _index) do
+    name_lines = wrap(normalize(name), max_chars_for_width(@content_width, 11))
+    detail_lines = wrap(normalize(detail), max_chars_for_width(@content_width, 9))
+    name_height = max(length(name_lines), 1) * 16
+    detail_height = length(detail_lines) * 14
+    height = name_height + detail_height + 21
+    state = ensure_space(state, height)
+    rule_y = state.y - height + 8
+
+    pdf =
+      state.pdf
+      |> draw_record_lines(name_lines, @margin, state.y, 11, 16, true)
+      |> draw_record_lines(detail_lines, @margin, state.y - name_height - 3, 9, 14, false)
+      |> record_rule(rule_y)
+
+    %{state | pdf: pdf, y: rule_y - 14}
   end
 
-  defp draw_table_lines(pdf, lines, x, y, bold) do
-    font_size = if bold, do: 9, else: 8.5
-
+  defp draw_record_lines(pdf, lines, x, y, font_size, leading, bold) do
     pdf =
       pdf
       |> Pdf.set_fill_color(@ink)
-      |> Pdf.set_font("Helvetica", size: font_size, bold: bold)
+      |> Pdf.set_font("Times", size: font_size, bold: bold)
 
     lines
     |> Enum.with_index()
     |> Enum.reduce(pdf, fn {line, index}, document ->
-      Pdf.text_at(document, {x, y - index * 14}, line)
+      Pdf.text_at(document, {x, y - index * leading}, line)
     end)
   end
 
-  defp table_spacing(state) do
-    %{state | y: state.y - 24}
+  defp record_rule(pdf, y) do
+    pdf
+    |> Pdf.set_stroke_color(@rule)
+    |> Pdf.set_line_width(0.35)
+    |> Pdf.line({@margin, y}, {@page_width - @margin, y})
+    |> Pdf.stroke()
+  end
+
+  defp section_spacing(state) do
+    %{state | y: state.y - 8}
   end
 
   defp world_facts(world) do
@@ -562,40 +543,11 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     trunc(width / (font_size * 0.53))
   end
 
-  defp cover_corner_marks(pdf) do
-    inset = 52
-    length = 24
-
-    pdf
-    |> Pdf.line({inset, inset}, {inset + length, inset})
-    |> Pdf.line({inset, inset}, {inset, inset + length})
-    |> Pdf.line({@page_width - inset, inset}, {@page_width - inset - length, inset})
-    |> Pdf.line({@page_width - inset, inset}, {@page_width - inset, inset + length})
-    |> Pdf.line({inset, @page_height - inset}, {inset + length, @page_height - inset})
-    |> Pdf.line({inset, @page_height - inset}, {inset, @page_height - inset - length})
-    |> Pdf.line(
-      {@page_width - inset, @page_height - inset},
-      {@page_width - inset - length, @page_height - inset}
-    )
-    |> Pdf.line(
-      {@page_width - inset, @page_height - inset},
-      {@page_width - inset, @page_height - inset - length}
-    )
-    |> Pdf.stroke()
-  end
-
-  defp cover_weave(pdf, y) do
-    center = @page_width / 2
-
+  defp cover_rule(pdf, y) do
     pdf
     |> Pdf.set_stroke_color(@rule)
-    |> Pdf.set_line_width(1)
-    |> Pdf.line({@margin + 70, y}, {center - 22, y})
-    |> Pdf.line({center - 22, y}, {center - 11, y + 8})
-    |> Pdf.line({center - 11, y + 8}, {center, y})
-    |> Pdf.line({center, y}, {center + 11, y + 8})
-    |> Pdf.line({center + 11, y + 8}, {center + 22, y})
-    |> Pdf.line({center + 22, y}, {@page_width - @margin - 70, y})
+    |> Pdf.set_line_width(0.6)
+    |> Pdf.line({@margin + 70, y}, {@page_width - @margin - 70, y})
     |> Pdf.stroke()
   end
 
