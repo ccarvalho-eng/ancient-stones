@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.WorldGuideTest do
 
   alias AncientStones.WorldExports.{WorldGuideEpub, WorldGuidePdf, WorldManual}
   alias AncientStones.Galaxies
+  alias AncientStones.Maps
   alias AncientStones.Worlds
   alias AncientStones.Worlds.WorldGuide
 
@@ -45,6 +46,30 @@ defmodule AncientStones.Worlds.WorldGuideTest do
     assert guide.tax_policies == []
     assert pdf =~ "%PDF-"
     assert byte_size(pdf) > 1_000
+  end
+
+  test "renders linked PDF contents and includes persisted maps in the manual" do
+    {:ok, world} = Worlds.create_world(%{name: "Aldrun"})
+
+    {:ok, map_document} =
+      Maps.create_world_map(world, %{
+        "name" => "Aldrun World Map",
+        "description" => "Continents and northern seas.",
+        "kind" => "world"
+      })
+
+    guide = WorldGuide.load!(world.id)
+    manual = WorldManual.build(guide)
+    maps_chapter = Enum.find(manual.chapters, &(&1.id == "maps"))
+
+    assert Enum.map(maps_chapter.records, & &1.title) == [map_document.name]
+    assert [%{map_canvas: %{document: %{"objects" => []}}}] = maps_chapter.records
+
+    pdf = WorldGuidePdf.render(guide)
+
+    assert pdf =~ "/Subtype /Link"
+    assert pdf =~ "/S /GoTo"
+    assert pdf =~ "/D ["
   end
 
   test "renders nested economic records" do

@@ -160,13 +160,26 @@ defmodule AncientStones.WorldExports.WorldManual do
   end
 
   defp map_record(map) do
-    record(
-      map.name,
-      humanize(Map.get(map, :kind)),
-      Map.get(map, :description),
-      facts([{"Dimensions", dimensions(map)}, {"Parent map", Map.get(map, :parent)}]),
-      section("Placed features", Enum.map(Map.get(map, :items, []), &simple_record/1))
-    )
+    placed_features =
+      map
+      |> Map.get(:items, [])
+      |> Enum.filter(&Map.get(&1, :named_or_linked?, false))
+
+    map
+    |> then(fn map ->
+      record(
+        map.name,
+        humanize(Map.get(map, :kind)),
+        Map.get(map, :description),
+        facts([{"Dimensions", dimensions(map)}, {"Parent map", Map.get(map, :parent)}]),
+        section("Placed features", Enum.map(placed_features, &simple_record/1))
+      )
+    end)
+    |> Map.put(:map_canvas, %{
+      document: Map.get(map, :document),
+      width: Map.get(map, :width),
+      height: Map.get(map, :height)
+    })
   end
 
   defp civilization_record(civilization) do

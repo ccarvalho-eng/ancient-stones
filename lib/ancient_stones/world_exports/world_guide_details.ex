@@ -166,6 +166,7 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
         description: map_document.description,
         width: map_document.width,
         height: map_document.height,
+        document: map_document.document,
         parent: entity_name(map_document.parent_map),
         items: Enum.map(map_document.items, &map_item_card/1)
       }
@@ -473,7 +474,8 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
     %{
       name: item.name || linked_entity || item.kind || item.object_type,
       detail: join_values([item.layer, item.kind, linked_entity]),
-      description: position(item.x, item.y)
+      description: position(item.x, item.y),
+      named_or_linked?: not is_nil(item.name) || not is_nil(linked_entity)
     }
   end
 

@@ -91,4 +91,19 @@ defmodule AncientStonesWeb.MapLive.IndexTest do
     assert has_element?(view, "#map-name-#{map.id}", "Skyrim")
     refute has_element?(view, "#map-name-form-#{map.id}")
   end
+
+  test "duplicates a map from the library and refreshes the count", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, map} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, view, _html} = live(conn, ~p"/maps")
+
+    view
+    |> element("#map-duplicate-#{map.id}")
+    |> render_click()
+
+    assert Enum.map(Maps.list_world_maps(world), & &1.name) == ["Tamriel", "Tamriel copy"]
+    assert has_element?(view, "#maps-navigation strong", "2")
+    assert has_element?(view, "#maps", "Tamriel copy")
+  end
 end

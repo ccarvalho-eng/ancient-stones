@@ -13,37 +13,57 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
 
   def render(guide) do
     manual = WorldManual.build(guide)
+    chapter_pages = chapter_pages(guide, manual)
 
+    render_pdf(guide, manual, chapter_pages)
+  end
+
+  defp chapter_pages(guide, manual) do
     Pdf.build([size: :a4, compress: true], fn pdf ->
-      state =
-        pdf
-        |> Pdf.set_info(
-          title: "#{guide.world.name} World Guide",
-          author: "Ancient Stones",
-          creator: "Ancient Stones",
-          subject: "World atlas and gazetteer"
-        )
-        |> cover(guide)
-        |> manual_contents(manual.chapters)
-        |> manual_chapters(manual.chapters)
+      pdf
+      |> render_manual(guide, manual, %{})
+      |> Map.fetch!(:chapter_pages)
+    end)
+  end
+
+  defp render_pdf(guide, manual, chapter_pages) do
+    Pdf.build([size: :a4, compress: true], fn pdf ->
+      state = render_manual(pdf, guide, manual, chapter_pages)
 
       Pdf.export(state.pdf)
     end)
   end
 
-  defp manual_contents(state, chapters) do
+  defp render_manual(pdf, guide, manual, chapter_pages) do
+    pdf
+    |> Pdf.set_info(
+      title: "#{guide.world.name} World Guide",
+      author: "Ancient Stones",
+      creator: "Ancient Stones",
+      subject: "World atlas and gazetteer"
+    )
+    |> cover(guide)
+    |> Map.put(:chapter_pages, %{})
+    |> manual_contents(manual.chapters, chapter_pages)
+    |> manual_chapters(manual.chapters)
+  end
+
+  defp manual_contents(state, chapters, chapter_pages) do
     state =
       state
       |> content_page("Contents")
       |> heading("Contents", 25)
 
     Enum.reduce(chapters, state, fn chapter, acc ->
-      entity_record(acc, chapter.title, chapter.description, 0)
+      contents_record(acc, chapter, Map.get(chapter_pages, chapter.id))
     end)
   end
 
   defp manual_chapters(state, chapters) do
     Enum.reduce(chapters, state, fn chapter, acc ->
+      acc =
+        Map.update!(acc, :chapter_pages, &Map.put(&1, chapter.id, acc.page + 1))
+
       acc
       |> content_page(chapter.title)
       |> heading(chapter.title, 25)
@@ -60,6 +80,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       |> paragraph(record.meta)
       |> paragraph(record.description)
       |> fact_table(nil, record.facts)
+      |> map_canvas(Map.get(record, :map_canvas))
       |> manual_records(record.children, level + 1)
     end)
   end
@@ -134,10 +155,10 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
   end
 
   defp content_page(state_or_pdf, title) do
-    {pdf, page} =
+    {state, pdf, page} =
       case state_or_pdf do
-        %{pdf: pdf, page: page} -> {Pdf.add_page(pdf), page + 1}
-        pdf when is_pid(pdf) -> {Pdf.add_page(pdf), 2}
+        %{pdf: pdf, page: page} = state -> {state, Pdf.add_page(pdf), page + 1}
+        pdf when is_pid(pdf) -> {%{chapter_pages: %{}}, Pdf.add_page(pdf), 2}
       end
 
     pdf =
@@ -154,7 +175,11 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       |> Pdf.set_font("Helvetica", size: 8)
       |> Pdf.text_at({@page_width - @margin - 20, 28}, Integer.to_string(page))
 
-    %{pdf: pdf, y: @top, page: page, running_title: title}
+    state
+    |> Map.put(:pdf, pdf)
+    |> Map.put(:y, @top)
+    |> Map.put(:page, page)
+    |> Map.put(:running_title, title)
   end
 
   defp page_background(pdf) do
@@ -260,9 +285,9 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     %{state | pdf: pdf, y: rule_y - 8}
   end
 
-  defp entity_record(state, name, detail, _index) do
-    name_lines = wrap(normalize(name), max_chars_for_width(@content_width, 11))
-    detail_lines = wrap(normalize(detail), max_chars_for_width(@content_width, 9))
+  defp contents_record(state, chapter, target_page) do
+    name_lines = wrap(normalize(chapter.title), max_chars_for_width(@content_width - 36, 11))
+    detail_lines = wrap(normalize(chapter.description), max_chars_for_width(@content_width, 9))
     name_height = max(length(name_lines), 1) * 16
     detail_height = length(detail_lines) * 14
     height = name_height + detail_height + 21
@@ -273,9 +298,30 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       state.pdf
       |> draw_record_lines(name_lines, @margin, state.y, 11, 16, true)
       |> draw_record_lines(detail_lines, @margin, state.y - name_height - 3, 9, 14, false)
+      |> contents_page_number(target_page, state.y)
       |> record_rule(rule_y)
+      |> contents_link(target_page, rule_y, height)
 
     %{state | pdf: pdf, y: rule_y - 14}
+  end
+
+  defp contents_page_number(pdf, nil, _y) do
+    pdf
+  end
+
+  defp contents_page_number(pdf, page_number, y) do
+    pdf
+    |> Pdf.set_fill_color(@rule)
+    |> Pdf.set_font("Helvetica", size: 8, bold: true)
+    |> Pdf.text_at({@page_width - @margin - 15, y}, Integer.to_string(page_number))
+  end
+
+  defp contents_link(pdf, nil, _y, _height) do
+    pdf
+  end
+
+  defp contents_link(pdf, page_number, y, height) do
+    Pdf.link_to_page(pdf, {@margin, y}, {@content_width, height}, page_number)
   end
 
   defp draw_record_lines(pdf, lines, x, y, font_size, leading, bold) do
@@ -301,6 +347,155 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
 
   defp section_spacing(state) do
     %{state | y: state.y - 8}
+  end
+
+  defp map_canvas(state, nil) do
+    state
+  end
+
+  defp map_canvas(
+         state,
+         %{document: %{"objects" => objects} = document, width: width, height: height}
+       )
+       when is_list(objects) and is_number(width) and width > 0 and is_number(height) and
+              height > 0 do
+    max_height = 330
+    scale = min(@content_width / width, max_height / height)
+    canvas_width = width * scale
+    canvas_height = height * scale
+    state = ensure_space(state, canvas_height + 28)
+    x = @margin + (@content_width - canvas_width) / 2
+    bottom = state.y - canvas_height
+    transform = %{x: x, bottom: bottom, height: height, scale: scale}
+    background = pdf_color(Map.get(document, "mapBackground"), @parchment)
+
+    pdf =
+      state.pdf
+      |> Pdf.set_fill_color(background)
+      |> Pdf.rectangle({x, bottom}, {canvas_width, canvas_height})
+      |> Pdf.fill()
+
+    pdf = Enum.reduce(objects, pdf, &render_map_object(&2, &1, transform))
+
+    pdf =
+      pdf
+      |> Pdf.set_stroke_color(@rule)
+      |> Pdf.set_line_width(0.5)
+      |> Pdf.rectangle({x, bottom}, {canvas_width, canvas_height})
+      |> Pdf.stroke()
+
+    %{state | pdf: pdf, y: bottom - 22}
+  end
+
+  defp map_canvas(state, _canvas) do
+    state
+  end
+
+  defp render_map_object(pdf, %{"type" => type, "path" => path} = object, transform)
+       when type in ["Path", "path"] and is_list(path) do
+    {pdf, _current_point} =
+      pdf
+      |> Pdf.set_stroke_color(pdf_color(Map.get(object, "stroke"), @ink))
+      |> Pdf.set_line_width(
+        max(number(Map.get(object, "strokeWidth"), 1.0) * transform.scale, 0.25)
+      )
+      |> then(
+        &Enum.reduce(path, {&1, nil}, fn command, acc ->
+          render_path_command(acc, command, transform)
+        end)
+      )
+
+    Pdf.stroke(pdf)
+  end
+
+  defp render_map_object(pdf, %{"type" => type, "text" => text} = object, transform)
+       when type in ["IText", "Textbox", "i-text", "textbox"] and is_binary(text) do
+    x = number(Map.get(object, "left"))
+    y = number(Map.get(object, "top"))
+    font_size = max(number(Map.get(object, "fontSize"), 16) * transform.scale, 4)
+
+    pdf
+    |> Pdf.set_fill_color(pdf_color(Map.get(object, "fill"), @ink))
+    |> Pdf.set_font("Times", size: font_size, bold: true)
+    |> Pdf.text_at(map_point({x, y}, transform), normalize(text))
+  end
+
+  defp render_map_object(pdf, _object, _transform) do
+    pdf
+  end
+
+  defp render_path_command({pdf, _current}, ["M", x, y], transform) do
+    point = {number(x), number(y)}
+    {Pdf.move_to(pdf, map_point(point, transform)), point}
+  end
+
+  defp render_path_command({pdf, _current}, ["L", x, y], transform) do
+    point = {number(x), number(y)}
+    {Pdf.line_append(pdf, map_point(point, transform)), point}
+  end
+
+  defp render_path_command({pdf, {start_x, start_y}}, ["C", x1, y1, x2, y2, x3, y3], transform) do
+    control_1 = {number(x1), number(y1)}
+    control_2 = {number(x2), number(y2)}
+    finish = {number(x3), number(y3)}
+
+    pdf =
+      1..6
+      |> Enum.map(&(&1 / 6))
+      |> Enum.reduce(pdf, fn t, document ->
+        point = cubic_point({start_x, start_y}, control_1, control_2, finish, t)
+        Pdf.line_append(document, map_point(point, transform))
+      end)
+
+    {pdf, finish}
+  end
+
+  defp render_path_command(acc, _command, _transform) do
+    acc
+  end
+
+  defp cubic_point({x0, y0}, {x1, y1}, {x2, y2}, {x3, y3}, t) do
+    inverse = 1 - t
+
+    {
+      inverse ** 3 * x0 + 3 * inverse ** 2 * t * x1 + 3 * inverse * t ** 2 * x2 + t ** 3 * x3,
+      inverse ** 3 * y0 + 3 * inverse ** 2 * t * y1 + 3 * inverse * t ** 2 * y2 + t ** 3 * y3
+    }
+  end
+
+  defp map_point({x, y}, transform) do
+    {
+      transform.x + x * transform.scale,
+      transform.bottom + (transform.height - y) * transform.scale
+    }
+  end
+
+  defp pdf_color("#" <> hex, default) when byte_size(hex) == 6 do
+    with {red, ""} <- Integer.parse(binary_part(hex, 0, 2), 16),
+         {green, ""} <- Integer.parse(binary_part(hex, 2, 2), 16),
+         {blue, ""} <- Integer.parse(binary_part(hex, 4, 2), 16) do
+      {red, green, blue}
+    else
+      _error -> default
+    end
+  end
+
+  defp pdf_color(_color, default) do
+    default
+  end
+
+  defp number(value, _default \\ 0)
+
+  defp number(value, _default) when is_integer(value) do
+    value / 1
+  end
+
+  defp number(value, _default) when is_float(value) do
+    value
+  end
+
+  defp number(_value, default) do
+    default
   end
 
   defp max_chars_for_width(width, font_size) do
@@ -355,6 +550,8 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     value
     |> to_string()
     |> String.replace(~r/[\x00-\x08\x0B\x0C\x0E-\x1F]/u, " ")
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
   end
 
   defp blank?(value) do

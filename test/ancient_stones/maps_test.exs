@@ -39,6 +39,64 @@ defmodule AncientStones.MapsTest do
     assert Maps.get_world_map(world, inner_map.id).parent_map_id == nil
   end
 
+  test "duplicates a complete map with a unique name and independent item ids" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, parent_map} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, source_map} =
+      Maps.create_world_map(world, %{
+        "name" => "Skyrim",
+        "description" => "The northern province",
+        "kind" => "region",
+        "parent_map_id" => parent_map.id,
+        "width" => 2400,
+        "height" => 1600
+      })
+
+    source_item_id = Ecto.UUID.generate()
+
+    assert {:ok, saved_source_map} =
+             Maps.save_map_document(source_map, %{
+               "document" => %{
+                 "mapBackground" => "#e7ddc4",
+                 "objects" => [
+                   %{
+                     "type" => "Path",
+                     "path" => [],
+                     "mapItemId" => source_item_id,
+                     "mapKind" => "coastline",
+                     "mapLayer" => "terrain",
+                     "left" => 120.0,
+                     "top" => 80.0
+                   }
+                 ]
+               },
+               "width" => 2400,
+               "height" => 1600
+             })
+
+    assert {:ok, duplicate} = Maps.duplicate_world_map(saved_source_map)
+    assert duplicate.name == "Skyrim copy"
+    assert duplicate.description == saved_source_map.description
+    assert duplicate.kind == saved_source_map.kind
+    assert duplicate.parent_map_id == parent_map.id
+    assert duplicate.width == 2400
+    assert duplicate.height == 1600
+    assert duplicate.document["mapBackground"] == "#e7ddc4"
+    refute duplicate.id == saved_source_map.id
+
+    [source_item] = Maps.list_map_items(saved_source_map)
+    [duplicate_item] = Maps.list_map_items(duplicate)
+    refute duplicate_item.item_key == source_item.item_key
+    assert duplicate_item.object_data["mapItemId"] == duplicate_item.item_key
+
+    assert {:ok, second_duplicate} = Maps.duplicate_world_map(saved_source_map)
+    assert second_duplicate.name == "Skyrim copy 2"
+
+    assert {:ok, _deleted_map} = Maps.delete_world_map(saved_source_map)
+    assert {:error, :map_not_found} = Maps.duplicate_world_map(saved_source_map)
+  end
+
   test "persists structured landmasses and map background color" do
     {:ok, world} = Worlds.create_world(%{name: "Nirn"})
     item_id = Ecto.UUID.generate()

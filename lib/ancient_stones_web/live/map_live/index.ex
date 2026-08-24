@@ -74,6 +74,25 @@ defmodule AncientStonesWeb.MapLive.Index do
      |> stream(:maps, maps_for(socket.assigns.selected_world), reset: true)}
   end
 
+  def handle_event("duplicate_map", %{"id" => id, "world-id" => world_id}, socket) do
+    world = Enum.find(socket.assigns.worlds, &(&1.id == world_id))
+    map_document = world && Maps.get_world_map(world, id)
+
+    case map_document && Maps.duplicate_world_map(map_document) do
+      {:ok, _duplicated_map} ->
+        maps = maps_for(socket.assigns.selected_world)
+
+        {:noreply,
+         socket
+         |> assign(:map_count, length(maps))
+         |> put_flash(:info, "Map duplicated.")
+         |> stream(:maps, maps, reset: true)}
+
+      _error ->
+        {:noreply, put_flash(socket, :error, "The map could not be duplicated.")}
+    end
+  end
+
   def handle_event(
         "save_map_name",
         %{
@@ -349,6 +368,17 @@ defmodule AncientStonesWeb.MapLive.Index do
                             class="stone-button inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition"
                           >
                             <.icon name="hero-pencil-square" class="size-3.5" /> Edit
+                          </button>
+                          <button
+                            id={"map-duplicate-#{map.id}"}
+                            type="button"
+                            phx-click="duplicate_map"
+                            phx-value-id={map.id}
+                            phx-value-world-id={map.world_id}
+                            aria-label={"Duplicate #{map.name}"}
+                            class="stone-button inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition"
+                          >
+                            <.icon name="hero-document-duplicate" class="size-3.5" /> Duplicate
                           </button>
                           <button
                             id={"map-delete-#{map.id}"}
