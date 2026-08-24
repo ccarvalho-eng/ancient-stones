@@ -1904,7 +1904,7 @@
                   }
                   data-map-width={if(@map_document, do: @map_document.width, else: 1600)}
                   data-map-height={if(@map_document, do: @map_document.height, else: 1000)}
-                  class="ink-map-editor grid min-h-[740px] lg:grid-cols-[220px_minmax(0,1fr)_220px]"
+                  class="ink-map-editor grid min-h-[740px] lg:grid-cols-[220px_minmax(0,1fr)_260px]"
                 >
                   <aside class="stone-border border-b p-3 lg:border-b-0 lg:border-r">
                     <div class="space-y-5">
@@ -2260,7 +2260,10 @@
                   </dialog>
 
                   <main id="map-canvas-workspace" class="stone-panel relative min-w-0">
-                    <div class="stone-panel stone-border flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+                    <div
+                      id="map-editor-toolbar"
+                      class="stone-panel stone-border flex flex-nowrap items-center justify-between gap-2 overflow-x-auto whitespace-nowrap border-b px-3 py-2"
+                    >
                       <div class="flex items-center gap-2">
                         <button
                           id="map-undo"
@@ -2349,22 +2352,6 @@
                           <.icon name="hero-arrows-pointing-out" class="size-4" />
                           <span data-map-fullscreen-label class="hidden xl:inline">Focus</span>
                         </button>
-                        <label
-                          id="map-export-background-control"
-                          for="map-export-background"
-                          class="stone-button inline-flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs font-medium"
-                        >
-                          <span class="hidden 2xl:inline">Background</span>
-                          <input
-                            id="map-export-background"
-                            type="color"
-                            value="#e7ddc4"
-                            data-map-export-background
-                            aria-label="PNG background color"
-                            title="PNG background color"
-                            class="h-6 w-8 cursor-pointer rounded border border-stone-400 bg-transparent p-0"
-                          />
-                        </label>
                         <button
                           id="map-export"
                           type="button"
@@ -2528,9 +2515,9 @@
                           <button
                             id="map-edit-submit"
                             type="submit"
-                            class="stone-primary-button rounded-md border px-3 py-2 text-xs font-semibold transition hover:brightness-75"
+                            class="stone-button inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold transition"
                           >
-                            Save
+                            <.icon name="hero-check" class="size-3.5" /> Save
                           </button>
                           <button
                             id="map-delete"
@@ -2538,9 +2525,9 @@
                             phx-click="delete_map"
                             phx-value-id={@map_document.id}
                             data-confirm="Delete this map? Inner maps will become outer maps."
-                            class="stone-danger-button rounded-md border px-3 py-2 text-xs font-semibold transition"
+                            class="stone-button inline-flex items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold transition"
                           >
-                            Delete map
+                            <.icon name="hero-trash" class="size-3.5" /> Delete
                           </button>
                         </div>
                       </.form>
@@ -2631,6 +2618,51 @@
                     </details>
 
                     <details
+                      id="map-export-properties"
+                      class="stone-soft-panel group mt-3 rounded-md border p-3"
+                    >
+                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                        Export
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <div class="mt-3 grid gap-3">
+                        <label
+                          for="map-export-background"
+                          class="stone-muted grid gap-1.5 text-[10px] font-semibold uppercase"
+                        >
+                          Background
+                          <input
+                            id="map-export-background"
+                            type="color"
+                            value="#e7ddc4"
+                            data-map-export-background
+                            aria-label="PNG background color"
+                            class="stone-button h-9 w-full cursor-pointer rounded-md border p-1"
+                          />
+                        </label>
+                        <label
+                          for="map-export-multiplier"
+                          class="stone-muted grid gap-1.5 text-[10px] font-semibold uppercase"
+                        >
+                          Resolution
+                          <select
+                            id="map-export-multiplier"
+                            data-map-export-multiplier
+                            aria-label="PNG export resolution"
+                            class="stone-button h-9 w-full cursor-pointer rounded-md border px-2 text-xs font-semibold"
+                          >
+                            <option value="1">1x</option>
+                            <option value="2" selected>2x</option>
+                            <option value="4">4x</option>
+                          </select>
+                        </label>
+                      </div>
+                    </details>
+
+                    <details
                       id="map-object-properties"
                       class="stone-soft-panel group mt-3 rounded-md border p-3"
                     >
@@ -2664,6 +2696,31 @@
                       </div>
 
                       <div class="mt-3 grid grid-cols-2 gap-2">
+                        <label class="stone-muted col-span-2 text-[10px] font-semibold uppercase">
+                          Move to layer
+                          <select
+                            id="map-selected-layer"
+                            data-map-selected-layer
+                            disabled
+                            class="mt-1 w-full rounded border px-2 py-1.5 text-xs"
+                          >
+                            <option value="" disabled>Mixed layers</option>
+                            <option value="terrain">Terrain</option>
+                            <option value="features">Features</option>
+                            <option value="labels">Labels</option>
+                          </select>
+                        </label>
+                        <label class="stone-muted col-span-2 text-[10px] font-semibold uppercase">
+                          Copy to layer
+                          <select
+                            id="map-copy-layer"
+                            data-map-copy-layer
+                            disabled
+                            class="mt-1 w-full rounded border px-2 py-1.5 text-xs"
+                          >
+                            <option value="" disabled>Choose destination</option>
+                          </select>
+                        </label>
                         <label class="stone-muted text-[10px] font-semibold uppercase">
                           X
                           <input
@@ -2715,6 +2772,24 @@
 
                       <div class="mt-3 grid grid-cols-2 gap-2">
                         <button
+                          id="map-group-selection"
+                          type="button"
+                          data-map-action="group-selection"
+                          disabled
+                          class="stone-button rounded border px-2 py-1.5 text-[11px] font-medium transition"
+                        >
+                          Group
+                        </button>
+                        <button
+                          id="map-ungroup-selection"
+                          type="button"
+                          data-map-action="ungroup-selection"
+                          disabled
+                          class="stone-button rounded border px-2 py-1.5 text-[11px] font-medium transition"
+                        >
+                          Ungroup
+                        </button>
+                        <button
                           id="map-center-object"
                           type="button"
                           data-map-action="center-object"
@@ -2746,37 +2821,160 @@
                       class="stone-soft-panel group mt-3 rounded-md border p-3"
                     >
                       <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
-                        Active layer
+                        Layers
                         <.icon
                           name="hero-chevron-down"
                           class="stone-muted size-4 transition group-open:rotate-180"
                         />
                       </summary>
-                      <div class="mt-3 grid gap-2">
-                        <button
-                          id="map-layer-terrain"
-                          type="button"
-                          data-map-layer="terrain"
-                          class="stone-button stone-selected flex items-center justify-between rounded-md border px-3 py-2 text-xs font-medium transition"
+                      <div class="mt-3">
+                        <div
+                          id="map-layer-list"
+                          data-map-layer-list
+                          phx-update="ignore"
+                          class="grid gap-2"
                         >
-                          Terrain <span class="stone-muted">1</span>
-                        </button>
+                        </div>
+                        <template id="map-layer-row-template">
+                          <div
+                            data-map-layer-row
+                            class="stone-soft-panel group/layer-row relative flex min-w-0 cursor-pointer items-center gap-1 rounded-md border px-1.5 py-1.5 transition"
+                          >
+                            <span
+                              data-map-layer-active
+                              class="h-5 w-0.5 shrink-0 rounded-full bg-zinc-700 transition-opacity"
+                            ></span>
+                            <button
+                              type="button"
+                              data-map-layer-drag
+                              draggable="true"
+                              aria-label="Reorder layer"
+                              class="stone-muted grid size-6 shrink-0 cursor-grab place-items-center rounded active:cursor-grabbing"
+                            >
+                              <.icon name="hero-bars-2" class="size-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              data-map-layer-action="visibility"
+                              class="stone-button grid size-7 shrink-0 place-items-center rounded-md border-0 transition"
+                            >
+                              <span data-map-layer-visible-icon>
+                                <.icon name="hero-eye" class="size-3.5" />
+                              </span>
+                              <span data-map-layer-hidden-icon class="hidden">
+                                <.icon name="hero-eye-slash" class="size-3.5" />
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              data-map-layer-action="lock"
+                              class="stone-button grid size-7 shrink-0 place-items-center rounded-md border-0 transition"
+                            >
+                              <span data-map-layer-unlocked-icon>
+                                <.icon name="hero-lock-open" class="size-3.5" />
+                              </span>
+                              <span data-map-layer-locked-icon class="hidden">
+                                <.icon name="hero-lock-closed" class="size-3.5" />
+                              </span>
+                            </button>
+                            <div class="min-w-0 flex-1">
+                              <button
+                                type="button"
+                                data-map-layer-name-display
+                                class="stone-heading block w-full truncate rounded px-1 text-left text-xs font-semibold"
+                              >
+                                Layer
+                              </button>
+                              <input
+                                data-map-layer-name
+                                type="text"
+                                maxlength="80"
+                                class="hidden h-7 w-full rounded border px-1.5 text-xs font-semibold"
+                              />
+                            </div>
+                            <span
+                              data-map-layer-count
+                              class="stone-muted shrink-0 text-[10px] tabular-nums"
+                            >
+                              0
+                            </span>
+                            <details
+                              data-map-layer-menu
+                              class="group/layer-menu relative shrink-0"
+                            >
+                              <summary
+                                data-map-layer-menu-trigger
+                                class="stone-button grid size-7 cursor-pointer list-none place-items-center rounded-md border-0 opacity-100 transition lg:opacity-0 lg:group-hover/layer-row:opacity-100 lg:group-focus-within/layer-row:opacity-100"
+                                title="Layer actions"
+                              >
+                                <.icon name="hero-ellipsis-horizontal" class="size-4" />
+                              </summary>
+                              <div class="stone-panel absolute right-0 top-8 z-40 w-48 rounded-lg border p-2 shadow-2xl">
+                                <div class="stone-border mb-1.5 border-b px-1 pb-2">
+                                  <p class="stone-muted text-[9px] font-semibold uppercase tracking-wide">
+                                    Layer
+                                  </p>
+                                  <p
+                                    data-map-layer-menu-name
+                                    class="stone-heading mt-0.5 truncate text-xs font-semibold"
+                                  >
+                                    Layer
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  data-map-layer-action="select"
+                                  class="stone-button flex w-full items-center gap-2 rounded-md border-0 px-2.5 py-2 text-left text-[11px] font-medium transition"
+                                >
+                                  <.icon name="hero-cursor-arrow-rays" class="size-3.5" />
+                                  Select all
+                                </button>
+                                <button
+                                  type="button"
+                                  data-map-layer-action="rename"
+                                  class="stone-button flex w-full items-center gap-2 rounded-md border-0 px-2.5 py-2 text-left text-[11px] font-medium transition"
+                                >
+                                  <.icon name="hero-pencil-square" class="size-3.5" /> Rename
+                                </button>
+                                <button
+                                  type="button"
+                                  data-map-layer-action="duplicate"
+                                  class="stone-button flex w-full items-center gap-2 rounded-md border-0 px-2.5 py-2 text-left text-[11px] font-medium transition"
+                                >
+                                  <.icon name="hero-document-duplicate" class="size-3.5" />
+                                  Duplicate layer
+                                </button>
+                                <button
+                                  type="button"
+                                  data-map-layer-action="merge-down"
+                                  class="stone-button flex w-full items-center gap-2 rounded-md border-0 px-2.5 py-2 text-left text-[11px] font-medium transition"
+                                >
+                                  <.icon name="hero-arrows-pointing-in" class="size-3.5" />
+                                  Merge down
+                                </button>
+                                <div class="stone-border my-1.5 border-t"></div>
+                                <button
+                                  type="button"
+                                  data-map-layer-action="delete"
+                                  class="stone-button flex w-full items-center gap-2 rounded-md border-0 px-2.5 py-2 text-left text-[11px] font-medium transition"
+                                >
+                                  <.icon name="hero-trash" class="size-3.5" /> Delete layer
+                                </button>
+                              </div>
+                            </details>
+                          </div>
+                        </template>
                         <button
-                          id="map-layer-features"
+                          id="map-add-layer"
                           type="button"
-                          data-map-layer="features"
-                          class="stone-button flex items-center justify-between rounded-md border px-3 py-2 text-xs font-medium transition"
+                          data-map-action="add-layer"
+                          class="stone-button mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold transition"
                         >
-                          Features <span class="stone-muted">2</span>
+                          <.icon name="hero-plus" class="size-3.5" /> New layer
                         </button>
-                        <button
-                          id="map-layer-labels"
-                          type="button"
-                          data-map-layer="labels"
-                          class="stone-button flex items-center justify-between rounded-md border px-3 py-2 text-xs font-medium transition"
-                        >
-                          Labels <span class="stone-muted">3</span>
-                        </button>
+                        <p class="stone-muted mt-2 text-[10px] leading-4">
+                          Click to activate, drag to reorder, and double-click a name to rename.
+                        </p>
                       </div>
                     </details>
 

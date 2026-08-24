@@ -47,7 +47,12 @@ const serializableProperties = [
   "mapExcludeFromExport",
   "mapReferenceSrc",
 ]
-const layerOrder = {terrain: 0, features: 1, labels: 2}
+const defaultMapLayers = [
+  {id: "terrain", name: "Terrain", visible: true, locked: false},
+  {id: "features", name: "Features", visible: true, locked: false},
+  {id: "labels", name: "Labels", visible: true, locked: false},
+]
+const maxMapLayers = 50
 const parchment = "#e7ddc4"
 const gridPreferenceKey = "ancient-stones:map-grid-visible"
 
@@ -70,7 +75,10 @@ const InkMap = {
     const mapDocument = this.parseDocument()
     this.width = Number.parseInt(this.el.dataset.mapWidth, 10) || 1600
     this.height = Number.parseInt(this.el.dataset.mapHeight, 10) || 1000
-    this.activeLayer = "terrain"
+    this.layers = this.normalizeLayers(mapDocument.mapLayers)
+    this.activeLayer = this.layers.some((layer) => layer.id === mapDocument.activeMapLayer)
+      ? mapDocument.activeMapLayer
+      : this.layers[0].id
     this.history = []
     this.historyIndex = -1
     this.restoring = false
@@ -98,6 +106,7 @@ const InkMap = {
     this.canvas = new Canvas(this.el.querySelector("#ink-map-canvas"), {
       width: this.width,
       height: this.height,
+      enableRetinaScaling: true,
       preserveObjectStacking: true,
       selection: true,
     })
@@ -108,6 +117,8 @@ const InkMap = {
     this.setGuides(true)
     this.setZoom(1)
     this.setTool("select")
+    this.renderLayerPanel()
+    this.renderLayerSelect()
     this.bindCanvasEvents()
     this.bindControls()
     this.bindPinchZoom()
@@ -129,7 +140,12 @@ const InkMap = {
     this.canvas.loadFromJSON(mapDocument).then(() => {
       this.applyCanvasAppearance()
       this.ensureItemIds()
+      this.applyLayerStates()
+      this.normalizeLayerOrder()
+      this.renderLayerPanel()
+      this.renderLayerSelect()
       this.syncInspector()
+      this.syncSelectionControls()
       this.canvas.requestRenderAll()
       this.captureHistory()
       this.ready = true
@@ -145,7 +161,15 @@ const InkMap = {
     this.el.removeEventListener("click", this.handleClick)
     this.el.removeEventListener("input", this.handleInput)
     this.el.removeEventListener("change", this.handleInput)
+    this.el.removeEventListener("dblclick", this.handleLayerDoubleClick)
+    this.el.removeEventListener("keydown", this.handleLayerNameKeydown)
+    this.el.removeEventListener("focusout", this.handleLayerNameBlur)
+    this.el.removeEventListener("dragstart", this.handleLayerDragStart)
+    this.el.removeEventListener("dragover", this.handleLayerDragOver)
+    this.el.removeEventListener("drop", this.handleLayerDrop)
+    this.el.removeEventListener("dragend", this.handleLayerDragEnd)
     document.removeEventListener("fullscreenchange", this.handleFullscreenChange)
+    document.removeEventListener("click", this.handleLayerMenuClickAway)
     this.themeObserver.disconnect()
     this.themeMedia.removeEventListener("change", this.handleThemeChange)
     document.removeEventListener("click", this.handleNavigation, true)
@@ -171,6 +195,22 @@ const InkMap = {
   },
 
   bindCanvasEvents() {
+    this.canvas.on("object:added", ({target}) => {
+      queueMicrotask(() => {
+        if (!this.ready || this.restoring || !target?.mapLayer) return
+
+        this.normalizeLayerOrder()
+        this.renderLayerPanel()
+        this.canvas.requestRenderAll()
+      })
+    })
+    this.canvas.on("object:removed", () => {
+      queueMicrotask(() => {
+        if (!this.ready || this.restoring) return
+
+        this.renderLayerPanel()
+      })
+    })
     this.canvas.on("path:created", ({path}) => {
       path.set({mapKind: "ink", mapLayer: this.activeLayer, mapItemId: newItemId()})
       this.changed("Stroke added")
@@ -219,16 +259,19 @@ const InkMap = {
     this.canvas.on("selection:created", ({selected}) => {
       this.showCoordinates(selected?.[0])
       this.syncEntityLink(selected?.[0])
+      this.syncSelectionControls()
       this.setStatus("Object selected")
     })
     this.canvas.on("selection:updated", ({selected}) => {
       this.showCoordinates(selected?.[0])
       this.syncEntityLink(selected?.[0])
+      this.syncSelectionControls()
       this.setStatus("Object selected")
     })
     this.canvas.on("selection:cleared", () => {
       this.showCoordinates()
       this.syncEntityLink()
+      this.syncSelectionControls()
     })
     this.canvas.on("mouse:up", () => this.finishInkErasing())
     this.canvas.on("mouse:dblclick", ({target}) => {
@@ -264,16 +307,90 @@ const InkMap = {
         return
       }
 
-      const control = event.target.closest("[data-map-tool], [data-map-asset], [data-map-action], [data-map-layer]")
+      const control = event.target.closest("[data-map-tool], [data-map-asset], [data-map-action], [data-map-layer], [data-map-layer-action], [data-map-layer-menu-trigger], [data-map-layer-row]")
 
       if (!control || !this.el.contains(control)) return
       if (!this.ready) return
 
       if (control.dataset.mapTool) this.setTool(control.dataset.mapTool)
       else if (control.dataset.mapAsset) this.addStamp(control.dataset.mapAsset)
+      else if (control.dataset.mapLayerAction) {
+        control.closest("[data-map-layer-menu]")?.removeAttribute("open")
+        this.runLayerAction(control.dataset.mapLayerAction, control.dataset.mapLayerId)
+      }
+      else if (control.hasAttribute("data-map-layer-menu-trigger")) return
       else if (control.dataset.mapLayer) this.setLayer(control.dataset.mapLayer)
+      else if (control.dataset.mapLayerRow) this.setLayer(control.dataset.mapLayerRow)
       else this.runAction(control.dataset.mapAction)
     }
+
+    this.handleLayerMenuClickAway = (event) => {
+      this.el.querySelectorAll("[data-map-layer-menu][open]").forEach((menu) => {
+        if (!menu.contains(event.target)) menu.removeAttribute("open")
+      })
+    }
+
+    this.handleLayerDoubleClick = (event) => {
+      const name = event.target.closest("[data-map-layer-name-display]")
+      const row = name?.closest("[data-map-layer-row]")
+      if (row) this.startLayerRename(row.dataset.mapLayerRow)
+    }
+
+    this.handleLayerNameKeydown = (event) => {
+      if (!event.target.matches("[data-map-layer-name]")) return
+
+      if (event.key === "Enter") {
+        event.preventDefault()
+        event.target.blur()
+      } else if (event.key === "Escape") {
+        event.target.dataset.cancelLayerRename = "true"
+        this.renderLayerPanel()
+      }
+    }
+
+    this.handleLayerNameBlur = (event) => {
+      if (!event.target.matches("[data-map-layer-name]")) return
+      if (event.target.dataset.cancelLayerRename) return
+
+      this.renameLayer(event.target.dataset.mapLayerId, event.target.value)
+    }
+
+    this.handleLayerDragStart = (event) => {
+      const handle = event.target.closest("[data-map-layer-drag]")
+      const row = handle?.closest("[data-map-layer-row]")
+      if (!row) return
+
+      this.draggedLayerId = row.dataset.mapLayerRow
+      event.dataTransfer.effectAllowed = "move"
+      event.dataTransfer.setData("text/plain", this.draggedLayerId)
+      row.classList.add("opacity-50")
+    }
+
+    this.handleLayerDragOver = (event) => {
+      const row = event.target.closest("[data-map-layer-row]")
+      if (!row || !this.draggedLayerId || row.dataset.mapLayerRow === this.draggedLayerId) return
+
+      event.preventDefault()
+      this.clearLayerDropTargets()
+      row.classList.add("ring-1", "ring-zinc-400")
+      event.dataTransfer.dropEffect = "move"
+    }
+
+    this.handleLayerDrop = (event) => {
+      const row = event.target.closest("[data-map-layer-row]")
+      if (!row || !this.draggedLayerId || row.dataset.mapLayerRow === this.draggedLayerId) return
+
+      event.preventDefault()
+      const bounds = row.getBoundingClientRect()
+      this.reorderLayerFromDrop(
+        this.draggedLayerId,
+        row.dataset.mapLayerRow,
+        event.clientY < bounds.top + bounds.height / 2,
+      )
+      this.finishLayerDrag()
+    }
+
+    this.handleLayerDragEnd = () => this.finishLayerDrag()
 
     this.handleInput = (event) => {
       if (event.target.matches("[data-map-brush-size]") && this.canvas.freeDrawingBrush) {
@@ -290,6 +407,11 @@ const InkMap = {
         }
       } else if (event.target.matches("[data-map-water-color], [data-map-export-background]")) {
         this.setMapBackground(event.target.value)
+      } else if (event.target.matches("[data-map-selected-layer]") && event.type === "change") {
+        this.setSelectionLayer(event.target.value)
+      } else if (event.target.matches("[data-map-copy-layer]") && event.type === "change") {
+        this.copySelectionToLayer(event.target.value)
+        event.target.value = ""
       } else if (event.target.matches("[data-map-entity-link]")) {
         this.linkSelection(event.target)
       } else if (event.target.matches("[data-map-property]")) {
@@ -300,7 +422,12 @@ const InkMap = {
     this.handleKeydown = (event) => {
       const activeObject = this.canvas.getActiveObject()
 
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || activeObject?.isEditing) return
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement ||
+        activeObject?.isEditing
+      ) return
 
       const command = event.metaKey || event.ctrlKey
 
@@ -337,7 +464,15 @@ const InkMap = {
     this.el.addEventListener("click", this.handleClick)
     this.el.addEventListener("input", this.handleInput)
     this.el.addEventListener("change", this.handleInput)
+    this.el.addEventListener("dblclick", this.handleLayerDoubleClick)
+    this.el.addEventListener("keydown", this.handleLayerNameKeydown)
+    this.el.addEventListener("focusout", this.handleLayerNameBlur)
+    this.el.addEventListener("dragstart", this.handleLayerDragStart)
+    this.el.addEventListener("dragover", this.handleLayerDragOver)
+    this.el.addEventListener("drop", this.handleLayerDrop)
+    this.el.addEventListener("dragend", this.handleLayerDragEnd)
     window.addEventListener("keydown", this.handleKeydown)
+    document.addEventListener("click", this.handleLayerMenuClickAway)
 
     this.handleBeforeUnload = (event) => {
       if (!this.dirty) return
@@ -818,13 +953,501 @@ const InkMap = {
   },
 
   setLayer(layer) {
-    if (!(layer in layerOrder)) return
+    const selectedLayer = this.layers.find((candidate) => candidate.id === layer)
+    if (!selectedLayer) return
+
+    if (selectedLayer.locked) {
+      this.setStatus(`${selectedLayer.name} is locked`)
+      return
+    }
+
+    if (!selectedLayer.visible) this.toggleLayerVisibility(layer)
 
     this.activeLayer = layer
-    this.el.querySelectorAll("[data-map-layer]").forEach((button) => {
-      button.classList.toggle("stone-selected", button.dataset.mapLayer === layer)
+    this.renderLayerPanel()
+    this.setStatus(`${selectedLayer.name} layer active`)
+  },
+
+  setSelectionLayer(layer) {
+    const selectedLayer = this.layers.find((candidate) => candidate.id === layer)
+    if (!selectedLayer) return
+
+    const selected = this.canvas.getActiveObjects()
+    if (selected.length === 0) return
+
+    selected.forEach((object) => this.applyObjectLayer(object, layer))
+    this.applyLayerStates()
+    this.normalizeLayerOrder()
+    if (!selectedLayer.locked) this.activeLayer = layer
+    if (!selectedLayer.visible || selectedLayer.locked) this.canvas.discardActiveObject()
+    this.renderLayerPanel()
+    this.syncSelectionControls()
+    this.canvas.requestRenderAll()
+    this.changed(`Selection moved to ${selectedLayer.name}`)
+  },
+
+  applyObjectLayer(object, layer) {
+    object.set({mapLayer: layer})
+
+    if (object instanceof Group) {
+      object.getObjects().forEach((child) => this.applyObjectLayer(child, layer))
+    }
+  },
+
+  normalizeLayerOrder() {
+    const layerOrder = new Map(this.layers.map((layer, index) => [layer.id, index]))
+    const ordered = this.canvas
+      .getObjects()
+      .map((object, index) => ({object, index}))
+      .sort((left, right) => {
+        const leftLayer = layerOrder.get(left.object.mapLayer) ?? this.layers.length
+        const rightLayer = layerOrder.get(right.object.mapLayer) ?? this.layers.length
+
+        return leftLayer - rightLayer || left.index - right.index
+      })
+
+    ordered.forEach(({object}, index) => this.canvas.moveObjectTo(object, index))
+  },
+
+  normalizeLayers(layers) {
+    if (!Array.isArray(layers) || layers.length === 0) {
+      return defaultMapLayers.map((layer) => ({...layer}))
+    }
+
+    const ids = new Set()
+    const normalized = layers.flatMap((layer) => {
+      const id = typeof layer?.id === "string" ? layer.id : ""
+      const name = typeof layer?.name === "string" ? layer.name.trim().slice(0, 80) : ""
+      if (!id || !name || ids.has(id)) return []
+
+      ids.add(id)
+      return [{
+        id,
+        name,
+        visible: layer.visible !== false,
+        locked: layer.locked === true,
+      }]
     })
-    this.setStatus(`${layer[0].toUpperCase()}${layer.slice(1)} layer active`)
+
+    return normalized.length > 0
+      ? normalized.slice(0, maxMapLayers)
+      : defaultMapLayers.map((layer) => ({...layer}))
+  },
+
+  applyLayerStates() {
+    const layers = new Map(this.layers.map((layer) => [layer.id, layer]))
+
+    this.canvas.getObjects().forEach((object) => {
+      const layer = layers.get(object.mapLayer) || layers.get("features") || this.layers[0]
+      if (!layers.has(object.mapLayer)) this.applyObjectLayer(object, layer.id)
+
+      object.set({
+        visible: layer.visible,
+        selectable: !layer.locked,
+        evented: !layer.locked,
+      })
+    })
+  },
+
+  renderLayerPanel() {
+    const list = this.el.querySelector("[data-map-layer-list]")
+    const template = this.el.querySelector("#map-layer-row-template")
+    if (!list || !template) return
+
+    list.replaceChildren()
+    const counts = new Map(this.layers.map((layer) => [layer.id, 0]))
+    this.canvas.getObjects().forEach((object) => {
+      counts.set(object.mapLayer, (counts.get(object.mapLayer) || 0) + 1)
+    })
+
+    const displayLayers = [...this.layers].reverse()
+    displayLayers.forEach((layer) => {
+      const index = this.layers.findIndex((candidate) => candidate.id === layer.id)
+      const row = template.content.firstElementChild.cloneNode(true)
+      row.dataset.mapLayerRow = layer.id
+      row.classList.toggle("stone-selected", layer.id === this.activeLayer)
+
+      const active = row.querySelector("[data-map-layer-active]")
+      active.classList.toggle("opacity-100", layer.id === this.activeLayer)
+      active.classList.toggle("opacity-0", layer.id !== this.activeLayer)
+      row.querySelector("[data-map-layer-name-display]").textContent = layer.name
+      const nameInput = row.querySelector("[data-map-layer-name]")
+      nameInput.value = layer.name
+      nameInput.dataset.mapLayerId = layer.id
+      row.querySelector("[data-map-layer-count]").textContent = String(counts.get(layer.id) || 0)
+      row.querySelector("[data-map-layer-menu-name]").textContent = layer.name
+      row.querySelector("[data-map-layer-menu-trigger]").setAttribute(
+        "aria-label",
+        `${layer.name} layer actions`,
+      )
+
+      const visibility = row.querySelector("[data-map-layer-action='visibility']")
+      const lock = row.querySelector("[data-map-layer-action='lock']")
+      row.querySelector("[data-map-layer-visible-icon]").classList.toggle("hidden", !layer.visible)
+      row.querySelector("[data-map-layer-hidden-icon]").classList.toggle("hidden", layer.visible)
+      row.querySelector("[data-map-layer-unlocked-icon]").classList.toggle("hidden", layer.locked)
+      row.querySelector("[data-map-layer-locked-icon]").classList.toggle("hidden", !layer.locked)
+      visibility.setAttribute("aria-label", `${layer.visible ? "Hide" : "Show"} ${layer.name}`)
+      lock.setAttribute("aria-label", `${layer.locked ? "Unlock" : "Lock"} ${layer.name}`)
+
+      row.querySelectorAll("[data-map-layer-action]").forEach((button) => {
+        button.dataset.mapLayerId = layer.id
+      })
+      row.querySelector("[data-map-layer-action='merge-down']").disabled = index === 0
+      row.querySelector("[data-map-layer-action='delete']").disabled = this.layers.length === 1
+      list.append(row)
+    })
+  },
+
+  startLayerRename(layerId) {
+    const row = this.el.querySelector(`[data-map-layer-row='${layerId}']`)
+    if (!row) return
+
+    const display = row.querySelector("[data-map-layer-name-display]")
+    const input = row.querySelector("[data-map-layer-name]")
+    display.classList.add("hidden")
+    input.classList.remove("hidden")
+    input.focus()
+    input.select()
+  },
+
+  clearLayerDropTargets() {
+    this.el.querySelectorAll("[data-map-layer-row]").forEach((row) => {
+      row.classList.remove("ring-1", "ring-zinc-400", "opacity-50")
+    })
+  },
+
+  finishLayerDrag() {
+    this.draggedLayerId = null
+    this.clearLayerDropTargets()
+  },
+
+  reorderLayerFromDrop(sourceId, targetId, beforeTarget) {
+    const visualIds = [...this.el.querySelectorAll("[data-map-layer-row]")]
+      .map((row) => row.dataset.mapLayerRow)
+      .filter((id) => id !== sourceId)
+    const targetIndex = visualIds.indexOf(targetId)
+    if (targetIndex < 0) return
+
+    visualIds.splice(targetIndex + (beforeTarget ? 0 : 1), 0, sourceId)
+    const layers = new Map(this.layers.map((layer) => [layer.id, layer]))
+    this.layers = visualIds.reverse().map((id) => layers.get(id))
+    this.normalizeLayerOrder()
+    this.renderLayerPanel()
+    this.canvas.requestRenderAll()
+    this.changed("Layers reordered")
+  },
+
+  renderLayerSelect() {
+    const selects = [
+      {element: this.el.querySelector("[data-map-selected-layer]"), placeholder: "No selection"},
+      {element: this.el.querySelector("[data-map-copy-layer]"), placeholder: "Choose destination"},
+    ]
+    const displayLayers = [...this.layers].reverse()
+    selects.forEach(({element, placeholder: label}) => {
+      if (!element) return
+
+      element.replaceChildren()
+      const placeholder = document.createElement("option")
+      placeholder.value = ""
+      placeholder.disabled = true
+      placeholder.textContent = label
+      element.append(placeholder)
+
+      displayLayers.forEach((layer) => {
+        const option = document.createElement("option")
+        option.value = layer.id
+        option.textContent = layer.name
+        option.disabled = layer.locked || !layer.visible
+        element.append(option)
+      })
+    })
+  },
+
+  addLayer() {
+    if (this.layers.length >= maxMapLayers) {
+      this.setStatus(`Maps support up to ${maxMapLayers} layers`)
+      return
+    }
+
+    let number = this.layers.length + 1
+    let name = `Layer ${number}`
+    const names = new Set(this.layers.map((layer) => layer.name.toLowerCase()))
+    while (names.has(name.toLowerCase())) {
+      number += 1
+      name = `Layer ${number}`
+    }
+
+    const layer = {id: newItemId(), name, visible: true, locked: false}
+    this.layers.push(layer)
+    this.activeLayer = layer.id
+    this.renderLayerPanel()
+    this.renderLayerSelect()
+    this.syncSelectionControls()
+    this.changed(`${name} created`)
+  },
+
+  renameLayer(layerId, value) {
+    const layer = this.layers.find((candidate) => candidate.id === layerId)
+    const name = value.trim().slice(0, 80)
+    const duplicate = this.layers.some((candidate) =>
+      candidate.id !== layerId && candidate.name.toLowerCase() === name.toLowerCase()
+    )
+
+    if (!layer || !name || duplicate) {
+      this.renderLayerPanel()
+      this.setStatus(duplicate ? "Layer names must be unique" : "Layer names cannot be empty")
+      return
+    }
+
+    layer.name = name
+    this.renderLayerPanel()
+    this.renderLayerSelect()
+    this.syncSelectionControls()
+    this.changed("Layer renamed")
+  },
+
+  runLayerAction(action, layerId) {
+    const actions = {
+      visibility: () => this.toggleLayerVisibility(layerId),
+      lock: () => this.toggleLayerLock(layerId),
+      select: () => this.selectLayerObjects(layerId),
+      rename: () => this.startLayerRename(layerId),
+      duplicate: () => this.duplicateLayer(layerId),
+      "merge-down": () => this.mergeLayerDown(layerId),
+      delete: () => this.deleteLayer(layerId),
+    }
+
+    actions[action]?.()
+  },
+
+  copySelectionToLayer(layerId) {
+    const layer = this.layers.find((candidate) => candidate.id === layerId)
+    const selected = this.canvas.getActiveObjects()
+    if (!layer || selected.length === 0 || !layer.visible || layer.locked) {
+      this.setStatus("Choose a visible, unlocked destination layer")
+      return
+    }
+
+    Promise.all(selected.map((object) => object.clone(serializableProperties))).then((clones) => {
+      this.canvas.discardActiveObject()
+      clones.forEach((clone) => {
+        clone.set({
+          left: clone.left + 24,
+          top: clone.top + 24,
+          mapItemId: newItemId(),
+          mapEntityType: null,
+          mapEntityId: null,
+          mapEntityName: null,
+        })
+        this.applyObjectLayer(clone, layerId)
+        this.canvas.add(clone)
+      })
+
+      this.applyLayerStates()
+      this.normalizeLayerOrder()
+      this.canvas.setActiveObject(
+        clones.length === 1 ? clones[0] : new ActiveSelection(clones, {canvas: this.canvas}),
+      )
+      this.renderLayerPanel()
+      this.syncSelectionControls()
+      this.canvas.requestRenderAll()
+      this.changed(`Selection copied to ${layer.name}`)
+    })
+  },
+
+  duplicateLayer(layerId) {
+    const sourceIndex = this.layers.findIndex((layer) => layer.id === layerId)
+    if (sourceIndex < 0 || this.layers.length >= maxMapLayers) return
+
+    const source = this.layers[sourceIndex]
+    const names = new Set(this.layers.map((layer) => layer.name.toLowerCase()))
+    let number = 1
+    let name = `${source.name} copy`
+    while (names.has(name.toLowerCase())) {
+      number += 1
+      name = `${source.name} copy ${number}`
+    }
+
+    const layer = {id: newItemId(), name, visible: true, locked: false}
+    const objects = this.canvas.getObjects().filter((object) => object.mapLayer === layerId)
+    Promise.all(objects.map((object) => object.clone(serializableProperties))).then((clones) => {
+      this.layers.splice(sourceIndex + 1, 0, layer)
+      clones.forEach((clone) => {
+        clone.set({
+          mapItemId: newItemId(),
+          mapEntityType: null,
+          mapEntityId: null,
+          mapEntityName: null,
+        })
+        this.applyObjectLayer(clone, layer.id)
+        this.canvas.add(clone)
+      })
+      this.activeLayer = layer.id
+      this.applyLayerStates()
+      this.normalizeLayerOrder()
+      this.renderLayerPanel()
+      this.renderLayerSelect()
+      this.syncSelectionControls()
+      this.canvas.requestRenderAll()
+      this.changed(`${source.name} duplicated`)
+    })
+  },
+
+  mergeLayerDown(layerId) {
+    const index = this.layers.findIndex((layer) => layer.id === layerId)
+    if (index <= 0) return
+
+    const layer = this.layers[index]
+    const destination = this.layers[index - 1]
+    if (!window.confirm(`Merge ${layer.name} into ${destination.name}?`)) return
+
+    this.canvas.getObjects()
+      .filter((object) => object.mapLayer === layerId)
+      .forEach((object) => this.applyObjectLayer(object, destination.id))
+    this.layers.splice(index, 1)
+    if (this.activeLayer === layerId) this.activeLayer = destination.id
+    this.applyLayerStates()
+    this.normalizeLayerOrder()
+    this.renderLayerPanel()
+    this.renderLayerSelect()
+    this.syncSelectionControls()
+    this.canvas.requestRenderAll()
+    this.changed(`${layer.name} merged into ${destination.name}`)
+  },
+
+  toggleLayerVisibility(layerId) {
+    const layer = this.layers.find((candidate) => candidate.id === layerId)
+    if (!layer) return
+
+    layer.visible = !layer.visible
+    if (!layer.visible) this.canvas.discardActiveObject()
+    if (!layer.visible && layer.id === this.activeLayer) {
+      const replacement = this.layers.find((candidate) => candidate.visible && !candidate.locked)
+      if (replacement) this.activeLayer = replacement.id
+    }
+
+    this.applyLayerStates()
+    this.renderLayerPanel()
+    this.syncSelectionControls()
+    this.canvas.requestRenderAll()
+    this.changed(`${layer.name} ${layer.visible ? "shown" : "hidden"}`)
+  },
+
+  toggleLayerLock(layerId) {
+    const layer = this.layers.find((candidate) => candidate.id === layerId)
+    if (!layer) return
+
+    if (!layer.locked) {
+      const otherEditable = this.layers.some((candidate) =>
+        candidate.id !== layerId && !candidate.locked
+      )
+      if (!otherEditable) {
+        this.setStatus("At least one layer must remain unlocked")
+        return
+      }
+    }
+
+    layer.locked = !layer.locked
+    this.canvas.discardActiveObject()
+    if (layer.locked && layer.id === this.activeLayer) {
+      const replacement = this.layers.find((candidate) => !candidate.locked)
+      if (replacement) this.activeLayer = replacement.id
+    }
+
+    this.applyLayerStates()
+    this.renderLayerPanel()
+    this.syncSelectionControls()
+    this.canvas.requestRenderAll()
+    this.changed(`${layer.name} ${layer.locked ? "locked" : "unlocked"}`)
+  },
+
+  selectLayerObjects(layerId) {
+    const layer = this.layers.find((candidate) => candidate.id === layerId)
+    if (!layer || !layer.visible || layer.locked) {
+      this.setStatus("Show and unlock the layer before selecting its objects")
+      return
+    }
+
+    const objects = this.canvas.getObjects().filter((object) => object.mapLayer === layerId)
+    this.canvas.discardActiveObject()
+
+    if (objects.length === 1) this.canvas.setActiveObject(objects[0])
+    else if (objects.length > 1) {
+      this.canvas.setActiveObject(new ActiveSelection(objects, {canvas: this.canvas}))
+    }
+
+    this.syncSelectionControls()
+    this.canvas.requestRenderAll()
+    this.setStatus(`${objects.length} ${layer.name} objects selected`)
+  },
+
+  moveLayer(layerId, offset) {
+    const index = this.layers.findIndex((layer) => layer.id === layerId)
+    const destination = index + offset
+    if (index < 0 || destination < 0 || destination >= this.layers.length) return
+
+    const [layer] = this.layers.splice(index, 1)
+    this.layers.splice(destination, 0, layer)
+    this.normalizeLayerOrder()
+    this.renderLayerPanel()
+    this.canvas.requestRenderAll()
+    this.changed(`${layer.name} reordered`)
+  },
+
+  deleteLayer(layerId) {
+    const index = this.layers.findIndex((layer) => layer.id === layerId)
+    if (index < 0 || this.layers.length === 1) return
+
+    const layer = this.layers[index]
+    const destination = this.layers[index > 0 ? index - 1 : 1]
+    const objects = this.canvas.getObjects().filter((object) => object.mapLayer === layerId)
+    const confirmed = objects.length === 0 || window.confirm(
+      `Move ${objects.length} objects to ${destination.name} and delete ${layer.name}?`,
+    )
+    if (!confirmed) return
+
+    objects.forEach((object) => this.applyObjectLayer(object, destination.id))
+    this.layers.splice(index, 1)
+    if (this.activeLayer === layerId) this.activeLayer = destination.id
+    this.applyLayerStates()
+    this.normalizeLayerOrder()
+    this.renderLayerPanel()
+    this.renderLayerSelect()
+    this.syncSelectionControls()
+    this.canvas.requestRenderAll()
+    this.changed(`${layer.name} deleted`)
+  },
+
+  syncSelectionControls() {
+    const selected = this.canvas.getActiveObjects()
+    const activeObject = this.canvas.getActiveObject()
+    const layerSelect = this.el.querySelector("[data-map-selected-layer]")
+    const copyLayerSelect = this.el.querySelector("[data-map-copy-layer]")
+    const groupButton = this.el.querySelector("[data-map-action='group-selection']")
+    const ungroupButton = this.el.querySelector("[data-map-action='ungroup-selection']")
+    const layers = new Set(selected.map((object) => object.mapLayer || "features"))
+
+    if (layerSelect) {
+      layerSelect.disabled = selected.length === 0
+      layerSelect.options[0].textContent = selected.length === 0 ? "No selection" : "Mixed layers"
+      layerSelect.value = layers.size === 1 ? [...layers][0] : ""
+    }
+
+    if (copyLayerSelect) {
+      copyLayerSelect.disabled = selected.length === 0
+      copyLayerSelect.value = ""
+    }
+
+    if (groupButton) {
+      groupButton.disabled = !(activeObject instanceof ActiveSelection) || selected.length < 2
+    }
+
+    if (ungroupButton) {
+      ungroupButton.disabled = !(activeObject instanceof Group) ||
+        activeObject instanceof ActiveSelection ||
+        activeObject.mapKind !== "group"
+    }
   },
 
   async addStamp(kind) {
@@ -1018,6 +1641,9 @@ const InkMap = {
       "edit-landmass": () => this.toggleLandmassEditing(),
       delete: () => this.deleteSelection(),
       duplicate: () => this.duplicateSelection(),
+      "group-selection": () => this.groupSelection(),
+      "ungroup-selection": () => this.ungroupSelection(),
+      "add-layer": () => this.addLayer(),
       undo: () => this.undo(),
       redo: () => this.redo(),
       save: () => this.save(),
@@ -1083,6 +1709,66 @@ const InkMap = {
     this.showCoordinates(object)
     this.highlightCenterGuides(true, true)
     this.changed("Selection centered on canvas")
+  },
+
+  groupSelection() {
+    const activeObject = this.canvas.getActiveObject()
+    if (!(activeObject instanceof ActiveSelection)) {
+      this.setStatus("Select at least two objects to group")
+      return
+    }
+
+    const objects = [...activeObject.getObjects()]
+    if (objects.length < 2) return
+
+    const layers = new Set(objects.map((object) => object.mapLayer || "features"))
+    const layer = layers.size === 1 ? [...layers][0] : this.activeLayer
+
+    this.canvas.discardActiveObject()
+    objects.forEach((object) => {
+      this.canvas.remove(object)
+      this.applyObjectLayer(object, layer)
+    })
+
+    const group = new Group(objects, {
+      mapKind: "group",
+      mapLayer: layer,
+      mapIconName: "Grouped objects",
+      mapItemId: newItemId(),
+    })
+
+    this.canvas.add(group)
+    this.normalizeLayerOrder()
+    this.canvas.setActiveObject(group)
+    this.syncSelectionControls()
+    this.canvas.requestRenderAll()
+    this.changed("Objects grouped")
+  },
+
+  ungroupSelection() {
+    const group = this.canvas.getActiveObject()
+
+    if (!(group instanceof Group) || group instanceof ActiveSelection || group.mapKind !== "group") {
+      this.setStatus("Select a manually created group to ungroup")
+      return
+    }
+
+    const layer = group.mapLayer || "features"
+    this.canvas.discardActiveObject()
+    const objects = group.removeAll()
+    this.canvas.remove(group)
+
+    objects.forEach((object) => {
+      this.applyObjectLayer(object, layer)
+      if (!object.mapItemId) object.set({mapItemId: newItemId()})
+      this.canvas.add(object)
+    })
+
+    this.normalizeLayerOrder()
+    this.canvas.setActiveObject(new ActiveSelection(objects, {canvas: this.canvas}))
+    this.syncSelectionControls()
+    this.canvas.requestRenderAll()
+    this.changed("Group separated")
   },
 
   deleteSelection() {
@@ -1292,6 +1978,8 @@ const InkMap = {
     })
     document.mapBackground = this.mapBackground
     document.mapBackgroundExplicit = this.hasExplicitBackground
+    document.mapLayers = this.layers.map((layer) => ({...layer}))
+    document.activeMapLayer = this.activeLayer
     return document
   },
 
@@ -1499,6 +2187,10 @@ const InkMap = {
     this.restoring = true
     this.historyIndex = index
     const document = JSON.parse(this.history[index])
+    this.layers = this.normalizeLayers(document.mapLayers)
+    this.activeLayer = this.layers.some((layer) => layer.id === document.activeMapLayer)
+      ? document.activeMapLayer
+      : this.layers[0].id
     this.hasExplicitBackground = document.mapBackgroundExplicit ?? Boolean(document.mapBackground)
     this.mapBackground = this.hasExplicitBackground
       ? document.mapBackground
@@ -1506,9 +2198,15 @@ const InkMap = {
     this.inkColor = contrastingInk(this.mapBackground)
     this.applyCanvasAppearance()
     this.syncBackgroundInput()
+    this.renderLayerPanel()
+    this.renderLayerSelect()
     this.canvas.loadFromJSON(document).then(() => {
       this.applyCanvasAppearance()
       this.ensureItemIds()
+      this.applyLayerStates()
+      this.normalizeLayerOrder()
+      this.renderLayerPanel()
+      this.syncSelectionControls()
       this.canvas.requestRenderAll()
       this.restoring = false
       this.markDirty(message)
@@ -1553,6 +2251,11 @@ const InkMap = {
     const background = this.canvas.backgroundColor
     const exportBackground =
       this.el.querySelector("[data-map-export-background]")?.value || this.mapBackground
+    const requestedMultiplier = Number.parseInt(
+      this.el.querySelector("[data-map-export-multiplier]")?.value,
+      10,
+    )
+    const multiplier = [1, 2, 4].includes(requestedMultiplier) ? requestedMultiplier : 2
     const excludedObjects = this.canvas.getObjects().filter((object) => object.mapExcludeFromExport)
     const visibility = excludedObjects.map((object) => object.visible)
 
@@ -1562,8 +2265,12 @@ const InkMap = {
       this.canvas.requestRenderAll()
 
       const link = document.createElement("a")
-      link.download = "world-map.png"
-      link.href = this.canvas.toDataURL({format: "png", multiplier: 1})
+      link.download = `world-map-${multiplier}x.png`
+      link.href = this.canvas.toDataURL({
+        format: "png",
+        multiplier,
+        enableRetinaScaling: false,
+      })
       link.click()
     } finally {
       excludedObjects.forEach((object, index) => object.set({visible: visibility[index]}))
@@ -1571,7 +2278,9 @@ const InkMap = {
       this.canvas.requestRenderAll()
     }
 
-    this.setStatus("PNG exported")
+    this.setStatus(
+      `PNG exported at ${this.width * multiplier} x ${this.height * multiplier}`,
+    )
   },
 
   setStatus(message) {
