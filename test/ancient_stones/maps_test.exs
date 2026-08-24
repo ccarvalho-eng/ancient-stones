@@ -344,6 +344,97 @@ defmodule AncientStones.MapsTest do
              Maps.list_world_map_items(world)
   end
 
+  test "persists custom layer definitions and custom layer item ids" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    custom_layer_id = Ecto.UUID.generate()
+
+    document = %{
+      "mapLayers" => [
+        %{
+          "id" => "terrain",
+          "name" => "Terrain",
+          "visible" => true,
+          "locked" => false
+        },
+        %{
+          "id" => custom_layer_id,
+          "name" => "Coast details",
+          "visible" => false,
+          "locked" => true
+        }
+      ],
+      "activeMapLayer" => custom_layer_id,
+      "objects" => [
+        %{
+          "type" => "Path",
+          "path" => [],
+          "mapItemId" => Ecto.UUID.generate(),
+          "mapLayer" => custom_layer_id,
+          "mapX" => 100,
+          "mapY" => 120
+        }
+      ]
+    }
+
+    assert {:ok, map_document} =
+             Maps.save_world_map(world, %{
+               "document" => document,
+               "width" => 1600,
+               "height" => 1000
+             })
+
+    assert map_document.document == document
+    assert [%{layer: ^custom_layer_id}] = Maps.list_map_items(map_document)
+  end
+
+  test "rejects objects assigned to undeclared custom layers" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+
+    document = %{
+      "mapLayers" => [
+        %{
+          "id" => "terrain",
+          "name" => "Terrain",
+          "visible" => true,
+          "locked" => false
+        }
+      ],
+      "objects" => [
+        %{
+          "type" => "Path",
+          "path" => [],
+          "mapItemId" => Ecto.UUID.generate(),
+          "mapLayer" => Ecto.UUID.generate()
+        }
+      ]
+    }
+
+    assert {:error, changeset} =
+             Maps.save_world_map(world, %{
+               "document" => document,
+               "width" => 1600,
+               "height" => 1000
+             })
+
+    assert "contains an object assigned to an undeclared layer" in errors_on(changeset).document
+  end
+
+  test "rejects malformed custom layer entries without raising" do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+
+    assert {:error, changeset} =
+             Maps.save_world_map(world, %{
+               "document" => %{
+                 "mapLayers" => ["terrain"],
+                 "objects" => []
+               },
+               "width" => 1600,
+               "height" => 1000
+             })
+
+    assert "contains an invalid layer" in errors_on(changeset).document
+  end
+
   test "persists coordinates and an explicit geography association" do
     {:ok, world} = Worlds.create_world(%{name: "Nirn"})
     {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})

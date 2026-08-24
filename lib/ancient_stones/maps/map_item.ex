@@ -8,7 +8,7 @@ defmodule AncientStones.Maps.MapItem do
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.Province
 
-  @layers ~w(terrain features labels)
+  @legacy_layer_ids ~w(terrain features labels)
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -68,7 +68,8 @@ defmodule AncientStones.Maps.MapItem do
       :object_data,
       :map_document_id
     ])
-    |> validate_inclusion(:layer, @layers)
+    |> validate_length(:layer, max: 36)
+    |> validate_change(:layer, &validate_layer_id/2)
     |> validate_number(:scale_x, greater_than: 0)
     |> validate_number(:scale_y, greater_than: 0)
     |> foreign_key_constraint(:continent_id)
@@ -93,5 +94,20 @@ defmodule AncientStones.Maps.MapItem do
       name: :map_items_map_document_id_location_id_index,
       message: "is already placed on this map"
     )
+  end
+
+  defp validate_layer_id(:layer, layer) when layer in @legacy_layer_ids do
+    []
+  end
+
+  defp validate_layer_id(:layer, layer) when is_binary(layer) do
+    case Ecto.UUID.cast(layer) do
+      {:ok, _uuid} -> []
+      :error -> [layer: "is not a valid layer id"]
+    end
+  end
+
+  defp validate_layer_id(:layer, _layer) do
+    [layer: "is not a valid layer id"]
   end
 end
