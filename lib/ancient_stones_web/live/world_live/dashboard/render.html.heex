@@ -2566,72 +2566,8 @@
                     </details>
 
                     <details
-                      id="map-geography-properties"
-                      class="stone-soft-panel group mt-3 rounded-md border p-3"
-                    >
-                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
-                        Linked geography
-                        <.icon
-                          name="hero-chevron-down"
-                          class="stone-muted size-4 transition group-open:rotate-180"
-                        />
-                      </summary>
-                      <label
-                        for="map-entity-link"
-                        class="stone-muted mt-3 block text-[10px] font-semibold uppercase tracking-wide"
-                      >
-                        Linked geography
-                      </label>
-                      <select
-                        id="map-entity-link"
-                        data-map-entity-link
-                        class="stone-button mt-2 w-full rounded-md border px-2.5 py-2 text-xs"
-                      >
-                        <option value="">Not linked</option>
-                        <optgroup :if={@continents != []} label="Continents">
-                          <option
-                            :for={continent <- @continents}
-                            value={"continent:#{continent.id}"}
-                            data-map-entity-name={continent.name}
-                          >
-                            {continent.name}
-                          </option>
-                        </optgroup>
-                        <optgroup :if={@provinces != []} label="Provinces">
-                          <option
-                            :for={province <- @provinces}
-                            value={"province:#{province.id}"}
-                            data-map-entity-name={province.name}
-                          >
-                            {province.name}
-                          </option>
-                        </optgroup>
-                        <optgroup :if={@holds != []} label="Holds">
-                          <option
-                            :for={hold <- @holds}
-                            value={"hold:#{hold.id}"}
-                            data-map-entity-name={hold.name}
-                          >
-                            {hold.name}
-                          </option>
-                        </optgroup>
-                        <optgroup :if={@locations != []} label="Locations">
-                          <option
-                            :for={location <- @locations}
-                            value={"location:#{location.id}"}
-                            data-map-entity-name={location.name}
-                          >
-                            {location.name}
-                          </option>
-                        </optgroup>
-                      </select>
-                      <p class="stone-muted mt-1.5 text-[11px] leading-4">
-                        Link one selected symbol to a world geography record.
-                      </p>
-                    </details>
-
-                    <details
                       id="map-object-properties"
+                      open
                       class="stone-soft-panel group mt-3 rounded-md border p-3"
                     >
                       <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
@@ -2641,14 +2577,11 @@
                           class="stone-muted size-4 transition group-open:rotate-180"
                         />
                       </summary>
-                      <div class="flex items-start justify-between gap-2">
+                      <div class="flex items-center justify-between gap-2">
                         <div class="min-w-0">
-                          <p class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
-                            Selected object
-                          </p>
                           <p
                             id="map-selected-object-name"
-                            class="stone-heading mt-1 truncate text-sm font-semibold"
+                            class="stone-heading truncate text-sm font-semibold"
                           >
                             Nothing selected
                           </p>
@@ -2782,6 +2715,71 @@
                           Bring forward
                         </button>
                       </div>
+                    </details>
+
+                    <details
+                      id="map-geography-properties"
+                      class="stone-soft-panel group mt-3 rounded-md border p-3"
+                    >
+                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                        Linked geography
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <label
+                        for="map-entity-link"
+                        class="stone-muted mt-3 block text-[10px] font-semibold uppercase tracking-wide"
+                      >
+                        Linked geography
+                      </label>
+                      <select
+                        id="map-entity-link"
+                        data-map-entity-link
+                        class="stone-button mt-2 w-full rounded-md border px-2.5 py-2 text-xs"
+                      >
+                        <option value="">Not linked</option>
+                        <optgroup :if={@continents != []} label="Continents">
+                          <option
+                            :for={continent <- @continents}
+                            value={"continent:#{continent.id}"}
+                            data-map-entity-name={continent.name}
+                          >
+                            {continent.name}
+                          </option>
+                        </optgroup>
+                        <optgroup :if={@provinces != []} label="Provinces">
+                          <option
+                            :for={province <- @provinces}
+                            value={"province:#{province.id}"}
+                            data-map-entity-name={province.name}
+                          >
+                            {province.name}
+                          </option>
+                        </optgroup>
+                        <optgroup :if={@holds != []} label="Holds">
+                          <option
+                            :for={hold <- @holds}
+                            value={"hold:#{hold.id}"}
+                            data-map-entity-name={hold.name}
+                          >
+                            {hold.name}
+                          </option>
+                        </optgroup>
+                        <optgroup :if={@locations != []} label="Locations">
+                          <option
+                            :for={location <- @locations}
+                            value={"location:#{location.id}"}
+                            data-map-entity-name={location.name}
+                          >
+                            {location.name}
+                          </option>
+                        </optgroup>
+                      </select>
+                      <p class="stone-muted mt-1.5 text-[11px] leading-4">
+                        Link one selected symbol to a world geography record.
+                      </p>
                     </details>
 
                     <details
@@ -2991,29 +2989,12 @@
                       </div>
                     </details>
 
-                    <div
-                      id="map-save-state"
-                      data-map-save-state
-                      data-state="saved"
-                      class="stone-muted mt-5 inline-flex items-center gap-1.5 text-xs font-medium"
-                      aria-live="polite"
-                    >
-                      <span data-map-save-dot class="size-2 rounded-full bg-green-700"></span>
-                      <span data-map-save-label>Map saved</span>
-                    </div>
-                    <div id="ink-map-status" class="stone-muted mt-2 text-xs" aria-live="polite">
-                      Map ready
-                    </div>
-
                     <details
                       id="map-controls-properties"
                       class="stone-soft-panel group mt-3 rounded-md border p-3"
                     >
                       <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
-                        <span class="flex items-center gap-2">
-                          <.icon name="hero-information-circle" class="stone-muted size-4" />
-                          Editor help
-                        </span>
+                        Help
                         <.icon
                           name="hero-chevron-down"
                           class="stone-muted size-4 transition group-open:rotate-180"
@@ -3027,6 +3008,20 @@
                         <p>Ctrl/Cmd + Z undoes a change.</p>
                       </div>
                     </details>
+
+                    <div
+                      id="map-save-state"
+                      data-map-save-state
+                      data-state="saved"
+                      class="stone-muted mt-5 inline-flex items-center gap-1.5 text-xs font-medium"
+                      aria-live="polite"
+                    >
+                      <span data-map-save-dot class="size-2 rounded-full bg-green-700"></span>
+                      <span data-map-save-label>Map saved</span>
+                    </div>
+                    <div id="ink-map-status" class="stone-muted mt-2 text-xs" aria-live="polite">
+                      Map ready
+                    </div>
                   </aside>
                 </div>
               </div>

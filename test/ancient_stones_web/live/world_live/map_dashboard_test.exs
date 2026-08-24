@@ -50,7 +50,7 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     assert has_element?(view, "#map-clear-icon-filters[data-map-action='clear-icon-filters']")
     assert has_element?(view, "details#map-coordinates-properties[open]")
     assert has_element?(view, "details#map-geography-properties:not([open])")
-    assert has_element?(view, "details#map-object-properties:not([open])")
+    assert has_element?(view, "details#map-object-properties[open]")
     assert has_element?(view, "details#map-layer-properties:not([open])")
     assert has_element?(view, "#map-layer-list[data-map-layer-list][phx-update='ignore']")
     assert has_element?(view, "template#map-layer-row-template")
