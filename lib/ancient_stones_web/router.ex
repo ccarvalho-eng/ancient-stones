@@ -21,6 +21,7 @@ defmodule AncientStonesWeb.Router do
     live "/maps", MapLive.Index, :index
     live "/worlds", WorldLive.Index, :index
     live "/worlds/new", WorldLive.New, :new
+    get "/worlds/:id/export.pdf", WorldExportController, :show
     live "/worlds/:id/dashboard", WorldLive.Dashboard, :show
     live "/worlds/:id", WorldLive.Show, :show
   end
