@@ -39,14 +39,16 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     refute has_element?(view, "#dashboard-search-form")
     refute has_element?(view, "#dashboard-search-form-mobile")
     assert has_element?(view, "[data-map-editor][phx-hook='InkMap']")
+    assert has_element?(view, "[data-map-editor][data-map-revision='1']")
     refute has_element?(view, "#map-manager")
     refute has_element?(view, "#world-map-list")
     assert has_element?(view, "#map-new")
     assert has_element?(view, "details#map-tools-panel[open]")
     assert has_element?(view, "#map-symbols-panel #map-open-icon-library")
+    assert has_element?(view, "#map-symbols-panel #map-icon-credit")
     assert has_element?(view, "dialog#map-icon-dialog:not([open])")
     assert has_element?(view, "#map-clear-icon-filters[data-map-action='clear-icon-filters']")
-    assert has_element?(view, "details#map-coordinates-properties:not([open])")
+    assert has_element?(view, "details#map-coordinates-properties[open]")
     assert has_element?(view, "details#map-geography-properties:not([open])")
     assert has_element?(view, "details#map-object-properties:not([open])")
     assert has_element?(view, "details#map-layer-properties:not([open])")
@@ -113,6 +115,7 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
            )
 
     assert has_element?(view, "#map-save.stone-button")
+    assert has_element?(view, "#map-save-state[data-map-save-state][data-state='saved']")
     assert has_element?(view, "#map-export[data-map-action='export']")
 
     assert has_element?(
@@ -151,6 +154,8 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
       ]
     }
 
+    initial_revision = map_document.lock_version
+
     view
     |> element("[data-map-editor]")
     |> render_hook("save_map", %{
@@ -159,10 +164,44 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
       "height" => 1000
     })
 
-    assert Maps.get_world_map(world, map_document.id).document == document
+    saved_map = Maps.get_world_map(world, map_document.id)
+    assert saved_map.document == document
+    assert saved_map.lock_version == initial_revision + 1
 
     assert [%{kind: "mountain", x: 320.5, y: 210.25}, %{object_type: "IText"}] =
              Maps.list_world_map_items(world)
+  end
+
+  test "rejects an autosave from a stale editor session", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, map_document} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, first_view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=map&map_id=#{map_document.id}")
+
+    {:ok, second_view, _html} =
+      live(recycle(conn), ~p"/worlds/#{world}/dashboard?section=map&map_id=#{map_document.id}")
+
+    first_document = %{"objects" => [], "mapBackground" => "#f2ead3"}
+    stale_document = %{"objects" => [], "mapBackground" => "#111827"}
+
+    first_view
+    |> element("[data-map-editor]")
+    |> render_hook("save_map", %{
+      "document" => first_document,
+      "width" => 1600,
+      "height" => 1000
+    })
+
+    second_view
+    |> element("[data-map-editor]")
+    |> render_hook("save_map", %{
+      "document" => stale_document,
+      "width" => 1600,
+      "height" => 1000
+    })
+
+    assert Maps.get_world_map(world, map_document.id).document == first_document
   end
 
   test "uploads a local reference image and pushes it to the editor", %{conn: conn} do

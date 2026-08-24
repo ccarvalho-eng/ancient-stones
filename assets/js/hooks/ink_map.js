@@ -18,6 +18,7 @@ import {
   gameIconCatalogUrl,
   normalizeGameIcon,
 } from "../game_icon_library.mjs"
+import {deleteMapDraft, getMapDraft, putMapDraft} from "../map_draft_store"
 import {
   appendDistinctPoint,
   contrastingInk,
@@ -73,6 +74,8 @@ function newItemId() {
 const InkMap = {
   mounted() {
     const mapDocument = this.parseDocument()
+    this.mapId = this.el.dataset.mapId || null
+    this.serverRevision = Number.parseInt(this.el.dataset.mapRevision, 10) || 1
     this.width = Number.parseInt(this.el.dataset.mapWidth, 10) || 1600
     this.height = Number.parseInt(this.el.dataset.mapHeight, 10) || 1000
     this.layers = this.normalizeLayers(mapDocument.mapLayers)
@@ -86,6 +89,13 @@ const InkMap = {
     this.ready = false
     this.saving = false
     this.changeVersion = 0
+    this.localDraftVersion = -1
+    this.draftTimer = null
+    this.autosaveTimer = null
+    this.saveTimeout = null
+    this.saveRequestId = 0
+    this.autosaveBlocked = false
+    this.draftQueue = Promise.resolve()
     this.textureTool = null
     this.textureStroke = null
     this.panState = null
@@ -151,6 +161,8 @@ const InkMap = {
       this.ready = true
       this.syncSaveState()
       this.setStatus("Map ready")
+      this.setSaveStatus("saved", "Map saved")
+      void this.restoreLocalDraft()
       requestAnimationFrame(() => this.zoomToFit())
     }).catch(() => {
       this.setStatus("The map document could not be loaded")
@@ -158,6 +170,10 @@ const InkMap = {
   },
 
   destroyed() {
+    if (this.dirty) void this.persistLocalDraft()
+    window.clearTimeout(this.draftTimer)
+    window.clearTimeout(this.autosaveTimer)
+    window.clearTimeout(this.saveTimeout)
     this.el.removeEventListener("click", this.handleClick)
     this.el.removeEventListener("input", this.handleInput)
     this.el.removeEventListener("change", this.handleInput)
@@ -173,6 +189,7 @@ const InkMap = {
     this.themeObserver.disconnect()
     this.themeMedia.removeEventListener("change", this.handleThemeChange)
     document.removeEventListener("click", this.handleNavigation, true)
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange)
     window.removeEventListener("beforeunload", this.handleBeforeUnload)
     window.removeEventListener("keydown", this.handleKeydown)
     this.pinchTarget.removeEventListener("touchstart", this.handleTouchStart)
@@ -185,6 +202,24 @@ const InkMap = {
     this.canvas.dispose()
   },
 
+  disconnected() {
+    this.saving = false
+    this.saveRequestId += 1
+    window.clearTimeout(this.saveTimeout)
+    window.clearTimeout(this.autosaveTimer)
+    this.autosaveTimer = null
+    if (this.dirty) {
+      void this.persistLocalDraft()
+      this.setSaveStatus("local", "Offline, saved locally")
+      this.setStatus("Connection lost. Your current changes are protected on this device.")
+    }
+    this.syncSaveState()
+  },
+
+  reconnected() {
+    if (this.dirty) this.scheduleAutosave(1000)
+  },
+
   parseDocument() {
     try {
       const document = JSON.parse(this.el.dataset.mapDocument || "{}")
@@ -192,6 +227,84 @@ const InkMap = {
     } catch (_error) {
       return {objects: []}
     }
+  },
+
+  async restoreLocalDraft() {
+    if (!this.mapId) return
+
+    try {
+      const draft = await getMapDraft(this.mapId)
+      if (!draft?.document || !Array.isArray(draft.document.objects)) return
+
+      const serverDocument = this.parseDocument()
+      const sameDocument = JSON.stringify(draft.document) === JSON.stringify(serverDocument)
+      const sameSize = draft.width === this.width && draft.height === this.height
+
+      if (sameDocument && sameSize) {
+        await this.clearLocalDraft()
+        return
+      }
+
+      const conflicts = draft.baseRevision !== this.serverRevision
+      const prompt = conflicts
+        ? "A local recovery draft and the server map both changed. Restore the local draft? Saving it will replace the current server map."
+        : "Unsaved map changes were recovered from this device. Restore them?"
+
+      if (!window.confirm(prompt)) {
+        await this.clearLocalDraft()
+        this.setStatus("Server map kept. The local recovery draft was discarded.")
+        return
+      }
+
+      this.restoreLocalDraftDocument(draft)
+    } catch (_error) {
+      this.setSaveStatus("error", "Local recovery unavailable")
+      this.setStatus("Local draft storage is unavailable. Manual and server saves still work.")
+    }
+  },
+
+  restoreLocalDraftDocument(draft) {
+    this.restoring = true
+    this.width = Number.parseInt(draft.width, 10) || this.width
+    this.height = Number.parseInt(draft.height, 10) || this.height
+    this.layers = this.normalizeLayers(draft.document.mapLayers)
+    this.activeLayer = this.layers.some((layer) => layer.id === draft.document.activeMapLayer)
+      ? draft.document.activeMapLayer
+      : this.layers[0].id
+    this.hasExplicitBackground =
+      draft.document.mapBackgroundExplicit ?? Boolean(draft.document.mapBackground)
+    this.mapBackground = this.hasExplicitBackground
+      ? draft.document.mapBackground
+      : this.defaultCanvasBackground()
+    this.inkColor = contrastingInk(this.mapBackground)
+    this.canvas.setDimensions({width: this.width, height: this.height})
+    this.applyCanvasAppearance()
+    this.syncBackgroundInput()
+    this.renderLayerPanel()
+    this.renderLayerSelect()
+
+    this.canvas.loadFromJSON(draft.document).then(() => {
+      this.applyCanvasAppearance()
+      this.ensureItemIds()
+      this.applyLayerStates()
+      this.normalizeLayerOrder()
+      this.renderLayerPanel()
+      this.renderLayerSelect()
+      this.syncInspector()
+      this.syncSelectionControls()
+      this.setZoom(this.zoom)
+      this.canvas.requestRenderAll()
+      this.history = []
+      this.historyIndex = -1
+      this.captureHistory()
+      this.restoring = false
+      this.autosaveBlocked = false
+      this.markDirty("Local draft restored")
+    }).catch(() => {
+      this.restoring = false
+      this.setSaveStatus("error", "Recovery failed")
+      this.setStatus("The local recovery draft could not be loaded.")
+    })
   },
 
   bindCanvasEvents() {
@@ -491,6 +604,10 @@ const InkMap = {
 
     window.addEventListener("beforeunload", this.handleBeforeUnload)
     document.addEventListener("click", this.handleNavigation, true)
+    this.handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && this.dirty) void this.persistLocalDraft()
+    }
+    document.addEventListener("visibilitychange", this.handleVisibilityChange)
   },
 
   bindPinchZoom() {
@@ -2158,7 +2275,69 @@ const InkMap = {
     this.dirty = true
     this.changeVersion += 1
     this.syncSaveState()
+    this.setSaveStatus("unsaved", "Unsaved")
     this.setStatus(`${message}. Unsaved changes.`)
+    this.scheduleLocalDraft()
+    this.scheduleAutosave()
+  },
+
+  scheduleLocalDraft() {
+    window.clearTimeout(this.draftTimer)
+    this.draftTimer = window.setTimeout(() => {
+      this.draftTimer = null
+      void this.persistLocalDraft()
+    }, 750)
+  },
+
+  scheduleAutosave(delay = 30000) {
+    if (this.autosaveBlocked || this.autosaveTimer || !this.dirty) return
+
+    this.autosaveTimer = window.setTimeout(() => {
+      this.autosaveTimer = null
+      this.save({automatic: true})
+    }, delay)
+  },
+
+  queueDraftOperation(operation) {
+    this.draftQueue = this.draftQueue.catch(() => undefined).then(operation)
+    return this.draftQueue
+  },
+
+  persistLocalDraft() {
+    if (!this.mapId || !this.ready || !this.dirty) return Promise.resolve()
+
+    window.clearTimeout(this.draftTimer)
+    this.draftTimer = null
+    const version = this.changeVersion
+    const draft = {
+      mapId: this.mapId,
+      baseRevision: this.serverRevision,
+      document: this.serializeDocument(),
+      width: this.width,
+      height: this.height,
+      savedAt: new Date().toISOString(),
+    }
+
+    return this.queueDraftOperation(() => putMapDraft(draft)).then(() => {
+      if (this.changeVersion !== version || !this.dirty) return
+
+      this.localDraftVersion = version
+      this.setSaveStatus("local", "Saved locally")
+      this.setStatus("Changes saved locally. Server autosave pending.")
+    }).catch(() => {
+      this.setSaveStatus("error", "Local save failed")
+      this.setStatus("Local draft storage failed. Use Save before leaving this page.")
+    })
+  },
+
+  clearLocalDraft() {
+    if (!this.mapId) return Promise.resolve()
+
+    return this.queueDraftOperation(() => deleteMapDraft(this.mapId)).then(() => {
+      this.localDraftVersion = -1
+    }).catch(() => {
+      this.localDraftVersion = -1
+    })
   },
 
   captureHistory() {
@@ -2216,23 +2395,56 @@ const InkMap = {
     })
   },
 
-  save() {
+  save({automatic = false} = {}) {
     if (!this.ready || this.restoring || this.saving) return
 
+    window.clearTimeout(this.autosaveTimer)
+    this.autosaveTimer = null
     this.saving = true
     this.syncSaveState()
-    this.setStatus("Saving map...")
+    this.setSaveStatus("saving", automatic ? "Autosaving" : "Saving")
+    this.setStatus(automatic ? "Autosaving map..." : "Saving map...")
     const document = this.serializeDocument()
     const savedVersion = this.changeVersion
+    const requestId = ++this.saveRequestId
+    void this.persistLocalDraft()
+
+    this.saveTimeout = window.setTimeout(() => {
+      if (!this.saving || requestId !== this.saveRequestId) return
+
+      this.saving = false
+      this.saveRequestId += 1
+      this.setSaveStatus("local", "Saved locally")
+      this.setStatus("Server save timed out. Changes remain protected on this device.")
+      this.syncSaveState()
+      this.scheduleAutosave(60000)
+    }, 15000)
 
     this.pushEvent("save_map", {document, width: this.width, height: this.height}, (reply) => {
+      if (requestId !== this.saveRequestId) return
+
+      window.clearTimeout(this.saveTimeout)
       this.saving = false
 
       if (reply.ok) {
+        this.serverRevision = reply.revision || this.serverRevision
+        this.autosaveBlocked = false
         this.dirty = this.changeVersion !== savedVersion
-        this.setStatus(this.dirty ? "Map saved. Newer changes remain unsaved." : "Map saved")
+        if (this.dirty) {
+          void this.persistLocalDraft()
+          this.scheduleAutosave()
+          this.setSaveStatus("unsaved", "New changes pending")
+          this.setStatus("Map saved. Newer changes remain unsaved.")
+        } else {
+          void this.clearLocalDraft()
+          this.setSaveStatus("saved", "Map saved")
+          this.setStatus("")
+        }
       } else {
+        this.autosaveBlocked = Boolean(reply.conflict)
+        this.setSaveStatus(reply.conflict ? "conflict" : "error", reply.conflict ? "Conflict" : "Save failed")
         this.setStatus(reply.error || "The map could not be saved")
+        if (!reply.conflict) this.scheduleAutosave(60000)
       }
 
       this.syncSaveState()
@@ -2245,6 +2457,23 @@ const InkMap = {
 
     button.disabled = !this.ready || this.saving
     button.setAttribute("aria-busy", this.saving.toString())
+  },
+
+  setSaveStatus(state, label) {
+    const indicator = this.el.querySelector("[data-map-save-state]")
+    if (!indicator) return
+
+    const colors = {
+      saved: "#15803d",
+      local: "#a16207",
+      unsaved: "#a16207",
+      saving: "#2563eb",
+      conflict: "#b91c1c",
+      error: "#b91c1c",
+    }
+    indicator.dataset.state = state
+    indicator.querySelector("[data-map-save-label]").textContent = label
+    indicator.querySelector("[data-map-save-dot]").style.backgroundColor = colors[state] || "#71717a"
   },
 
   exportPng() {

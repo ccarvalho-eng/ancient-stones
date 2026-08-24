@@ -1894,6 +1894,8 @@
                   data-map-editor
                   phx-hook="InkMap"
                   phx-update="ignore"
+                  data-map-id={if(@map_document, do: @map_document.id, else: "")}
+                  data-map-revision={if(@map_document, do: @map_document.lock_version, else: 1)}
                   data-map-document={
                     Jason.encode!(
                       if(@map_document,
@@ -2179,6 +2181,16 @@
                         >
                           <.icon name="hero-squares-2x2" class="size-4" /> Browse symbols
                         </button>
+                        <p id="map-icon-credit" class="stone-muted mt-3 text-[10px] leading-4">
+                          Map symbols by <a
+                            href="https://game-icons.net"
+                            target="_blank"
+                            rel="noreferrer"
+                            class="stone-breadcrumb-link"
+                          >
+                            Game-icons.net contributors
+                          </a>, licensed under CC BY 3.0.
+                        </p>
                       </div>
                     </div>
                   </aside>
@@ -2462,7 +2474,7 @@
                         for={@map_edit_form}
                         id="map-edit-form"
                         phx-submit="update_map"
-                        class="mt-3 grid gap-3"
+                        class="mt-2 grid gap-1.5"
                       >
                         <.input field={@map_edit_form[:name]} label="Name" required />
                         <.input
@@ -2535,6 +2547,7 @@
 
                     <details
                       id="map-coordinates-properties"
+                      open
                       class="stone-soft-panel group mt-3 rounded-md border p-3"
                     >
                       <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
@@ -2615,51 +2628,6 @@
                       <p class="stone-muted mt-1.5 text-[11px] leading-4">
                         Link one selected symbol to a world geography record.
                       </p>
-                    </details>
-
-                    <details
-                      id="map-export-properties"
-                      class="stone-soft-panel group mt-3 rounded-md border p-3"
-                    >
-                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
-                        Export
-                        <.icon
-                          name="hero-chevron-down"
-                          class="stone-muted size-4 transition group-open:rotate-180"
-                        />
-                      </summary>
-                      <div class="mt-3 grid gap-3">
-                        <label
-                          for="map-export-background"
-                          class="stone-muted grid gap-1.5 text-[10px] font-semibold uppercase"
-                        >
-                          Background
-                          <input
-                            id="map-export-background"
-                            type="color"
-                            value="#e7ddc4"
-                            data-map-export-background
-                            aria-label="PNG background color"
-                            class="stone-button h-9 w-full cursor-pointer rounded-md border p-1"
-                          />
-                        </label>
-                        <label
-                          for="map-export-multiplier"
-                          class="stone-muted grid gap-1.5 text-[10px] font-semibold uppercase"
-                        >
-                          Resolution
-                          <select
-                            id="map-export-multiplier"
-                            data-map-export-multiplier
-                            aria-label="PNG export resolution"
-                            class="stone-button h-9 w-full cursor-pointer rounded-md border px-2 text-xs font-semibold"
-                          >
-                            <option value="1">1x</option>
-                            <option value="2" selected>2x</option>
-                            <option value="4">4x</option>
-                          </select>
-                        </label>
-                      </div>
                     </details>
 
                     <details
@@ -2979,11 +2947,73 @@
                     </details>
 
                     <details
+                      id="map-export-properties"
+                      class="stone-soft-panel group mt-3 rounded-md border p-3"
+                    >
+                      <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
+                        Export
+                        <.icon
+                          name="hero-chevron-down"
+                          class="stone-muted size-4 transition group-open:rotate-180"
+                        />
+                      </summary>
+                      <div class="mt-3 grid gap-3">
+                        <label
+                          for="map-export-background"
+                          class="stone-muted grid gap-1.5 text-[10px] font-semibold uppercase"
+                        >
+                          Background
+                          <input
+                            id="map-export-background"
+                            type="color"
+                            value="#e7ddc4"
+                            data-map-export-background
+                            aria-label="PNG background color"
+                            class="stone-button h-9 w-full cursor-pointer rounded-md border p-1"
+                          />
+                        </label>
+                        <label
+                          for="map-export-multiplier"
+                          class="stone-muted grid gap-1.5 text-[10px] font-semibold uppercase"
+                        >
+                          Resolution
+                          <select
+                            id="map-export-multiplier"
+                            data-map-export-multiplier
+                            aria-label="PNG export resolution"
+                            class="stone-button h-9 w-full cursor-pointer rounded-md border px-2 text-xs font-semibold"
+                          >
+                            <option value="1">1x</option>
+                            <option value="2" selected>2x</option>
+                            <option value="4">4x</option>
+                          </select>
+                        </label>
+                      </div>
+                    </details>
+
+                    <div
+                      id="map-save-state"
+                      data-map-save-state
+                      data-state="saved"
+                      class="stone-muted mt-5 inline-flex items-center gap-1.5 text-xs font-medium"
+                      aria-live="polite"
+                    >
+                      <span data-map-save-dot class="size-2 rounded-full bg-green-700"></span>
+                      <span data-map-save-label>Map saved</span>
+                    </div>
+                    <div id="ink-map-status" class="stone-muted mt-2 text-xs" aria-live="polite">
+                      Map ready
+                    </div>
+
+                    <details
                       id="map-controls-properties"
                       class="stone-soft-panel group mt-3 rounded-md border p-3"
                     >
                       <summary class="stone-heading flex cursor-pointer list-none items-center justify-between text-xs font-semibold">
-                        Controls
+                        <span class="flex items-center gap-2">
+                          <.icon name="hero-information-circle" class="stone-muted size-4" />
+                          Editor help
+                        </span>
                         <.icon
                           name="hero-chevron-down"
                           class="stone-muted size-4 transition group-open:rotate-180"
@@ -2997,21 +3027,6 @@
                         <p>Ctrl/Cmd + Z undoes a change.</p>
                       </div>
                     </details>
-
-                    <p id="map-icon-credit" class="stone-muted mt-4 text-[11px] leading-4">
-                      Map symbols by <a
-                        href="https://game-icons.net"
-                        target="_blank"
-                        rel="noreferrer"
-                        class="stone-breadcrumb-link"
-                      >
-                        Game-icons.net contributors
-                      </a>, licensed under CC BY 3.0.
-                    </p>
-
-                    <div id="ink-map-status" class="stone-muted mt-5 text-xs" aria-live="polite">
-                      Map ready
-                    </div>
                   </aside>
                 </div>
               </div>

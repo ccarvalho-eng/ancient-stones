@@ -1178,23 +1178,25 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
             |> to_form(as: :map_edit)
           )
 
-        {:reply, %{ok: true}, socket}
+        {:reply, %{ok: true, revision: map_document.lock_version}, socket}
 
       {:error, :map_selection_required} ->
         {:reply, %{ok: false, error: "Create or select a map before saving."}, socket}
 
       {:error, %Ecto.Changeset{} = changeset} ->
+        conflict = stale_map_changeset?(changeset)
+
         error =
-          if stale_map_changeset?(changeset) do
+          if conflict do
             "This map was updated elsewhere. Reload it before saving again."
           else
             "The map could not be saved."
           end
 
-        {:reply, %{ok: false, error: error}, socket}
+        {:reply, %{ok: false, error: error, conflict: conflict}, socket}
 
       {:error, _reason} ->
-        {:reply, %{ok: false, error: "The map could not be saved."}, socket}
+        {:reply, %{ok: false, error: "The map could not be saved.", conflict: false}, socket}
     end
   end
 
