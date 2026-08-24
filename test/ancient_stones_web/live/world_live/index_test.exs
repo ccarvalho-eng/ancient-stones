@@ -115,8 +115,25 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     assert has_element?(view, "#galaxies", "Mundus")
   end
 
-  test "selects a world and updates its name with the world form", %{conn: conn} do
-    {:ok, world} = Worlds.create_world(%{name: "Eldoria"})
+  test "selects a world and updates all its attributes with the world form", %{conn: conn} do
+    {:ok, original_galaxy} = Galaxies.create_galaxy(%{name: "Old Galaxy"})
+    {:ok, new_galaxy} = Galaxies.create_galaxy(%{name: "New Galaxy"})
+
+    {:ok, world} =
+      Worlds.create_world(
+        %{
+          name: "Eldoria",
+          description: "An old world",
+          primary_star_name: "Old Sun",
+          orbital_period_days: 300,
+          axial_tilt_degrees: "12.5",
+          day_length_hours: "20.5",
+          mean_radius_km: 6_000,
+          map_projection: "Mercator"
+        },
+        galaxy: original_galaxy
+      )
+
     {:ok, view, _html} = live(conn, ~p"/worlds")
 
     view
@@ -125,6 +142,19 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
 
     assert has_element?(view, "#dashboard-world-form[phx-submit='update_world']")
     assert has_element?(view, "#world_name[value='Eldoria']")
+    assert has_element?(view, "#world_description", "An old world")
+    assert has_element?(view, "#world_primary_star_name[value='Old Sun']")
+    assert has_element?(view, "#world_orbital_period_days[value='300']")
+    assert has_element?(view, "#world_axial_tilt_degrees[value='12.5']")
+    assert has_element?(view, "#world_day_length_hours[value='20.5']")
+    assert has_element?(view, "#world_mean_radius_km[value='6000']")
+    assert has_element?(view, "#world_map_projection[value='Mercator']")
+
+    assert has_element?(
+             view,
+             "#world_galaxy_id option[selected][value='#{original_galaxy.id}']"
+           )
+
     assert has_element?(view, "#dashboard-world-form button", "Save")
     assert has_element?(view, "#cancel-world-edit", "Cancel")
 
@@ -140,16 +170,40 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     |> render_click()
 
     view
-    |> form("#dashboard-world-form", world: %{name: "Eldoria Prime"})
+    |> form("#dashboard-world-form",
+      world: %{
+        name: "Eldoria Prime",
+        description: "A renewed world",
+        primary_star_name: "New Sun",
+        orbital_period_days: "420",
+        axial_tilt_degrees: "24.75",
+        day_length_hours: "28.5",
+        mean_radius_km: "7123",
+        map_projection: "Equal Earth",
+        galaxy_id: new_galaxy.id
+      }
+    )
     |> render_submit()
 
-    assert Repo.get!(World, world.id).name == "Eldoria Prime"
-    assert has_element?(view, "#worlds", "Eldoria Prime")
+    updated_world = Repo.get!(World, world.id)
+
+    assert updated_world.name == "Eldoria Prime"
+    assert updated_world.description == "A renewed world"
+    assert updated_world.primary_star_name == "New Sun"
+    assert updated_world.orbital_period_days == 420
+    assert Decimal.equal?(updated_world.axial_tilt_degrees, Decimal.new("24.75"))
+    assert Decimal.equal?(updated_world.day_length_hours, Decimal.new("28.5"))
+    assert updated_world.mean_radius_km == 7_123
+    assert updated_world.map_projection == "Equal Earth"
+    assert updated_world.galaxy_id == new_galaxy.id
+    assert has_element?(view, "#galaxies", "Eldoria Prime")
     assert has_element?(view, "#dashboard-world-form[phx-submit='create_world']")
   end
 
-  test "selects a galaxy and updates its name with the galaxy form", %{conn: conn} do
-    {:ok, galaxy} = Galaxies.create_galaxy(%{name: "Mundus"})
+  test "selects a galaxy and updates all its attributes with the galaxy form", %{conn: conn} do
+    {:ok, galaxy} =
+      Galaxies.create_galaxy(%{name: "Mundus", description: "The mortal plane"})
+
     {:ok, world} = Worlds.create_world(%{name: "Nirn"}, galaxy: galaxy)
     {:ok, view, _html} = live(conn, ~p"/worlds")
 
@@ -159,6 +213,7 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
 
     assert has_element?(view, "#dashboard-galaxy-form[phx-submit='update_galaxy']")
     assert has_element?(view, "#galaxy_name[value='Mundus']")
+    assert has_element?(view, "#galaxy_description", "The mortal plane")
     assert has_element?(view, "#dashboard-galaxy-form button", "Save")
     assert has_element?(view, "#cancel-galaxy-edit", "Cancel")
 
@@ -174,10 +229,15 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     |> render_click()
 
     view
-    |> form("#dashboard-galaxy-form", galaxy: %{name: "Mundus Prime"})
+    |> form("#dashboard-galaxy-form",
+      galaxy: %{name: "Mundus Prime", description: "The renewed mortal plane"}
+    )
     |> render_submit()
 
-    assert Repo.get!(Galaxy, world.galaxy_id).name == "Mundus Prime"
+    updated_galaxy = Repo.get!(Galaxy, world.galaxy_id)
+
+    assert updated_galaxy.name == "Mundus Prime"
+    assert updated_galaxy.description == "The renewed mortal plane"
     assert has_element?(view, "#galaxies", "Mundus Prime")
     assert has_element?(view, "#dashboard-galaxy-form[phx-submit='create_galaxy']")
   end

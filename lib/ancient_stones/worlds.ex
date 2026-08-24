@@ -219,6 +219,13 @@ defmodule AncientStones.Worlds do
     |> Repo.update()
   end
 
+  def update_world(%World{} = world, attrs, refs) do
+    world
+    |> World.changeset(attrs)
+    |> put_ref(:galaxy_id, refs[:galaxy])
+    |> Repo.update()
+  end
+
   def create_world(attrs, refs) do
     %World{}
     |> World.changeset(attrs)
@@ -2227,7 +2234,10 @@ defmodule AncientStones.Worlds do
       :description,
       :primary_star_name,
       :orbital_period_days,
-      :axial_tilt_degrees
+      :axial_tilt_degrees,
+      :day_length_hours,
+      :mean_radius_km,
+      :map_projection
     ])
     |> Map.merge(attrs)
   end
@@ -2245,6 +2255,9 @@ defmodule AncientStones.Worlds do
       :axial_tilt_degrees,
       attrs[:axial_tilt_degrees] || attrs["axial_tilt_degrees"]
     )
+    |> maybe_put_attr(:day_length_hours, attrs[:day_length_hours] || attrs["day_length_hours"])
+    |> maybe_put_attr(:mean_radius_km, attrs[:mean_radius_km] || attrs["mean_radius_km"])
+    |> maybe_put_attr(:map_projection, attrs[:map_projection] || attrs["map_projection"])
   end
 
   defp maybe_put_attr(attrs, _key, nil) do

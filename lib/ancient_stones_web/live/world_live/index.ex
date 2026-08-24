@@ -326,7 +326,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                     </h3>
                     <p class="stone-muted mt-1 text-xs">
                       {if(@selected_galaxy,
-                        do: "Update the selected galaxy name.",
+                        do: "Update the selected galaxy details.",
                         else: "Use this first when the world belongs to a known cosmos."
                       )}
                     </p>
@@ -340,7 +340,6 @@ defmodule AncientStonesWeb.WorldLive.Index do
                   >
                     <.input field={@galaxy_form[:name]} type="text" label="Name" required />
                     <.input
-                      :if={is_nil(@selected_galaxy)}
                       field={@galaxy_form[:description]}
                       type="textarea"
                       label="Description"
@@ -377,7 +376,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                     </h3>
                     <p class="stone-muted mt-1 text-xs">
                       {if(@selected_world,
-                        do: "Update the selected world name.",
+                        do: "Update the selected world details.",
                         else: "A world is the planet record. Templates can fill starter geography."
                       )}
                     </p>
@@ -398,20 +397,20 @@ defmodule AncientStonesWeb.WorldLive.Index do
                         options={Templates.options()}
                       />
                       <.input field={@world_form[:template_galaxy]} type="hidden" />
-                      <.input
-                        field={@world_form[:galaxy_id]}
-                        type="select"
-                        label="Galaxy"
-                        prompt={
-                          if(@world_form[:template_galaxy].value in [nil, ""], do: "None", else: nil)
-                        }
-                        options={world_galaxy_options(@world_form, @galaxy_options)}
-                      />
                     </div>
+                    <.input
+                      field={@world_form[:galaxy_id]}
+                      type="select"
+                      label="Galaxy"
+                      prompt={
+                        if(@world_form[:template_galaxy].value in [nil, ""], do: "None", else: nil)
+                      }
+                      options={world_galaxy_options(@world_form, @galaxy_options)}
+                    />
                     <div class="stone-border border-t pt-3">
                       <.input field={@world_form[:name]} type="text" label="Name" required />
                     </div>
-                    <div :if={is_nil(@selected_world)} class="space-y-3">
+                    <div class="space-y-3">
                       <.input
                         field={@world_form[:description]}
                         type="textarea"
@@ -437,6 +436,27 @@ defmodule AncientStonesWeb.WorldLive.Index do
                           label="Axial Tilt"
                           step="0.01"
                           tooltip="Planet tilt in degrees. Earth is about 23.5 degrees."
+                        />
+                      </div>
+                      <div class="grid gap-3 sm:grid-cols-3">
+                        <.input
+                          field={@world_form[:day_length_hours]}
+                          type="number"
+                          label="Day Hours"
+                          step="0.01"
+                          tooltip="Number of hours in one full day."
+                        />
+                        <.input
+                          field={@world_form[:mean_radius_km]}
+                          type="number"
+                          label="Radius (km)"
+                          tooltip="Mean planetary radius in kilometres."
+                        />
+                        <.input
+                          field={@world_form[:map_projection]}
+                          type="text"
+                          label="Map Projection"
+                          tooltip="Projection used by the world's primary map."
                         />
                       </div>
                     </div>
@@ -631,11 +651,13 @@ defmodule AncientStonesWeb.WorldLive.Index do
         {:noreply, put_flash(socket, :error, "Select a world before updating")}
 
       world ->
-        case Worlds.update_world(world, %{"name" => params["name"]}) do
-          {:ok, _world} ->
-            {:noreply, socket |> put_flash(:info, "World updated") |> reload_index()}
+        attrs = Map.drop(params, ["galaxy_id", "template", "template_galaxy"])
 
-          {:error, _changeset} ->
+        with {:ok, galaxy} <- get_optional_galaxy(socket, params["galaxy_id"]),
+             {:ok, _world} <- Worlds.update_world(world, attrs, galaxy: galaxy) do
+          {:noreply, socket |> put_flash(:info, "World updated") |> reload_index()}
+        else
+          {:error, _reason} ->
             {:noreply, put_flash(socket, :error, "World could not be updated")}
         end
     end
@@ -647,7 +669,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
         {:noreply, put_flash(socket, :error, "Select a galaxy before updating")}
 
       galaxy ->
-        case Galaxies.update_galaxy(galaxy, %{"name" => params["name"]}) do
+        case Galaxies.update_galaxy(galaxy, params) do
           {:ok, _galaxy} ->
             {:noreply, socket |> put_flash(:info, "Galaxy updated") |> reload_index()}
 
@@ -689,7 +711,13 @@ defmodule AncientStonesWeb.WorldLive.Index do
       "description" => "",
       "template" => "blank",
       "template_galaxy" => nil,
-      "galaxy_id" => first_id(galaxies)
+      "galaxy_id" => first_id(galaxies),
+      "primary_star_name" => "",
+      "orbital_period_days" => "",
+      "axial_tilt_degrees" => "",
+      "day_length_hours" => "",
+      "mean_radius_km" => "",
+      "map_projection" => ""
     }
     |> to_form(as: :world)
   end
@@ -700,12 +728,23 @@ defmodule AncientStonesWeb.WorldLive.Index do
   end
 
   defp selected_world_form(world) do
-    %{"name" => world.name}
+    %{
+      "name" => world.name,
+      "description" => world.description,
+      "galaxy_id" => optional_id(world.galaxy_id),
+      "primary_star_name" => world.primary_star_name,
+      "orbital_period_days" => world.orbital_period_days,
+      "axial_tilt_degrees" => world.axial_tilt_degrees,
+      "day_length_hours" => world.day_length_hours,
+      "mean_radius_km" => world.mean_radius_km,
+      "map_projection" => world.map_projection,
+      "template_galaxy" => nil
+    }
     |> to_form(as: :world)
   end
 
   defp selected_galaxy_form(galaxy) do
-    %{"name" => galaxy.name}
+    %{"name" => galaxy.name, "description" => galaxy.description}
     |> to_form(as: :galaxy)
   end
 
@@ -758,6 +797,14 @@ defmodule AncientStonesWeb.WorldLive.Index do
 
   defp first_id([record | _records]) do
     to_string(record.id)
+  end
+
+  defp optional_id(nil) do
+    nil
+  end
+
+  defp optional_id(id) do
+    to_string(id)
   end
 
   defp get_optional_galaxy(_socket, galaxy_id) when galaxy_id in [nil, ""] do
