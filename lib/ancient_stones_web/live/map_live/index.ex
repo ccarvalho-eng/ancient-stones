@@ -14,6 +14,8 @@ defmodule AncientStonesWeb.MapLive.Index do
      |> assign(:worlds, worlds)
      |> assign(:selected_world, nil)
      |> assign(:map_count, 0)
+     |> assign(:editing_map_id, nil)
+     |> assign(:map_name_form, nil)
      |> assign(:world_filter_form, to_form(%{"world_id" => ""}, as: :world_filter))
      |> stream(:maps, [])}
   end
@@ -26,6 +28,8 @@ defmodule AncientStonesWeb.MapLive.Index do
      socket
      |> assign(:selected_world, selected_world)
      |> assign(:map_count, length(maps))
+     |> assign(:editing_map_id, nil)
+     |> assign(:map_name_form, nil)
      |> assign(
        :world_filter_form,
        to_form(%{"world_id" => selected_world_id(selected_world)}, as: :world_filter)
@@ -39,6 +43,87 @@ defmodule AncientStonesWeb.MapLive.Index do
 
   def handle_event("filter_world", %{"world_filter" => %{"world_id" => world_id}}, socket) do
     {:noreply, push_patch(socket, to: ~p"/maps?world_id=#{world_id}")}
+  end
+
+  def handle_event("edit_map_name", %{"id" => id, "world-id" => world_id}, socket) do
+    world = Enum.find(socket.assigns.worlds, &(&1.id == world_id))
+
+    case world && Maps.get_world_map(world, id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "The map could not be found.")}
+
+      map_document ->
+        {:noreply,
+         socket
+         |> assign(:editing_map_id, map_document.id)
+         |> assign(
+           :map_name_form,
+           map_document
+           |> Maps.change_world_map()
+           |> to_form(as: :map_name)
+         )
+         |> stream(:maps, maps_for(socket.assigns.selected_world), reset: true)}
+    end
+  end
+
+  def handle_event("cancel_map_name_edit", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing_map_id, nil)
+     |> assign(:map_name_form, nil)
+     |> stream(:maps, maps_for(socket.assigns.selected_world), reset: true)}
+  end
+
+  def handle_event(
+        "save_map_name",
+        %{
+          "_lock_version" => lock_version,
+          "_map_id" => id,
+          "_world_id" => world_id,
+          "map_name" => attrs
+        },
+        socket
+      ) do
+    world = Enum.find(socket.assigns.worlds, &(&1.id == world_id))
+
+    map_document =
+      world
+      |> then(&(&1 && Maps.get_world_map(&1, id)))
+      |> put_submitted_lock_version(lock_version)
+
+    case map_document && Maps.update_world_map(map_document, Map.take(attrs, ["name"])) do
+      {:ok, _map_document} ->
+        maps = maps_for(socket.assigns.selected_world)
+
+        {:noreply,
+         socket
+         |> assign(:editing_map_id, nil)
+         |> assign(:map_name_form, nil)
+         |> put_flash(:info, "Map name updated.")
+         |> stream(:maps, maps, reset: true)}
+
+      {:error, changeset} ->
+        socket =
+          socket
+          |> assign(:map_name_form, to_form(changeset, as: :map_name))
+          |> stream(:maps, maps_for(socket.assigns.selected_world), reset: true)
+
+        socket =
+          if stale_map_changeset?(changeset) do
+            put_flash(
+              socket,
+              :error,
+              "This map was updated elsewhere. Reload it before renaming."
+            )
+          else
+            socket
+          end
+
+        {:noreply, socket}
+
+      _error ->
+        {:noreply, put_flash(socket, :error, "The map name could not be updated.")}
+    end
   end
 
   def handle_event("delete_map", %{"id" => id, "world-id" => world_id}, socket) do
@@ -175,61 +260,111 @@ defmodule AncientStonesWeb.MapLive.Index do
                   <article
                     :for={{id, map} <- @streams.maps}
                     id={id}
-                    class="stone-button group rounded-md border p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+                    class="stone-button group flex h-full flex-col rounded-md border p-4 transition hover:-translate-y-0.5 hover:shadow-md"
                   >
-                    <.link
-                      id={"map-open-#{map.id}"}
-                      navigate={~p"/worlds/#{map.world_id}/dashboard?section=map&map_id=#{map.id}"}
-                      class="block"
-                    >
-                      <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                          <p class="stone-muted text-[10px] font-semibold uppercase tracking-[0.16em]">
-                            {map_world_name(map, @selected_world)}
-                          </p>
-                          <h3 class="stone-heading mt-1 truncate text-base font-semibold">
-                            {map.name}
-                          </h3>
+                    <%= if @editing_map_id == map.id do %>
+                      <.form
+                        for={@map_name_form}
+                        id={"map-name-form-#{map.id}"}
+                        phx-submit="save_map_name"
+                        class="flex flex-1 flex-col"
+                      >
+                        <input type="hidden" name="_map_id" value={map.id} />
+                        <input type="hidden" name="_world_id" value={map.world_id} />
+                        <input type="hidden" name="_lock_version" value={map.lock_version} />
+                        <.input field={@map_name_form[:name]} label="Map name" required />
+                        <div class="mt-auto flex items-center justify-end gap-2 pt-4">
+                          <button
+                            id={"map-name-cancel-#{map.id}"}
+                            type="button"
+                            phx-click="cancel_map_name_edit"
+                            class="stone-button rounded-md border px-3 py-2 text-xs font-semibold transition"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            id={"map-name-save-#{map.id}"}
+                            type="submit"
+                            class="stone-primary-button rounded-md border px-3 py-2 text-xs font-semibold transition"
+                          >
+                            Save
+                          </button>
                         </div>
-                        <span class="rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
-                          {map.kind}
-                        </span>
-                      </div>
-                      <p class="stone-muted mt-4 flex items-center gap-1.5 text-xs">
-                        <.icon name="hero-arrow-turn-down-right" class="size-3.5" />
-                        {if map.parent_map, do: "Inside #{map.parent_map.name}", else: "Outer map"}
-                      </p>
-                      <p
-                        :if={map.description not in [nil, ""]}
-                        class="stone-muted mt-2 line-clamp-2 text-xs"
-                      >
-                        {map.description}
-                      </p>
-                    </.link>
-                    <div class="mt-4 flex items-center justify-between gap-3">
+                      </.form>
+                    <% else %>
                       <.link
+                        id={"map-open-#{map.id}"}
                         navigate={~p"/worlds/#{map.world_id}/dashboard?section=map&map_id=#{map.id}"}
-                        class="stone-heading inline-flex items-center gap-1 text-xs font-semibold"
+                        class="block flex-1"
                       >
-                        Open editor
-                        <.icon
-                          name="hero-arrow-right"
-                          class="size-3.5 transition group-hover:translate-x-0.5"
-                        />
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="min-w-0">
+                            <p class="stone-muted text-[10px] font-semibold uppercase tracking-[0.16em]">
+                              {map_world_name(map, @selected_world)}
+                            </p>
+                            <h3
+                              id={"map-name-#{map.id}"}
+                              class="stone-heading mt-1 truncate text-base font-semibold"
+                            >
+                              {map.name}
+                            </h3>
+                          </div>
+                          <span class="rounded-full border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide">
+                            {map.kind}
+                          </span>
+                        </div>
+                        <p class="stone-muted mt-4 flex items-center gap-1.5 text-xs">
+                          <.icon name="hero-arrow-turn-down-right" class="size-3.5" />
+                          {if map.parent_map,
+                            do: "Inside #{map.parent_map.name}",
+                            else: "Outer map"}
+                        </p>
+                        <p
+                          :if={map.description not in [nil, ""]}
+                          class="stone-muted mt-2 line-clamp-2 text-xs"
+                        >
+                          {map.description}
+                        </p>
                       </.link>
-                      <button
-                        id={"map-delete-#{map.id}"}
-                        type="button"
-                        phx-click="delete_map"
-                        phx-value-id={map.id}
-                        phx-value-world-id={map.world_id}
-                        data-confirm="Delete this map? Inner maps will become outer maps."
-                        aria-label={"Delete #{map.name}"}
-                        class="stone-danger-button inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition"
-                      >
-                        <.icon name="hero-trash" class="size-3.5" /> Delete
-                      </button>
-                    </div>
+                      <div class="mt-auto flex flex-wrap items-center justify-between gap-3 pt-4">
+                        <.link
+                          navigate={
+                            ~p"/worlds/#{map.world_id}/dashboard?section=map&map_id=#{map.id}"
+                          }
+                          class="stone-heading inline-flex items-center gap-1 text-xs font-semibold"
+                        >
+                          Open editor
+                          <.icon
+                            name="hero-arrow-right"
+                            class="size-3.5 transition group-hover:translate-x-0.5"
+                          />
+                        </.link>
+                        <div class="flex items-center gap-2">
+                          <button
+                            id={"map-name-edit-#{map.id}"}
+                            type="button"
+                            phx-click="edit_map_name"
+                            phx-value-id={map.id}
+                            phx-value-world-id={map.world_id}
+                            class="stone-button inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition"
+                          >
+                            <.icon name="hero-pencil-square" class="size-3.5" /> Edit
+                          </button>
+                          <button
+                            id={"map-delete-#{map.id}"}
+                            type="button"
+                            phx-click="delete_map"
+                            phx-value-id={map.id}
+                            phx-value-world-id={map.world_id}
+                            data-confirm="Delete this map? Inner maps will become outer maps."
+                            aria-label={"Delete #{map.name}"}
+                            class="stone-button inline-flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition"
+                          >
+                            <.icon name="hero-trash" class="size-3.5" /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    <% end %>
                   </article>
                 </div>
               </section>
@@ -263,5 +398,20 @@ defmodule AncientStonesWeb.MapLive.Index do
 
   defp map_world_name(map, _selected_world) do
     map.world.name
+  end
+
+  defp put_submitted_lock_version(nil, _lock_version) do
+    nil
+  end
+
+  defp put_submitted_lock_version(map_document, lock_version) do
+    case Integer.parse(lock_version) do
+      {parsed_lock_version, ""} -> %{map_document | lock_version: parsed_lock_version}
+      _error -> nil
+    end
+  end
+
+  defp stale_map_changeset?(changeset) do
+    Keyword.has_key?(changeset.errors, :lock_version)
   end
 end

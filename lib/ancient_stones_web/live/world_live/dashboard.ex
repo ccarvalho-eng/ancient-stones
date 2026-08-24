@@ -997,6 +997,71 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     {:noreply, assign(socket, :new_map_open?, false)}
   end
 
+  def handle_event("edit_map_name", %{"id" => id}, socket) do
+    case Maps.get_world_map(socket.assigns.world, id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "The map could not be found.")}
+
+      map_document ->
+        {:noreply,
+         socket
+         |> assign(:editing_map_id, map_document.id)
+         |> assign(
+           :map_name_form,
+           map_document
+           |> Maps.change_world_map()
+           |> to_form(as: :map_name)
+         )}
+    end
+  end
+
+  def handle_event("cancel_map_name_edit", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing_map_id, nil)
+     |> assign(:map_name_form, nil)}
+  end
+
+  def handle_event(
+        "save_map_name",
+        %{"_lock_version" => lock_version, "_map_id" => id, "map_name" => attrs},
+        socket
+      ) do
+    map_document =
+      socket.assigns.world
+      |> Maps.get_world_map(id)
+      |> put_submitted_map_lock_version(lock_version)
+
+    case map_document && Maps.update_world_map(map_document, Map.take(attrs, ["name"])) do
+      {:ok, _map_document} ->
+        {:noreply,
+         socket
+         |> assign(:map_documents, Maps.list_world_maps(socket.assigns.world))
+         |> assign(:editing_map_id, nil)
+         |> assign(:map_name_form, nil)
+         |> put_flash(:info, "Map name updated.")}
+
+      {:error, changeset} ->
+        socket = assign(socket, :map_name_form, to_form(changeset, as: :map_name))
+
+        socket =
+          if stale_map_changeset?(changeset) do
+            put_flash(
+              socket,
+              :error,
+              "This map was updated elsewhere. Reload it before renaming."
+            )
+          else
+            socket
+          end
+
+        {:noreply, socket}
+
+      _error ->
+        {:noreply, put_flash(socket, :error, "The map name could not be updated.")}
+    end
+  end
+
   def handle_event("show_reference_upload", _params, socket) do
     {:noreply,
      socket
@@ -1356,6 +1421,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:map_document, map_document)
     |> assign(:map_create_form, map_create_form)
     |> assign(:map_edit_form, map_edit_form)
+    |> assign(:editing_map_id, nil)
+    |> assign(:map_name_form, nil)
     |> assign(:new_map_open?, params["new_map"] == "true")
     |> assign(:expanded_action, expanded_action)
     |> assign(:world_form, data_form(:world, world_form_attrs(world)))
@@ -2151,6 +2218,17 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp stale_map_changeset?(changeset) do
     Keyword.has_key?(changeset.errors, :lock_version)
+  end
+
+  defp put_submitted_map_lock_version(nil, _lock_version) do
+    nil
+  end
+
+  defp put_submitted_map_lock_version(map_document, lock_version) do
+    case Integer.parse(lock_version) do
+      {parsed_lock_version, ""} -> %{map_document | lock_version: parsed_lock_version}
+      _error -> nil
+    end
   end
 
   defp get_continent_in_world(socket, continent_id) do
