@@ -1,7 +1,7 @@
 defmodule AncientStonesWeb.WorldExportController do
   use AncientStonesWeb, :controller
 
-  alias AncientStones.WorldExports.WorldGuidePdf
+  alias AncientStones.WorldExports.{WorldGuideEpub, WorldGuidePdf}
   alias AncientStones.Worlds.WorldGuide
 
   def show(conn, %{"id" => world_id}) do
@@ -17,13 +17,26 @@ defmodule AncientStonesWeb.WorldExportController do
     |> send_resp(:ok, pdf)
   end
 
-  defp filename(world_name) do
+  def epub(conn, %{"id" => world_id}) do
+    guide = WorldGuide.load!(world_id)
+    epub = WorldGuideEpub.render(guide)
+
+    conn
+    |> put_resp_header("content-type", "application/epub+zip")
+    |> put_resp_header(
+      "content-disposition",
+      ~s(attachment; filename="#{filename(guide.world.name, "epub")}")
+    )
+    |> send_resp(:ok, epub)
+  end
+
+  defp filename(world_name, extension \\ "pdf") do
     slug =
       world_name
       |> String.downcase()
       |> String.replace(~r/[^a-z0-9]+/u, "-")
       |> String.trim("-")
 
-    "#{if(slug == "", do: "world", else: slug)}-world-guide.pdf"
+    "#{if(slug == "", do: "world", else: slug)}-world-guide.#{extension}"
   end
 end
