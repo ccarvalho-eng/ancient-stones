@@ -40,14 +40,6 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     |> Pdf.set_fill_color(@parchment)
     |> Pdf.rectangle({0, 0}, {@page_width, @page_height})
     |> Pdf.fill()
-    |> Pdf.set_stroke_color(@rule)
-    |> Pdf.set_line_width(2)
-    |> Pdf.rectangle({34, 34}, {@page_width - 68, @page_height - 68})
-    |> Pdf.stroke()
-    |> Pdf.set_line_width(0.7)
-    |> Pdf.rectangle({43, 43}, {@page_width - 86, @page_height - 86})
-    |> Pdf.stroke()
-    |> cover_corner_marks()
     |> Pdf.set_fill_color(@ink)
     |> Pdf.set_font("Helvetica", size: 11, bold: true)
     |> Pdf.text_wrap!(
@@ -56,7 +48,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       "ANCIENT STONES / NORTHERN ARCHIVE",
       align: :center
     )
-    |> cover_weave(684)
+    |> cover_rule(684)
     |> Pdf.set_font("Times", size: 38, bold: true)
     |> Pdf.text_wrap!({@margin, 574}, {@content_width, 110}, normalize(guide.world.name),
       align: :center,
@@ -95,7 +87,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       align: :center,
       leading: 17
     )
-    |> cover_weave(230)
+    |> cover_rule(230)
 
     %{pdf: pdf, y: @top, page: 1, running_title: guide.world.name}
   end
@@ -172,10 +164,6 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
       |> Pdf.set_fill_color(@parchment)
       |> Pdf.rectangle({0, 0}, {@page_width, @page_height})
       |> Pdf.fill()
-      |> Pdf.set_stroke_color(@rule)
-      |> Pdf.set_line_width(0.8)
-      |> Pdf.rectangle({38, 38}, {@page_width - 76, @page_height - 76})
-      |> Pdf.stroke()
       |> Pdf.set_fill_color(@ink)
       |> Pdf.set_font("Helvetica", size: 9, bold: true)
       |> Pdf.text_wrap!(
@@ -184,7 +172,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
         "ATLAS / CONTINENT #{String.pad_leading(Integer.to_string(chapter_number), 2, "0")}",
         align: :center
       )
-      |> cover_weave(670)
+      |> cover_rule(670)
       |> Pdf.set_font("Times", size: 38, bold: true)
       |> Pdf.text_wrap!(
         {@margin, 526},
@@ -212,7 +200,7 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
         align: :center,
         leading: 18
       )
-      |> cover_weave(236)
+      |> cover_rule(236)
 
     %{
       state
@@ -421,18 +409,12 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
 
   defp rule(state) do
     state = ensure_space(state, 13)
-    center = @page_width / 2
 
     pdf =
       state.pdf
       |> Pdf.set_stroke_color(@rule)
-      |> Pdf.set_line_width(0.7)
-      |> Pdf.line({@margin, state.y}, {center - 14, state.y})
-      |> Pdf.line({center - 14, state.y}, {center - 7, state.y + 5})
-      |> Pdf.line({center - 7, state.y + 5}, {center, state.y})
-      |> Pdf.line({center, state.y}, {center + 7, state.y + 5})
-      |> Pdf.line({center + 7, state.y + 5}, {center + 14, state.y})
-      |> Pdf.line({center + 14, state.y}, {@page_width - @margin, state.y})
+      |> Pdf.set_line_width(0.6)
+      |> Pdf.line({@margin, state.y}, {@page_width - @margin, state.y})
       |> Pdf.stroke()
 
     %{state | pdf: pdf, y: state.y - 13}
@@ -561,40 +543,11 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     trunc(width / (font_size * 0.53))
   end
 
-  defp cover_corner_marks(pdf) do
-    inset = 52
-    length = 24
-
-    pdf
-    |> Pdf.line({inset, inset}, {inset + length, inset})
-    |> Pdf.line({inset, inset}, {inset, inset + length})
-    |> Pdf.line({@page_width - inset, inset}, {@page_width - inset - length, inset})
-    |> Pdf.line({@page_width - inset, inset}, {@page_width - inset, inset + length})
-    |> Pdf.line({inset, @page_height - inset}, {inset + length, @page_height - inset})
-    |> Pdf.line({inset, @page_height - inset}, {inset, @page_height - inset - length})
-    |> Pdf.line(
-      {@page_width - inset, @page_height - inset},
-      {@page_width - inset - length, @page_height - inset}
-    )
-    |> Pdf.line(
-      {@page_width - inset, @page_height - inset},
-      {@page_width - inset, @page_height - inset - length}
-    )
-    |> Pdf.stroke()
-  end
-
-  defp cover_weave(pdf, y) do
-    center = @page_width / 2
-
+  defp cover_rule(pdf, y) do
     pdf
     |> Pdf.set_stroke_color(@rule)
-    |> Pdf.set_line_width(1)
-    |> Pdf.line({@margin + 70, y}, {center - 22, y})
-    |> Pdf.line({center - 22, y}, {center - 11, y + 8})
-    |> Pdf.line({center - 11, y + 8}, {center, y})
-    |> Pdf.line({center, y}, {center + 11, y + 8})
-    |> Pdf.line({center + 11, y + 8}, {center + 22, y})
-    |> Pdf.line({center + 22, y}, {@page_width - @margin - 70, y})
+    |> Pdf.set_line_width(0.6)
+    |> Pdf.line({@margin + 70, y}, {@page_width - @margin - 70, y})
     |> Pdf.stroke()
   end
 
