@@ -84,6 +84,38 @@ defmodule AncientStones.Maps do
     Repo.delete(map_document)
   end
 
+  def duplicate_world_map(%MapDocument{id: id, world_id: world_id}) do
+    Repo.transaction(fn ->
+      lock_world_maps(world_id)
+
+      source_map =
+        case Repo.get_by(MapDocument, id: id, world_id: world_id) do
+          nil -> Repo.rollback(:map_not_found)
+          map_document -> map_document
+        end
+
+      duplicate_map = %MapDocument{
+        world_id: world_id,
+        parent_map_id: source_map.parent_map_id
+      }
+
+      attrs = %{
+        "name" => duplicate_map_name(world_id, source_map.name),
+        "description" => source_map.description,
+        "kind" => source_map.kind,
+        "document" => regenerate_map_item_ids(source_map.document),
+        "width" => source_map.width,
+        "height" => source_map.height
+      }
+
+      case save_map_document(duplicate_map, attrs) do
+        {:ok, duplicated_map} -> duplicated_map
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+    |> unwrap_repo_transaction()
+  end
+
   def list_world_map_items(%World{} = world) do
     case get_world_map(world) do
       nil -> []
@@ -311,6 +343,45 @@ defmodule AncientStones.Maps do
     |> where([map_document], map_document.world_id == ^world_id)
     |> lock("FOR UPDATE")
     |> Repo.all()
+  end
+
+  defp duplicate_map_name(world_id, source_name) do
+    existing_names =
+      MapDocument
+      |> where([map_document], map_document.world_id == ^world_id)
+      |> select([map_document], map_document.name)
+      |> Repo.all()
+      |> MapSet.new()
+
+    Stream.iterate(1, &(&1 + 1))
+    |> Enum.find_value(fn copy_number ->
+      suffix = if copy_number == 1, do: " copy", else: " copy #{copy_number}"
+      available_length = 120 - String.length(suffix)
+
+      candidate =
+        source_name
+        |> String.slice(0, available_length)
+        |> String.trim_trailing()
+        |> Kernel.<>(suffix)
+
+      if MapSet.member?(existing_names, candidate), do: nil, else: candidate
+    end)
+  end
+
+  defp regenerate_map_item_ids(%{"objects" => objects} = document) when is_list(objects) do
+    Map.put(document, "objects", Enum.map(objects, &regenerate_map_item_id/1))
+  end
+
+  defp regenerate_map_item_ids(document) do
+    document
+  end
+
+  defp regenerate_map_item_id(object) when is_map(object) do
+    Map.put(object, "mapItemId", Ecto.UUID.generate())
+  end
+
+  defp regenerate_map_item_id(object) do
+    object
   end
 
   defp maybe_put_parent_map(changeset, attrs, world_id, map_id) do
