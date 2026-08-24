@@ -10,6 +10,7 @@ defmodule AncientStones.Worlds.Character do
   alias AncientStones.Worlds.CharacterSkill
   alias AncientStones.Worlds.CharacterSpellbookEntry
   alias AncientStones.Worlds.Guild
+  alias AncientStones.Worlds.GuildMembership
   alias AncientStones.Worlds.GuildInfluence
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.PoliticalOffice
@@ -57,6 +58,8 @@ defmodule AncientStones.Worlds.Character do
     belongs_to(:character_role, CharacterRole)
     belongs_to(:race, Race)
     belongs_to(:guild, Guild)
+    has_many(:guild_memberships, GuildMembership)
+    has_many(:guilds, through: [:guild_memberships, :guild])
     belongs_to(:home_location, Location)
     has_many(:character_locations, CharacterLocation)
     has_many(:locations, through: [:character_locations, :location])

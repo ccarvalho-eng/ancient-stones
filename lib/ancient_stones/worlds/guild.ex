@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.Guild do
   import Ecto.Changeset
 
   alias AncientStones.Worlds.GuildInfluence
+  alias AncientStones.Worlds.GuildMembership
   alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.World
 
@@ -17,6 +18,8 @@ defmodule AncientStones.Worlds.Guild do
 
     belongs_to(:world, World)
     has_many(:guild_influences, GuildInfluence)
+    has_many(:guild_memberships, GuildMembership)
+    has_many(:characters, through: [:guild_memberships, :character])
     has_many(:source_lore_connections, LoreConnection, foreign_key: :source_guild_id)
     has_many(:target_lore_connections, LoreConnection, foreign_key: :target_guild_id)
 

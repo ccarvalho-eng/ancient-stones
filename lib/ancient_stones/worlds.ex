@@ -30,6 +30,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
   alias AncientStones.Worlds.GuildInfluence
+  alias AncientStones.Worlds.GuildMembership
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.HoldCommerceEntry
   alias AncientStones.Worlds.Item
@@ -116,6 +117,7 @@ defmodule AncientStones.Worlds do
         :race,
         :guild,
         :home_location,
+        guild_memberships: [:guild],
         inventory_categories: [],
         inventory_items: [:item, :inventory_category],
         character_occupations: [:occupation],
@@ -159,7 +161,10 @@ defmodule AncientStones.Worlds do
       ],
       galaxy: [:worlds],
       gods: [],
-      guilds: [guild_influences: [:god, :character]],
+      guilds: [
+        guild_influences: [:god, :character],
+        guild_memberships: [:character]
+      ],
       effects: [],
       items: [item_effects: [:effect]],
       location_types: [:children],
@@ -571,7 +576,10 @@ defmodule AncientStones.Worlds do
   def get_guild!(id) do
     Guild
     |> Repo.get!(id)
-    |> Repo.preload(guild_influences: [:god, :character])
+    |> Repo.preload(
+      guild_influences: [:god, :character],
+      guild_memberships: [:character]
+    )
   end
 
   def change_guild(%Guild{} = guild, attrs \\ %{}) do
@@ -606,6 +614,86 @@ defmodule AncientStones.Worlds do
   @doc "Deletes a guild influence relationship."
   def delete_guild_influence(%GuildInfluence{} = guild_influence) do
     Repo.delete(guild_influence)
+  end
+
+  def get_guild_membership!(%World{id: world_id}, id) do
+    GuildMembership
+    |> join(:inner, [membership], guild in assoc(membership, :guild))
+    |> where([_membership, guild], guild.world_id == ^world_id)
+    |> where([membership], membership.id == ^id)
+    |> preload([:guild, :character])
+    |> Repo.one!()
+  end
+
+  def create_guild_membership(%World{id: world_id}, attrs) do
+    changeset = GuildMembership.changeset(%GuildMembership{}, attrs)
+
+    with %Guild{} = guild <- Repo.get_by(Guild, id: attrs["guild_id"], world_id: world_id),
+         %Character{} = character <-
+           Repo.get_by(Character, id: attrs["character_id"], world_id: world_id) do
+      Repo.transaction(fn ->
+        changeset =
+          changeset
+          |> Ecto.Changeset.put_change(:guild_id, guild.id)
+          |> Ecto.Changeset.put_change(:character_id, character.id)
+          |> default_first_membership_to_primary(character.id)
+
+        if Ecto.Changeset.get_field(changeset, :is_primary) do
+          clear_primary_membership(character.id)
+        end
+
+        membership =
+          changeset
+          |> Repo.insert()
+          |> unwrap_transaction!()
+
+        sync_character_primary_guild(character.id)
+        sync_guild_leader(guild.id)
+        Repo.preload(membership, [:guild, :character])
+      end)
+    else
+      nil ->
+        {:error,
+         Ecto.Changeset.add_error(
+           changeset,
+           :character_id,
+           "must identify a character and guild from this world"
+         )}
+    end
+  end
+
+  def update_guild_membership(%GuildMembership{} = membership, attrs) do
+    Repo.transaction(fn ->
+      changeset = GuildMembership.changeset(membership, attrs)
+
+      if Ecto.Changeset.get_field(changeset, :is_primary) do
+        clear_primary_membership(membership.character_id, membership.id)
+      end
+
+      updated_membership =
+        changeset
+        |> Repo.update()
+        |> unwrap_transaction!()
+
+      ensure_primary_membership(membership.character_id)
+      sync_character_primary_guild(membership.character_id)
+      sync_guild_leader(membership.guild_id)
+      Repo.preload(updated_membership, [:guild, :character])
+    end)
+  end
+
+  def delete_guild_membership(%GuildMembership{} = membership) do
+    Repo.transaction(fn ->
+      deleted_membership =
+        membership
+        |> Repo.delete()
+        |> unwrap_transaction!()
+
+      ensure_primary_membership(membership.character_id)
+      sync_character_primary_guild(membership.character_id)
+      sync_guild_leader(membership.guild_id)
+      deleted_membership
+    end)
   end
 
   def list_gods(%World{id: world_id}) do
@@ -689,6 +777,7 @@ defmodule AncientStones.Worlds do
       :race,
       :guild,
       :home_location,
+      guild_memberships: [:guild],
       character_occupations: [:occupation],
       character_skills: [:skill]
     ])
@@ -702,6 +791,7 @@ defmodule AncientStones.Worlds do
       :race,
       :guild,
       :home_location,
+      guild_memberships: [:guild],
       character_occupations: [:occupation],
       character_skills: [:skill]
     ])
@@ -719,6 +809,8 @@ defmodule AncientStones.Worlds do
         |> Repo.insert()
         |> unwrap_transaction!()
 
+      sync_legacy_character_membership(character)
+
       if occupation = refs[:occupation] do
         unwrap_transaction!(create_character_occupation(character, occupation, %{primary: true}))
       end
@@ -732,13 +824,19 @@ defmodule AncientStones.Worlds do
   end
 
   def update_character(%Character{} = character, attrs, refs \\ %{}) do
-    character
-    |> Character.changeset(attrs)
-    |> put_ref(:character_role_id, refs[:character_role])
-    |> put_ref(:race_id, refs[:race])
-    |> put_ref(:guild_id, refs[:guild])
-    |> put_ref(:home_location_id, refs[:home_location])
-    |> Repo.update()
+    Repo.transaction(fn ->
+      updated_character =
+        character
+        |> Character.changeset(attrs)
+        |> put_ref(:character_role_id, refs[:character_role])
+        |> put_ref(:race_id, refs[:race])
+        |> put_ref(:guild_id, refs[:guild])
+        |> put_ref(:home_location_id, refs[:home_location])
+        |> Repo.update()
+        |> unwrap_transaction!()
+
+      sync_legacy_character_membership(updated_character)
+    end)
   end
 
   def create_character_role(%World{id: world_id}, attrs) do
@@ -3164,6 +3262,125 @@ defmodule AncientStones.Worlds do
     TradeRoute
     |> where([route], route.id == ^id and route.world_id == ^world_id)
     |> Repo.exists?()
+  end
+
+  defp sync_legacy_character_membership(%Character{guild_id: nil} = character) do
+    GuildMembership
+    |> where(
+      [membership],
+      membership.character_id == ^character.id and membership.is_primary
+    )
+    |> Repo.delete_all()
+
+    ensure_primary_membership(character.id)
+    sync_character_primary_guild(character.id)
+    Repo.get!(Character, character.id)
+  end
+
+  defp sync_legacy_character_membership(%Character{} = character) do
+    clear_primary_membership(character.id)
+
+    case Repo.get_by(GuildMembership,
+           guild_id: character.guild_id,
+           character_id: character.id
+         ) do
+      nil ->
+        %GuildMembership{guild_id: character.guild_id, character_id: character.id}
+        |> GuildMembership.changeset(%{is_primary: true, status: :active})
+        |> Repo.insert()
+        |> unwrap_transaction!()
+
+      membership ->
+        membership
+        |> GuildMembership.changeset(%{is_primary: true, status: :active})
+        |> Repo.update()
+        |> unwrap_transaction!()
+    end
+
+    sync_character_primary_guild(character.id)
+    Repo.get!(Character, character.id)
+  end
+
+  defp default_first_membership_to_primary(changeset, character_id) do
+    membership_exists? =
+      Repo.exists?(
+        from membership in GuildMembership, where: membership.character_id == ^character_id
+      )
+
+    if membership_exists? do
+      changeset
+    else
+      Ecto.Changeset.put_change(changeset, :is_primary, true)
+    end
+  end
+
+  defp clear_primary_membership(character_id, except_id \\ nil) do
+    query =
+      from membership in GuildMembership,
+        where: membership.character_id == ^character_id and membership.is_primary
+
+    query =
+      if except_id do
+        where(query, [membership], membership.id != ^except_id)
+      else
+        query
+      end
+
+    Repo.update_all(query, set: [is_primary: false])
+  end
+
+  defp ensure_primary_membership(character_id) do
+    primary_exists? =
+      Repo.exists?(
+        from membership in GuildMembership,
+          where: membership.character_id == ^character_id and membership.is_primary
+      )
+
+    unless primary_exists? do
+      membership =
+        GuildMembership
+        |> where([membership], membership.character_id == ^character_id)
+        |> where([membership], membership.status == :active)
+        |> order_by([membership], asc: membership.inserted_at)
+        |> first()
+        |> Repo.one()
+
+      if membership do
+        membership
+        |> Ecto.Changeset.change(is_primary: true)
+        |> Repo.update()
+        |> unwrap_transaction!()
+      end
+    end
+  end
+
+  defp sync_character_primary_guild(character_id) do
+    guild_id =
+      GuildMembership
+      |> where([membership], membership.character_id == ^character_id)
+      |> where([membership], membership.is_primary)
+      |> select([membership], membership.guild_id)
+      |> Repo.one()
+
+    Character
+    |> where([character], character.id == ^character_id)
+    |> Repo.update_all(set: [guild_id: guild_id])
+  end
+
+  defp sync_guild_leader(guild_id) do
+    leader_name =
+      GuildMembership
+      |> join(:inner, [membership], character in assoc(membership, :character))
+      |> where([membership], membership.guild_id == ^guild_id)
+      |> where([membership], membership.role == :leader and membership.status == :active)
+      |> order_by([membership], asc: membership.inserted_at)
+      |> select([_membership, character], character.name)
+      |> first()
+      |> Repo.one()
+
+    Guild
+    |> where([guild], guild.id == ^guild_id)
+    |> Repo.update_all(set: [leader: leader_name])
   end
 
   defp unwrap_transaction!({:ok, record}) do
