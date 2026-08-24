@@ -1,4 +1,6 @@
 defmodule AncientStones.WorldExports.WorldGuidePdf do
+  alias AncientStones.WorldExports.WorldManual
+
   @page_width 595
   @page_height 842
   @margin 52
@@ -10,6 +12,8 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
   @rule {128, 128, 124}
 
   def render(guide) do
+    manual = WorldManual.build(guide)
+
     Pdf.build([size: :a4, compress: true], fn pdf ->
       state =
         pdf
@@ -20,15 +24,52 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
           subject: "World atlas and gazetteer"
         )
         |> cover(guide)
-        |> content_page("World at a glance")
-        |> overview(guide)
-        |> geography(guide.continents)
-        |> directory("People", guide.characters)
-        |> directory("Guilds", guide.guilds)
-        |> economy(guide.trade_routes, guide.tax_policies)
+        |> manual_contents(manual.chapters)
+        |> manual_chapters(manual.chapters)
 
       Pdf.export(state.pdf)
     end)
+  end
+
+  defp manual_contents(state, chapters) do
+    state =
+      state
+      |> content_page("Contents")
+      |> heading("Contents", 25)
+
+    Enum.reduce(chapters, state, fn chapter, acc ->
+      entity_record(acc, chapter.title, chapter.description, 0)
+    end)
+  end
+
+  defp manual_chapters(state, chapters) do
+    Enum.reduce(chapters, state, fn chapter, acc ->
+      acc
+      |> content_page(chapter.title)
+      |> heading(chapter.title, 25)
+      |> paragraph(chapter.description)
+      |> fact_table(nil, chapter.facts)
+      |> manual_records(chapter.records, 1)
+    end)
+  end
+
+  defp manual_records(state, records, level) do
+    Enum.reduce(records, state, fn record, acc ->
+      acc
+      |> manual_heading(record.title, level)
+      |> paragraph(record.meta)
+      |> paragraph(record.description)
+      |> fact_table(nil, record.facts)
+      |> manual_records(record.children, level + 1)
+    end)
+  end
+
+  defp manual_heading(state, title, 1) do
+    subheading(state, title)
+  end
+
+  defp manual_heading(state, title, _level) do
+    minor_heading(state, title)
   end
 
   defp cover(pdf, guide) do
@@ -90,263 +131,6 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     |> cover_rule(230)
 
     %{pdf: pdf, y: @top, page: 1, running_title: guide.world.name}
-  end
-
-  defp overview(state, guide) do
-    province_count = Enum.sum(Enum.map(guide.continents, &length(&1.provinces)))
-
-    hold_count =
-      guide.continents
-      |> Enum.flat_map(& &1.provinces)
-      |> Enum.sum_by(&length(&1.holds))
-
-    location_count =
-      guide.continents
-      |> Enum.flat_map(& &1.provinces)
-      |> Enum.flat_map(& &1.holds)
-      |> Enum.sum_by(&length(&1.locations))
-
-    trade_flow_count = Enum.sum_by(guide.trade_routes, &length(&1.flows))
-    exemption_count = Enum.sum_by(guide.tax_policies, &length(&1.exemptions))
-
-    state
-    |> heading(guide.world.name, 25)
-    |> paragraph(guide.world.description || "No world description has been recorded.")
-    |> fact_table("Celestial and physical record", world_facts(guide.world))
-    |> fact_table("Recorded holdings", [
-      {"Continents", length(guide.continents)},
-      {"Provinces", province_count},
-      {"Holds", hold_count},
-      {"Named locations", location_count},
-      {"Characters", length(guide.characters)},
-      {"Guilds", length(guide.guilds)},
-      {"Trade routes", length(guide.trade_routes)},
-      {"Commodity flows", trade_flow_count},
-      {"Tax policies", length(guide.tax_policies)},
-      {"Tax exemptions", exemption_count}
-    ])
-  end
-
-  defp geography(state, []) do
-    state
-    |> content_page("Atlas")
-    |> heading("Atlas", 24)
-    |> paragraph("No continents have been recorded.")
-  end
-
-  defp geography(state, continents) do
-    continents
-    |> Enum.with_index(1)
-    |> Enum.reduce(state, fn {continent, chapter_number}, acc ->
-      acc
-      |> continent_cover(continent, chapter_number)
-      |> content_page("Atlas - #{continent.name}")
-      |> heading(continent.name, 25)
-      |> paragraph(continent.description)
-      |> calendar(continent.calendar)
-      |> offices(continent.offices)
-      |> provinces(continent.provinces)
-    end)
-  end
-
-  defp continent_cover(state, continent, chapter_number) do
-    province_count = length(continent.provinces)
-    hold_count = Enum.sum_by(continent.provinces, &length(&1.holds))
-
-    location_count =
-      continent.provinces
-      |> Enum.flat_map(& &1.holds)
-      |> Enum.sum_by(&length(&1.locations))
-
-    pdf =
-      state.pdf
-      |> Pdf.add_page()
-      |> Pdf.set_fill_color(@parchment)
-      |> Pdf.rectangle({0, 0}, {@page_width, @page_height})
-      |> Pdf.fill()
-      |> Pdf.set_fill_color(@ink)
-      |> Pdf.set_font("Helvetica", size: 9, bold: true)
-      |> Pdf.text_wrap!(
-        {@margin, 706},
-        {@content_width, 20},
-        "ATLAS / CONTINENT #{String.pad_leading(Integer.to_string(chapter_number), 2, "0")}",
-        align: :center
-      )
-      |> cover_rule(670)
-      |> Pdf.set_font("Times", size: 38, bold: true)
-      |> Pdf.text_wrap!(
-        {@margin, 526},
-        {@content_width, 120},
-        normalize(continent.name),
-        align: :center,
-        leading: 46
-      )
-      |> Pdf.set_fill_color(@rule)
-      |> Pdf.set_font("Helvetica", size: 9, bold: true)
-      |> Pdf.text_wrap!(
-        {@margin, 472},
-        {@content_width, 20},
-        "#{province_count} #{pluralize(province_count, "PROVINCE", "PROVINCES")} / " <>
-          "#{hold_count} #{pluralize(hold_count, "HOLD", "HOLDS")} / " <>
-          "#{location_count} #{pluralize(location_count, "LOCATION", "LOCATIONS")}",
-        align: :center
-      )
-      |> Pdf.set_fill_color(@ink)
-      |> Pdf.set_font("Times", size: 12, italic: true)
-      |> Pdf.text_wrap!(
-        {@margin + 58, 310},
-        {@content_width - 116, 126},
-        normalize(continent.description || "No continental record has been written."),
-        align: :center,
-        leading: 18
-      )
-      |> cover_rule(236)
-
-    %{
-      state
-      | pdf: pdf,
-        y: @top,
-        page: state.page + 1,
-        running_title: continent.name
-    }
-  end
-
-  defp pluralize(1, singular, _plural) do
-    singular
-  end
-
-  defp pluralize(_count, _singular, plural) do
-    plural
-  end
-
-  defp calendar(state, nil) do
-    state
-  end
-
-  defp calendar(state, calendar) do
-    weekday_names = Enum.join(calendar.weekday_names, ", ")
-
-    state
-    |> subheading("Calendar - #{calendar.name}")
-    |> fact_table(nil, [
-      {"Days per week", calendar.days_per_week},
-      {"Weekday names", if(weekday_names == "", do: "Not recorded", else: weekday_names)}
-    ])
-  end
-
-  defp provinces(state, provinces) do
-    Enum.reduce(provinces, state, fn province, acc ->
-      acc
-      |> subheading(province.name)
-      |> paragraph(province.description)
-      |> offices(province.offices)
-      |> holds(province.holds)
-    end)
-  end
-
-  defp holds(state, holds) do
-    Enum.reduce(holds, state, fn hold, acc ->
-      acc
-      |> minor_heading(hold.name)
-      |> paragraph(hold.description)
-      |> offices(hold.offices)
-      |> entity_table("Commerce", hold.commerce)
-      |> entity_table("Locations", hold.locations)
-    end)
-  end
-
-  defp offices(state, []) do
-    state
-  end
-
-  defp offices(state, offices) do
-    entries =
-      Enum.map(offices, fn office ->
-        %{name: office.name, detail: office.holder || "Vacant", description: nil}
-      end)
-
-    entity_table(state, "Offices", entries)
-  end
-
-  defp entity_table(state, _label, []) do
-    state
-  end
-
-  defp entity_table(state, label, entries) do
-    state =
-      state
-      |> ensure_space(78)
-      |> subheading(label)
-
-    result =
-      entries
-      |> Enum.with_index()
-      |> Enum.reduce(state, fn {entry, index}, acc ->
-        detail =
-          [Map.get(entry, :detail), Map.get(entry, :description)]
-          |> Enum.reject(&blank?/1)
-          |> Enum.join(" / ")
-
-        entity_record(acc, entry.name, detail, index)
-      end)
-
-    section_spacing(result)
-  end
-
-  defp directory(state, title, entries) do
-    state =
-      state
-      |> content_page(title)
-      |> heading(title, 25)
-
-    if entries == [] do
-      paragraph(state, "No #{String.downcase(title)} have been recorded.")
-    else
-      Enum.reduce(entries, state, fn entry, acc ->
-        acc
-        |> minor_heading(entry.name)
-        |> paragraph(entry.description)
-      end)
-    end
-  end
-
-  defp economy(state, routes, policies) do
-    state
-    |> content_page("Trade and taxation")
-    |> heading("Trade and taxation", 25)
-    |> subheading("Trade routes")
-    |> routes(routes)
-    |> subheading("Tax policies")
-    |> policies(policies)
-  end
-
-  defp routes(state, []) do
-    paragraph(state, "No trade routes have been recorded.")
-  end
-
-  defp routes(state, routes) do
-    Enum.reduce(routes, state, fn route, acc ->
-      acc
-      |> minor_heading(route.name)
-      |> paragraph(route.detail)
-      |> paragraph(route.description)
-      |> entity_table("Commodity flows", route.flows)
-    end)
-  end
-
-  defp policies(state, []) do
-    paragraph(state, "No tax policies have been recorded.")
-  end
-
-  defp policies(state, policies) do
-    Enum.reduce(policies, state, fn policy, acc ->
-      acc
-      |> minor_heading(policy.name)
-      |> paragraph(policy.detail)
-      |> paragraph(policy.description)
-      |> entity_table("Revenue allocation", policy.revenue_shares)
-      |> entity_table("Exemptions", policy.exemptions)
-    end)
   end
 
   defp content_page(state_or_pdf, title) do
@@ -460,20 +244,20 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
   end
 
   defp fact_record(state, label, value, _index) do
-    value_lines = wrap(normalize(value), max_chars_for_width(@content_width, 11))
-    height = 22 + max(length(value_lines), 1) * 16 + 14
+    value_lines = wrap(normalize(value), max_chars_for_width(@content_width, 10))
+    height = 17 + max(length(value_lines), 1) * 14 + 8
     state = ensure_space(state, height)
-    rule_y = state.y - height + 8
+    rule_y = state.y - height + 6
 
     pdf =
       state.pdf
       |> Pdf.set_fill_color(@rule)
       |> Pdf.set_font("Helvetica", size: 7.5, bold: true)
       |> Pdf.text_at({@margin, state.y}, normalize(String.upcase(label)))
-      |> draw_record_lines(value_lines, @margin, state.y - 19, 11, 16, false)
+      |> draw_record_lines(value_lines, @margin, state.y - 15, 10, 14, false)
       |> record_rule(rule_y)
 
-    %{state | pdf: pdf, y: rule_y - 14}
+    %{state | pdf: pdf, y: rule_y - 8}
   end
 
   defp entity_record(state, name, detail, _index) do
@@ -517,26 +301,6 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
 
   defp section_spacing(state) do
     %{state | y: state.y - 8}
-  end
-
-  defp world_facts(world) do
-    [
-      {"Galaxy", Map.get(world, :galaxy_name) || "Not recorded"},
-      {"Primary star", Map.get(world, :primary_star_name) || "Not recorded"},
-      {"Orbital period", measure(Map.get(world, :orbital_period_days), "days")},
-      {"Day length", measure(Map.get(world, :day_length_hours), "hours")},
-      {"Axial tilt", measure(Map.get(world, :axial_tilt_degrees), "degrees")},
-      {"Mean radius", measure(Map.get(world, :mean_radius_km), "km")},
-      {"Map projection", Map.get(world, :map_projection) || "Not recorded"}
-    ]
-  end
-
-  defp measure(nil, _unit) do
-    "Not recorded"
-  end
-
-  defp measure(value, unit) do
-    "#{value} #{unit}"
   end
 
   defp max_chars_for_width(width, font_size) do

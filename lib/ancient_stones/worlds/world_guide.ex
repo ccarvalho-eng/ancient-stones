@@ -191,6 +191,7 @@ defmodule AncientStones.Worlds.WorldGuide do
 
   defp world_card(world) do
     %{
+      id: world.id,
       name: world.name,
       description: world.description,
       galaxy_name: world.galaxy && world.galaxy.name,
