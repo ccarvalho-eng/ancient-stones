@@ -7,6 +7,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CharacterRole
+  alias AncientStones.Worlds.GuildMembership
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.Province
@@ -400,6 +401,50 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         Worlds.delete_guild_influence(guild_influence)
       end
     end)
+  end
+
+  def handle_event("save_guild_membership", %{"guild_membership" => params}, socket) do
+    result =
+      case params["id"] do
+        id when is_binary(id) and id != "" ->
+          membership = Worlds.get_guild_membership!(socket.assigns.world, id)
+          Worlds.update_guild_membership(membership, params)
+
+        _other ->
+          Worlds.create_guild_membership(socket.assigns.world, params)
+      end
+
+    create_and_reload(socket, fn -> result end)
+  end
+
+  def handle_event("edit_guild_membership", %{"id" => id}, socket) do
+    membership = Worlds.get_guild_membership!(socket.assigns.world, id)
+
+    {:noreply,
+     socket
+     |> assign(:editing_guild_membership_id, membership.id)
+     |> assign(
+       :guild_membership_form,
+       data_form(:guild_membership, guild_membership_form_attrs(membership))
+     )}
+  end
+
+  def handle_event("cancel_guild_membership", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:editing_guild_membership_id, nil)
+     |> assign(
+       :guild_membership_form,
+       data_form(
+         :guild_membership,
+         guild_membership_form_attrs(nil, socket.assigns.selected_guild)
+       )
+     )}
+  end
+
+  def handle_event("delete_guild_membership", %{"id" => id}, socket) do
+    membership = Worlds.get_guild_membership!(socket.assigns.world, id)
+    create_and_reload(socket, fn -> Worlds.delete_guild_membership(membership) end)
   end
 
   def handle_event("create_god", %{"god" => params}, socket) do
@@ -1520,6 +1565,11 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     )
     |> assign(:race_form_params, race_form_attrs())
     |> assign(:guild_form, data_form(:guild))
+    |> assign(:editing_guild_membership_id, nil)
+    |> assign(
+      :guild_membership_form,
+      data_form(:guild_membership, guild_membership_form_attrs(nil, selected_guild))
+    )
     |> assign(
       :guild_influence_form,
       data_form(:guild_influence, %{
@@ -2990,6 +3040,42 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "description" => hold.description,
       "province_capital" => to_string(province_capital_hold?(selected_province, hold))
     }
+  end
+
+  defp guild_membership_form_attrs(membership, guild \\ nil)
+
+  defp guild_membership_form_attrs(nil, guild) do
+    %{
+      "id" => nil,
+      "guild_id" => guild && guild.id,
+      "character_id" => nil,
+      "role" => :member,
+      "rank" => nil,
+      "status" => :active,
+      "is_primary" => false,
+      "description" => nil
+    }
+  end
+
+  defp guild_membership_form_attrs(membership, _guild) do
+    %{
+      "id" => membership.id,
+      "guild_id" => membership.guild_id,
+      "character_id" => membership.character_id,
+      "role" => membership.role,
+      "rank" => membership.rank,
+      "status" => membership.status,
+      "is_primary" => membership.is_primary,
+      "description" => membership.description
+    }
+  end
+
+  defp guild_membership_role_options do
+    GuildMembership.role_options()
+  end
+
+  defp guild_membership_status_options do
+    GuildMembership.status_options()
   end
 
   defp character_form_attrs(nil) do
