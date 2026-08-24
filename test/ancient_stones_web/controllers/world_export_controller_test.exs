@@ -27,7 +27,7 @@ defmodule AncientStonesWeb.WorldExportControllerTest do
 
     assert has_element?(
              view,
-             "#world-pdf-export.fixed.top-20[href='/worlds/#{world.id}/export.pdf']"
+             "#world-pdf-export.fixed.bottom-5[href='/worlds/#{world.id}/export.pdf']"
            )
   end
 end
