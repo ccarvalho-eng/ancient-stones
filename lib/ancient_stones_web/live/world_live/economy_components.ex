@@ -98,7 +98,52 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
           </div>
         </div>
         <div id="economy-record-details" class="stone-muted mt-5 text-sm">
-          <p>{record_summary(assigns)}</p>
+          <% details = record_details(assigns) %>
+          <%= if details.selected? do %>
+            <p class="max-w-3xl leading-6">{details.description}</p>
+            <dl
+              id="economy-detail-fields"
+              class="mt-5 grid gap-px overflow-hidden rounded-md border border-zinc-200 bg-zinc-200 sm:grid-cols-2 dark:border-zinc-700 dark:bg-zinc-700"
+            >
+              <div
+                :for={{label, value} <- details.fields}
+                class="bg-zinc-50 px-3 py-2.5 dark:bg-zinc-900"
+              >
+                <dt class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  {label}
+                </dt>
+                <dd class="stone-heading mt-1 text-sm font-medium">{value}</dd>
+              </div>
+            </dl>
+            <section
+              :for={section <- details.sections}
+              id={section.id}
+              class="mt-6 overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700"
+            >
+              <header class="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+                <h3 class="stone-heading text-xs font-semibold uppercase tracking-wide">
+                  {section.title}
+                </h3>
+                <span class="stone-muted text-xs">{length(section.items)}</span>
+              </header>
+              <div class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                <article :for={item <- section.items} class="px-3 py-3">
+                  <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h4 class="stone-heading text-sm font-semibold">{item.name}</h4>
+                    <span class="stone-muted text-xs font-medium">{item.meta}</span>
+                  </div>
+                  <p
+                    :if={item.description not in [nil, ""]}
+                    class="stone-muted mt-1.5 text-xs leading-5"
+                  >
+                    {item.description}
+                  </p>
+                </article>
+              </div>
+            </section>
+          <% else %>
+            <p>{details.description}</p>
+          <% end %>
         </div>
       </main>
 
@@ -427,32 +472,319 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
     ~p"/worlds/#{world}/dashboard?#{query}"
   end
 
-  defp modes,
-    do: [
+  defp modes do
+    [
       {"Route", "route"},
       {"Flow", "flow"},
       {"Policy", "policy"},
       {"Exemption", "exemption"},
       {"Share", "share"}
     ]
+  end
 
-  defp record_title(assigns), do: selected_record(assigns) |> record_name("New #{assigns.mode}")
-  defp record_summary(assigns), do: selected_record(assigns) |> record_description()
-  defp selected_record(%{mode: :route} = assigns), do: assigns.selected_trade_route
-  defp selected_record(%{mode: :flow} = assigns), do: assigns.selected_trade_flow
-  defp selected_record(%{mode: :policy} = assigns), do: assigns.selected_tax_policy
-  defp selected_record(%{mode: :exemption} = assigns), do: assigns.selected_tax_exemption
-  defp selected_record(%{mode: :share} = assigns), do: assigns.selected_tax_revenue_share
-  defp record_name(nil, fallback), do: fallback
-  defp record_name(%{commodity: value}, _fallback) when not is_nil(value), do: value
-  defp record_name(%{name: value}, _fallback) when not is_nil(value), do: value
-  defp record_name(%{percentage: value}, _fallback), do: "#{display(value)}% revenue share"
+  defp record_title(assigns) do
+    assigns
+    |> selected_record()
+    |> record_name("New #{assigns.mode}")
+  end
 
-  defp record_description(nil),
-    do: "Choose a record from the left, or use the form to create one."
+  defp record_details(assigns) do
+    case selected_record(assigns) do
+      nil ->
+        %{
+          selected?: false,
+          description: "Choose a record from the left, or use the form to create one.",
+          fields: [],
+          sections: []
+        }
 
-  defp record_description(%{description: value}) when value not in [nil, ""], do: value
-  defp record_description(_record), do: "This record has no description yet."
-  defp display(%Decimal{} = value), do: Decimal.to_string(value, :normal)
-  defp display(value), do: to_string(value)
+      record ->
+        details_for(assigns.mode, record, assigns)
+    end
+  end
+
+  defp details_for(:route, route, assigns) do
+    flows = Enum.filter(assigns.trade_flows, &(&1.trade_route_id == route.id))
+
+    details(
+      route,
+      [
+        {"Origin", association_name(route.origin_hold)},
+        {"Destination", association_name(route.destination_hold)},
+        {"Transport", humanize(route.transport_mode)},
+        {"Distance", value_with_unit(route.distance_km, "km")},
+        {"Seasonality", humanize(route.seasonality)},
+        {"Risk", humanize(route.risk)},
+        {"Status", humanize(route.status)}
+      ],
+      [
+        related_section(
+          "economy-related-trade-flows",
+          "Commodity flows",
+          Enum.map(flows, &flow_item/1)
+        )
+      ]
+    )
+  end
+
+  defp details_for(:flow, flow, assigns) do
+    route = Enum.find(assigns.trade_routes, &(&1.id == flow.trade_route_id))
+
+    details(
+      flow,
+      [
+        {"Route", association_name(route)},
+        {"Corridor", route_corridor(route)},
+        {"Category", humanize(flow.category)},
+        {"Quantity", value_with_unit(flow.quantity, flow.unit)},
+        {"Declared value", money_value(flow.declared_value, flow.currency)},
+        {"Frequency", humanize(flow.frequency)}
+      ],
+      []
+    )
+  end
+
+  defp details_for(:policy, policy, assigns) do
+    exemptions = Enum.filter(assigns.tax_exemptions, &(&1.tax_policy_id == policy.id))
+    shares = Enum.filter(assigns.tax_revenue_shares, &(&1.tax_policy_id == policy.id))
+
+    details(
+      policy,
+      [
+        {"Jurisdiction", jurisdiction_name(policy)},
+        {"Tax type", humanize(policy.tax_type)},
+        {"Rate", tax_rate(policy)},
+        {"Direction", humanize(policy.direction)},
+        {"Collector", association_office(policy.collecting_office)},
+        {"Currency", association_name(policy.currency)},
+        {"Effective from", display(policy.effective_from)},
+        {"Effective to", display(policy.effective_to)},
+        {"Status", humanize(policy.status)}
+      ],
+      [
+        related_section(
+          "economy-related-revenue-shares",
+          "Revenue allocation",
+          Enum.map(shares, &share_item/1)
+        ),
+        related_section(
+          "economy-related-tax-exemptions",
+          "Exemptions",
+          Enum.map(exemptions, &exemption_item/1)
+        )
+      ]
+    )
+  end
+
+  defp details_for(:exemption, exemption, assigns) do
+    policy = Enum.find(assigns.tax_policies, &(&1.id == exemption.tax_policy_id))
+
+    details(
+      exemption,
+      [
+        {"Tax policy", association_name(policy)},
+        {"Beneficiary", beneficiary_name(exemption)},
+        {"Relief", value_with_unit(exemption.exemption_percentage, "%")},
+        {"Effective from", display(exemption.effective_from)},
+        {"Effective to", display(exemption.effective_to)}
+      ],
+      []
+    )
+  end
+
+  defp details_for(:share, share, assigns) do
+    policy = Enum.find(assigns.tax_policies, &(&1.id == share.tax_policy_id))
+
+    details(
+      share,
+      [
+        {"Tax policy", association_name(policy)},
+        {"Recipient office", association_office(share.political_office)},
+        {"Allocation", value_with_unit(share.percentage, "%")}
+      ],
+      []
+    )
+  end
+
+  defp details(record, fields, sections) do
+    %{
+      selected?: true,
+      description: record_description(record),
+      fields: Enum.reject(fields, fn {_label, value} -> value in [nil, ""] end),
+      sections: Enum.reject(sections, &(&1.items == []))
+    }
+  end
+
+  defp related_section(id, title, items) do
+    %{id: id, title: title, items: items}
+  end
+
+  defp flow_item(flow) do
+    %{
+      name: flow.commodity,
+      meta:
+        Enum.join(
+          [
+            value_with_unit(flow.quantity, flow.unit),
+            money_value(flow.declared_value, flow.currency)
+          ]
+          |> Enum.reject(&is_nil/1),
+          " / "
+        ),
+      description: flow.description
+    }
+  end
+
+  defp exemption_item(exemption) do
+    %{
+      name: exemption.name,
+      meta: "#{beneficiary_name(exemption)} / #{display(exemption.exemption_percentage)}% relief",
+      description: exemption.description
+    }
+  end
+
+  defp share_item(share) do
+    %{
+      name: association_office(share.political_office),
+      meta: "#{display(share.percentage)}%",
+      description: nil
+    }
+  end
+
+  defp selected_record(%{mode: :route} = assigns) do
+    assigns.selected_trade_route
+  end
+
+  defp selected_record(%{mode: :flow} = assigns) do
+    assigns.selected_trade_flow
+  end
+
+  defp selected_record(%{mode: :policy} = assigns) do
+    assigns.selected_tax_policy
+  end
+
+  defp selected_record(%{mode: :exemption} = assigns) do
+    assigns.selected_tax_exemption
+  end
+
+  defp selected_record(%{mode: :share} = assigns) do
+    assigns.selected_tax_revenue_share
+  end
+
+  defp record_name(nil, fallback) do
+    fallback
+  end
+
+  defp record_name(%{commodity: value}, _fallback) when not is_nil(value) do
+    value
+  end
+
+  defp record_name(%{name: value}, _fallback) when not is_nil(value) do
+    value
+  end
+
+  defp record_name(%{percentage: value}, _fallback) do
+    "#{display(value)}% revenue share"
+  end
+
+  defp record_description(%{description: value}) when value not in [nil, ""] do
+    value
+  end
+
+  defp record_description(_record) do
+    "This record has no description yet."
+  end
+
+  defp jurisdiction_name(policy) do
+    association_name(policy.continent) || association_name(policy.province) ||
+      association_name(policy.hold)
+  end
+
+  defp beneficiary_name(exemption) do
+    association_name(exemption.guild) || association_name(exemption.trade_route) ||
+      association_name(exemption.continent) || association_name(exemption.province) ||
+      association_name(exemption.hold)
+  end
+
+  defp route_corridor(nil) do
+    nil
+  end
+
+  defp route_corridor(route) do
+    Enum.join(
+      [association_name(route.origin_hold), association_name(route.destination_hold)]
+      |> Enum.reject(&is_nil/1),
+      " to "
+    )
+  end
+
+  defp tax_rate(policy) do
+    case policy.rate_basis do
+      :percentage -> "#{display(policy.rate)}%"
+      basis -> "#{display(policy.rate)} / #{humanize(basis)}"
+    end
+  end
+
+  defp money_value(nil, _currency) do
+    nil
+  end
+
+  defp money_value(value, currency) do
+    Enum.join([display(value), association_name(currency)] |> Enum.reject(&is_nil/1), " ")
+  end
+
+  defp value_with_unit(nil, _unit) do
+    nil
+  end
+
+  defp value_with_unit(value, unit) do
+    Enum.join([display(value), unit] |> Enum.reject(&(&1 in [nil, ""])), " ")
+  end
+
+  defp association_name(nil) do
+    nil
+  end
+
+  defp association_name(%Ecto.Association.NotLoaded{}) do
+    nil
+  end
+
+  defp association_name(record) do
+    Map.get(record, :name)
+  end
+
+  defp association_office(nil) do
+    nil
+  end
+
+  defp association_office(%Ecto.Association.NotLoaded{}) do
+    nil
+  end
+
+  defp association_office(record) do
+    Map.get(record, :office)
+  end
+
+  defp humanize(nil) do
+    nil
+  end
+
+  defp humanize(value) do
+    value
+    |> to_string()
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
+  defp display(nil) do
+    nil
+  end
+
+  defp display(%Decimal{} = value) do
+    Decimal.to_string(value, :normal)
+  end
+
+  defp display(value) do
+    to_string(value)
+  end
 end

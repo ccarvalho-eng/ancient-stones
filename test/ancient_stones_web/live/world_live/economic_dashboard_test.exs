@@ -112,11 +112,24 @@ defmodule AncientStonesWeb.WorldLive.EconomicDashboardTest do
 
     assert Decimal.equal?(Repo.get!(TaxRevenueShare, share.id).percentage, Decimal.new("90"))
 
+    {:ok, policy_view, _html} =
+      live(
+        conn,
+        ~p"/worlds/#{economy.world}/dashboard?section=economy&mode=policy&tax_policy_id=#{policy.id}"
+      )
+
+    assert has_element?(policy_view, "#economy-detail-fields")
+    assert has_element?(policy_view, "#economy-related-revenue-shares article")
+    assert has_element?(policy_view, "#economy-related-tax-exemptions article")
+
     {:ok, view, _html} =
       live(
         conn,
         ~p"/worlds/#{economy.world}/dashboard?section=economy&trade_route_id=#{route.id}"
       )
+
+    assert has_element?(view, "#economy-detail-fields")
+    assert has_element?(view, "#economy-related-trade-flows article")
 
     view
     |> form("#trade-route-form", trade_route: %{name: "Green King Road"})
