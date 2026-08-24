@@ -2152,10 +2152,9 @@ const InkMap = {
 
   showCoordinates(object) {
     const readout = this.el.querySelector("#map-coordinate-readout")
-    if (!readout) return
 
     if (!object) {
-      readout.textContent = "X -- / Y --"
+      if (readout) readout.textContent = "X -- / Y --"
       this.syncInspector()
       return
     }
@@ -2163,9 +2162,11 @@ const InkMap = {
     const point = object.getCenterPoint()
     const x = Math.round(point.x)
     const y = Math.round(point.y)
-    readout.textContent = `X ${x} / Y ${y}`
-    readout.dataset.x = x
-    readout.dataset.y = y
+    if (readout) {
+      readout.textContent = `X ${x} / Y ${y}`
+      readout.dataset.x = x
+      readout.dataset.y = y
+    }
     this.syncInspector(object)
   },
 
