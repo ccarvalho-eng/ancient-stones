@@ -106,6 +106,12 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
            )
 
     assert has_element?(view, "#map-save.stone-button")
+    assert has_element?(view, "#map-export[data-map-action='export']")
+
+    assert has_element?(
+             view,
+             "#map-export-background[data-map-export-background][type='color']"
+           )
   end
 
   test "persists a valid canvas document for the current world", %{conn: conn} do
@@ -255,8 +261,8 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     assert has_element?(view, "details#map-properties:not([open])")
     assert has_element?(view, "#map-edit-form")
     assert has_element?(view, "#map-delete.stone-danger-button")
-    assert has_element?(view, "#map_edit_width[min='640'][max='8192']")
-    assert has_element?(view, "#map_edit_height[min='480'][max='8192']")
+    assert has_element?(view, "#map_edit_width[min='640'][max='8192'][step='20']")
+    assert has_element?(view, "#map_edit_height[min='480'][max='8192'][step='20']")
 
     view
     |> form("#map-edit-form",
@@ -273,6 +279,50 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
     assert updated_map.name == "Inner Tamriel"
     assert updated_map.width == 3200
     assert updated_map.height == 1800
+  end
+
+  test "deletes a map directly from the world map library", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, map} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=maps")
+
+    assert has_element?(
+             view,
+             "#world-map-delete-#{map.id}.stone-button[data-confirm]"
+           )
+
+    redirect =
+      view
+      |> element("#world-map-delete-#{map.id}")
+      |> render_click()
+
+    path = ~p"/worlds/#{world}/dashboard?section=maps"
+    assert {:ok, view, _html} = follow_redirect(redirect, conn, path)
+
+    refute Maps.get_world_map(world, map.id)
+    refute has_element?(view, "#world-map-card-#{map.id}")
+  end
+
+  test "edits a map name directly from the world map library", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, map} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=maps")
+
+    view
+    |> element("#world-map-name-edit-#{map.id}")
+    |> render_click()
+
+    assert has_element?(view, "#world-map-name-form-#{map.id}")
+
+    view
+    |> form("#world-map-name-form-#{map.id}", map_name: %{"name" => "Skyrim"})
+    |> render_submit()
+
+    assert Maps.get_world_map(world, map.id).name == "Skyrim"
+    assert has_element?(view, "#world-map-name-#{map.id}", "Skyrim")
+    refute has_element?(view, "#world-map-name-form-#{map.id}")
   end
 
   test "deletes the selected map and remounts the map library", %{conn: conn} do

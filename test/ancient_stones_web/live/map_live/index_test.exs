@@ -19,7 +19,10 @@ defmodule AncientStonesWeb.MapLive.IndexTest do
              "#map-open-#{map.id}[href='/worlds/#{world.id}/dashboard?section=map&map_id=#{map.id}']"
            )
 
-    assert has_element?(view, "#map-delete-#{map.id}[data-confirm]")
+    assert has_element?(
+             view,
+             "#map-delete-#{map.id}.stone-button[data-confirm]"
+           )
   end
 
   test "shows an empty state", %{conn: conn} do
@@ -66,5 +69,26 @@ defmodule AncientStonesWeb.MapLive.IndexTest do
     refute Maps.get_world_map(world, map.id)
     refute has_element?(view, "#maps-#{map.id}")
     assert has_element?(view, "#maps-navigation strong", "0")
+  end
+
+  test "edits a map name from the library", %{conn: conn} do
+    {:ok, world} = Worlds.create_world(%{name: "Nirn"})
+    {:ok, map} = Maps.create_world_map(world, %{"name" => "Tamriel"})
+
+    {:ok, view, _html} = live(conn, ~p"/maps")
+
+    view
+    |> element("#map-name-edit-#{map.id}")
+    |> render_click()
+
+    assert has_element?(view, "#map-name-form-#{map.id}")
+
+    view
+    |> form("#map-name-form-#{map.id}", map_name: %{"name" => "Skyrim"})
+    |> render_submit()
+
+    assert Maps.get_world_map(world, map.id).name == "Skyrim"
+    assert has_element?(view, "#map-name-#{map.id}", "Skyrim")
+    refute has_element?(view, "#map-name-form-#{map.id}")
   end
 end

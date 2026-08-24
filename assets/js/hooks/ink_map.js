@@ -288,7 +288,7 @@ const InkMap = {
           window.clearTimeout(this.iconSearchTimer)
           this.iconSearchTimer = window.setTimeout(() => this.renderIconPicker(), 120)
         }
-      } else if (event.target.matches("[data-map-water-color]")) {
+      } else if (event.target.matches("[data-map-water-color], [data-map-export-background]")) {
         this.setMapBackground(event.target.value)
       } else if (event.target.matches("[data-map-entity-link]")) {
         this.linkSelection(event.target)
@@ -659,7 +659,8 @@ const InkMap = {
     this.mapBackground = color
     this.inkColor = contrastingInk(color)
     this.applyCanvasAppearance()
-    this.changed("Water color updated")
+    this.syncBackgroundInput()
+    this.changed("Background color updated")
   },
 
   toggleLandmassEditing(object = this.canvas.getActiveObject()) {
@@ -1550,12 +1551,14 @@ const InkMap = {
 
   exportPng() {
     const background = this.canvas.backgroundColor
+    const exportBackground =
+      this.el.querySelector("[data-map-export-background]")?.value || this.mapBackground
     const excludedObjects = this.canvas.getObjects().filter((object) => object.mapExcludeFromExport)
     const visibility = excludedObjects.map((object) => object.visible)
 
     try {
       excludedObjects.forEach((object) => object.set({visible: false}))
-      this.canvas.backgroundColor = this.mapBackground
+      this.canvas.backgroundColor = exportBackground
       this.canvas.requestRenderAll()
 
       const link = document.createElement("a")
@@ -1590,8 +1593,9 @@ const InkMap = {
   },
 
   syncBackgroundInput() {
-    const input = this.el.querySelector("[data-map-water-color]")
-    if (input) input.value = this.mapBackground
+    this.el
+      .querySelectorAll("[data-map-water-color], [data-map-export-background]")
+      .forEach((input) => { input.value = this.mapBackground })
   },
 }
 
