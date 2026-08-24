@@ -3307,7 +3307,7 @@ defmodule AncientStones.Worlds do
         from membership in GuildMembership, where: membership.character_id == ^character_id
       )
 
-    if membership_exists? do
+    if membership_exists? or Ecto.Changeset.get_field(changeset, :status) != :active do
       changeset
     else
       Ecto.Changeset.put_change(changeset, :is_primary, true)

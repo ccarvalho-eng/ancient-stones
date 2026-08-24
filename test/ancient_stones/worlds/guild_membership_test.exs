@@ -87,6 +87,24 @@ defmodule AncientStones.Worlds.GuildMembershipTest do
     assert "requires an active membership" in errors_on(changeset).is_primary
   end
 
+  test "a first secret affiliation remains concealed from the primary guild reference" do
+    world = world_fixture("Aldrun")
+    guild = guild_fixture(world, "Veiled Oar")
+    character = character_fixture(world, "Yrsa")
+
+    assert {:ok, membership} =
+             Worlds.create_guild_membership(world, %{
+               "guild_id" => guild.id,
+               "character_id" => character.id,
+               "role" => "informant",
+               "status" => "secret"
+             })
+
+    refute membership.is_primary
+    assert membership.status == :secret
+    assert Repo.reload!(character).guild_id == nil
+  end
+
   test "the legacy character guild field maintains the normalized primary membership" do
     world = world_fixture("Aldrun")
     first_guild = guild_fixture(world, "Wardens")
