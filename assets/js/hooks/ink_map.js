@@ -2460,6 +2460,25 @@ const InkMap = {
   },
 
   setSaveStatus(state, label) {
+    const button = this.el.querySelector("[data-map-action='save']")
+    const iconState = state === "saved" ? "saved" : state === "saving" ? "saving" : "warning"
+    const tooltips = {
+      saved: "Map saved",
+      local: "Changes saved locally. Server save pending.",
+      unsaved: "Unsaved map changes",
+      saving: "Saving map",
+      conflict: "Map changed elsewhere. Reload before saving.",
+      error: "Map save failed",
+    }
+
+    if (button) {
+      button.title = tooltips[state] || label
+      button.setAttribute("aria-label", tooltips[state] || label)
+      button.querySelectorAll("[data-map-save-icon]").forEach((icon) => {
+        icon.classList.toggle("hidden", icon.dataset.mapSaveIcon !== iconState)
+      })
+    }
+
     const indicator = this.el.querySelector("[data-map-save-state]")
     if (!indicator) return
 

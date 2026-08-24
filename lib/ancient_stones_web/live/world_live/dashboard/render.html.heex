@@ -2376,9 +2376,20 @@
                           id="map-save"
                           type="button"
                           data-map-action="save"
+                          title="Map saved"
+                          aria-label="Map saved"
                           class="stone-button inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium transition"
                         >
-                          <.icon name="hero-check" class="size-4" /> Save
+                          <span data-map-save-icon="saved">
+                            <.icon name="hero-check" class="size-4" />
+                          </span>
+                          <span data-map-save-icon="warning" class="hidden">
+                            <.icon name="hero-exclamation-triangle" class="size-4" />
+                          </span>
+                          <span data-map-save-icon="saving" class="hidden">
+                            <.icon name="hero-arrow-path" class="size-4 animate-spin" />
+                          </span>
+                          Save
                         </button>
                       </div>
                     </div>

@@ -114,7 +114,10 @@ defmodule AncientStonesWeb.WorldLive.MapDashboardTest do
              "#map-entity-link option[value='continent:#{continent.id}']"
            )
 
-    assert has_element?(view, "#map-save.stone-button")
+    assert has_element?(view, "#map-save.stone-button[title='Map saved'][aria-label='Map saved']")
+    assert has_element?(view, "#map-save [data-map-save-icon='saved']:not(.hidden)")
+    assert has_element?(view, "#map-save [data-map-save-icon='warning'].hidden")
+    assert has_element?(view, "#map-save [data-map-save-icon='saving'].hidden")
     assert has_element?(view, "#map-save-state[data-map-save-state][data-state='saved']")
     assert has_element?(view, "#map-export[data-map-action='export']")
 
