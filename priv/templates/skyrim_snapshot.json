@@ -468,7 +468,7 @@
       "description": "The lost or mythic homeland of the Aldmer. Surviving traditions disagree on its location, physical form, and fate.",
       "currency": {
         "name": "Aldmeri Stars",
-        "description": "Rare star-cut electrum pieces preserved as heirlooms rather than common coin.",
+        "description": "Rare star-cut electrum heirlooms kept in temple treasuries and noble collections.",
         "value_per_unit": "1.20",
         "value_basis": "hearth-day"
       },
@@ -480,7 +480,7 @@
           "holds": [
             {
               "name": "Departure Coast",
-              "description": "The remembered shore from which ancestral migrations are said to have departed, preserved as tradition rather than surveyed geography.",
+              "description": "The ancestral northern shore remembered in migration tales, ship songs, and clan genealogies; its mapped outline remains uncertain.",
               "locations": [
                 {
                   "name": "Traditional Embarkation",
@@ -549,7 +549,7 @@
               "commerce_entries": [],
               "capital": "First City",
               "economic_profile": null,
-              "climate_zone": "Unknown; described symbolically rather than by reliable survey",
+              "climate_zone": "Unsurveyed; surviving accounts provide no dependable seasonal observations",
               "elevation_profile": "Unknown within Accounts describe a great ancestral center but provide no dependable relief.",
               "geology": "Unknown",
               "moisture_regime": "Unknown",
@@ -562,7 +562,7 @@
           "terrain": null,
           "climate": null,
           "capital": null,
-          "climate_zone": "Unknown; described symbolically rather than by reliable survey",
+          "climate_zone": "Unsurveyed; surviving accounts provide no dependable seasonal observations",
           "elevation_profile": "Accounts describe a great ancestral center but provide no dependable relief",
           "geology": "Unknown",
           "moisture_regime": "Unknown",

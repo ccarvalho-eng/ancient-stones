@@ -129,6 +129,16 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
           axial_tilt_degrees: "12.5",
           day_length_hours: "20.5",
           mean_radius_km: 6_000,
+          mass_earths: "1.1",
+          surface_gravity_m_s2: "10.2",
+          orbital_distance_au: "0.98",
+          orbital_eccentricity: "0.02",
+          atmospheric_pressure_atm: "1.05",
+          bond_albedo: "0.31",
+          ocean_fraction: "0.63",
+          star_mass_solar: "1.03",
+          star_luminosity_solar: "1.08",
+          star_temperature_k: 5_900,
           map_projection: "Mercator"
         },
         galaxy: original_galaxy
@@ -149,6 +159,22 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     assert has_element?(view, "#world_day_length_hours[value='20.5']")
     assert has_element?(view, "#world_mean_radius_km[value='6000']")
     assert has_element?(view, "#world_map_projection[value='Mercator']")
+    assert has_element?(view, "#world-advanced-physical-data:not([open])")
+
+    assert has_element?(
+             view,
+             "#world-advanced-physical-data #world_star_mass_solar[value^='1.03']"
+           )
+
+    assert has_element?(
+             view,
+             "#world-advanced-physical-data #world_star_luminosity_solar[value^='1.08']"
+           )
+
+    assert has_element?(
+             view,
+             "#world-advanced-physical-data #world_star_temperature_k[value='5900']"
+           )
 
     assert has_element?(
              view,
@@ -179,6 +205,16 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
         axial_tilt_degrees: "24.75",
         day_length_hours: "28.5",
         mean_radius_km: "7123",
+        mass_earths: "1.2",
+        surface_gravity_m_s2: "10.5",
+        orbital_distance_au: "1.1",
+        orbital_eccentricity: "0.03",
+        atmospheric_pressure_atm: "1.08",
+        bond_albedo: "0.29",
+        ocean_fraction: "0.66",
+        star_mass_solar: "1.04",
+        star_luminosity_solar: "1.12",
+        star_temperature_k: "6010",
         map_projection: "Equal Earth",
         galaxy_id: new_galaxy.id
       }
@@ -194,6 +230,16 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     assert Decimal.equal?(updated_world.axial_tilt_degrees, Decimal.new("24.75"))
     assert Decimal.equal?(updated_world.day_length_hours, Decimal.new("28.5"))
     assert updated_world.mean_radius_km == 7_123
+    assert Decimal.equal?(updated_world.mass_earths, Decimal.new("1.2"))
+    assert Decimal.equal?(updated_world.surface_gravity_m_s2, Decimal.new("10.5"))
+    assert Decimal.equal?(updated_world.orbital_distance_au, Decimal.new("1.1"))
+    assert Decimal.equal?(updated_world.orbital_eccentricity, Decimal.new("0.03"))
+    assert Decimal.equal?(updated_world.atmospheric_pressure_atm, Decimal.new("1.08"))
+    assert Decimal.equal?(updated_world.bond_albedo, Decimal.new("0.29"))
+    assert Decimal.equal?(updated_world.ocean_fraction, Decimal.new("0.66"))
+    assert Decimal.equal?(updated_world.star_mass_solar, Decimal.new("1.04"))
+    assert Decimal.equal?(updated_world.star_luminosity_solar, Decimal.new("1.12"))
+    assert updated_world.star_temperature_k == 6_010
     assert updated_world.map_projection == "Equal Earth"
     assert updated_world.galaxy_id == new_galaxy.id
     assert has_element?(view, "#galaxies", "Eldoria Prime")

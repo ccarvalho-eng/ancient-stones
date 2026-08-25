@@ -24,6 +24,7 @@ defmodule AncientStones.WorldExports.WorldManual do
         chapter("spells", "Spells", Map.get(details, :spells, []), &spell_record/1),
         chapter("items", "Items", Map.get(details, :items, []), &item_record/1),
         chapter("bestiary", "Bestiary", Map.get(details, :creatures, []), &creature_record/1),
+        chapter("moons", "Moons", Map.get(details, :moons, []), &moon_record/1),
         chapter("documents", "Documents", Map.get(details, :documents, []), &document_record/1),
         connections_chapter(details),
         economy(guide),
@@ -67,6 +68,17 @@ defmodule AncientStones.WorldExports.WorldManual do
           {"Day length", measure(Map.get(guide.world, :day_length_hours), "hours")},
           {"Axial tilt", measure(Map.get(guide.world, :axial_tilt_degrees), "degrees")},
           {"Mean radius", measure(Map.get(guide.world, :mean_radius_km), "km")},
+          {"Mass", measure(Map.get(guide.world, :mass_earths), "Earth masses")},
+          {"Surface gravity", measure(Map.get(guide.world, :surface_gravity_m_s2), "m/s²")},
+          {"Orbital distance", measure(Map.get(guide.world, :orbital_distance_au), "AU")},
+          {"Orbital eccentricity", Map.get(guide.world, :orbital_eccentricity)},
+          {"Atmospheric pressure",
+           measure(Map.get(guide.world, :atmospheric_pressure_atm), "atm")},
+          {"Bond albedo", Map.get(guide.world, :bond_albedo)},
+          {"Ocean fraction", Map.get(guide.world, :ocean_fraction)},
+          {"Star mass", measure(Map.get(guide.world, :star_mass_solar), "solar masses")},
+          {"Star luminosity", measure(Map.get(guide.world, :star_luminosity_solar), "solar")},
+          {"Star temperature", measure(Map.get(guide.world, :star_temperature_k), "K")},
           {"Map projection", Map.get(guide.world, :map_projection)},
           {"Continents", length(continents)},
           {"Provinces", length(provinces)},
@@ -133,7 +145,7 @@ defmodule AncientStones.WorldExports.WorldManual do
       province.name,
       join_values([Map.get(province, :terrain), Map.get(province, :climate)]),
       Map.get(province, :description),
-      [],
+      geography_facts(province),
       entity_records("Offices", Map.get(province, :offices, [])) ++
         Enum.map(Map.get(province, :holds, []), &hold_record(&1, province.name, locations))
     )
@@ -159,6 +171,15 @@ defmodule AncientStones.WorldExports.WorldManual do
       join_values([Map.get(hold, :terrain), Map.get(hold, :climate)]),
       Map.get(hold, :description),
       facts([
+        {"Area", measure(Map.get(hold, :area_km2), "km²")},
+        {"Position", geographic_coordinates(hold)},
+        {"Climate zone", Map.get(hold, :climate_zone)},
+        {"Winter mean", measure(Map.get(hold, :mean_winter_temperature_c), "°C")},
+        {"Summer mean", measure(Map.get(hold, :mean_summer_temperature_c), "°C")},
+        {"Annual precipitation", measure(Map.get(hold, :annual_precipitation_mm), "mm")},
+        {"Frost-free season", measure(Map.get(hold, :frost_free_days), "days")},
+        {"Geology", Map.get(hold, :geology)},
+        {"Watershed", Map.get(hold, :watershed)},
         {"Population estimate", profile && Map.get(profile, :population_estimate)},
         {"Household estimate", profile && Map.get(profile, :household_estimate)},
         {"Urban population", profile && Map.get(profile, :urban_population_estimate)},
@@ -190,7 +211,8 @@ defmodule AncientStones.WorldExports.WorldManual do
       Map.get(location, :description),
       facts([
         {"Water body", Map.get(location, :water_body)},
-        {"Coordinates", coordinates(location)}
+        {"Coordinates", coordinates(location)},
+        {"Geographic position", geographic_coordinates(location)}
       ]),
       section("Associated people", people)
     )
@@ -313,7 +335,12 @@ defmodule AncientStones.WorldExports.WorldManual do
       household.name,
       join_values([Map.get(household, :household_type), Map.get(household, :status)]),
       Map.get(household, :description),
-      facts([{"Usual residence", Map.get(household, :home_location)}]),
+      facts([
+        {"Usual residence", Map.get(household, :home_location)},
+        {"Estimated residents", Map.get(household, :resident_count)},
+        {"Dependents", Map.get(household, :dependent_count)},
+        {"Servants", Map.get(household, :servant_count)}
+      ]),
       section(
         "People of the household",
         Enum.map(Map.get(household, :memberships, []), &simple_record/1)
@@ -414,7 +441,12 @@ defmodule AncientStones.WorldExports.WorldManual do
       facts([
         {"Habitat", Map.get(creature, :habitat)},
         {"Temperament", Map.get(creature, :temperament)},
-        {"Danger", Map.get(creature, :danger_level)}
+        {"Danger", Map.get(creature, :danger_level)},
+        {"Population", Map.get(creature, :population_status)},
+        {"Diet", Map.get(creature, :diet)},
+        {"Ecological role", Map.get(creature, :ecological_role)},
+        {"Human uses", Map.get(creature, :economic_uses)},
+        {"Seasonal pattern", Map.get(creature, :seasonal_pattern)}
       ]),
       section("Known locations", Enum.map(Map.get(creature, :locations, []), &simple_record/1))
     )
@@ -552,9 +584,29 @@ defmodule AncientStones.WorldExports.WorldManual do
         {"Era", Map.get(calendar, :era)},
         {"Days per week", Map.get(calendar, :days_per_week)},
         {"Weekdays", Enum.join(Map.get(calendar, :weekday_names, []), ", ")},
-        {"Perihelion day", Map.get(calendar, :perihelion_day)}
+        {"Perihelion day", Map.get(calendar, :perihelion_day)},
+        {"Intercalation interval",
+         measure(Map.get(calendar, :intercalation_interval_years), "years")},
+        {"Intercalary days", Map.get(calendar, :intercalary_days)},
+        {"Intercalation rule", Map.get(calendar, :intercalation_rule)}
       ]),
       section("Months", Enum.map(Map.get(calendar, :months, []), &simple_record/1))
+    )
+  end
+
+  defp moon_record(moon) do
+    record(
+      moon.name,
+      measure(Map.get(moon, :orbital_period_days), "days"),
+      Map.get(moon, :description),
+      facts([
+        {"Orbital radius", measure(Map.get(moon, :semi_major_axis_km), "km")},
+        {"Mean radius", measure(Map.get(moon, :mean_radius_km), "km")},
+        {"Mass", measure(Map.get(moon, :mass_lunar), "lunar masses")},
+        {"Eccentricity", Map.get(moon, :orbital_eccentricity)},
+        {"Inclination", measure(Map.get(moon, :inclination_degrees), "degrees")},
+        {"Tidal role", Map.get(moon, :tidal_role)}
+      ])
     )
   end
 
@@ -651,6 +703,29 @@ defmodule AncientStones.WorldExports.WorldManual do
     end
   end
 
+  defp geographic_coordinates(entity) do
+    case {Map.get(entity, :latitude), Map.get(entity, :longitude)} do
+      {nil, nil} -> nil
+      {latitude, longitude} -> "#{latitude}°, #{longitude}°"
+    end
+  end
+
+  defp geography_facts(entity) do
+    facts([
+      {"Area", measure(Map.get(entity, :area_km2), "km²")},
+      {"Position", geographic_coordinates(entity)},
+      {"Climate zone", Map.get(entity, :climate_zone)},
+      {"Moisture regime", Map.get(entity, :moisture_regime)},
+      {"Elevation", Map.get(entity, :elevation_profile)},
+      {"Winter mean", measure(Map.get(entity, :mean_winter_temperature_c), "°C")},
+      {"Summer mean", measure(Map.get(entity, :mean_summer_temperature_c), "°C")},
+      {"Annual precipitation", measure(Map.get(entity, :annual_precipitation_mm), "mm")},
+      {"Frost-free season", measure(Map.get(entity, :frost_free_days), "days")},
+      {"Geology", Map.get(entity, :geology)},
+      {"Watershed", Map.get(entity, :watershed)}
+    ])
+  end
+
   defp dimensions(entity) do
     case {Map.get(entity, :width), Map.get(entity, :height)} do
       {nil, nil} -> nil
@@ -669,6 +744,11 @@ defmodule AncientStones.WorldExports.WorldManual do
 
   defp measure(nil, _unit) do
     nil
+  end
+
+  defp measure(%Decimal{} = value, unit) do
+    value = value |> Decimal.normalize() |> Decimal.to_string(:normal)
+    "#{value} #{unit}"
   end
 
   defp measure(value, unit) do

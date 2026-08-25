@@ -27,6 +27,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   alias AncientStones.Worlds.ItemEffect
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
+  alias AncientStones.Worlds.Moon
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.Race
@@ -1958,6 +1959,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
         era: "Fourth Era",
         year_start_angle: "270.0",
         perihelion_day: 12,
+        intercalation_interval_years: 4,
+        intercalary_days: 1,
+        intercalation_rule: "One feast day closes every fourth year.",
         description: "A local calendar"
       }
     )
@@ -1967,6 +1971,9 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert Decimal.equal?(calendar.year_start_angle, Decimal.new("270.0"))
     assert calendar.perihelion_day == 12
     assert calendar.days_per_week == 7
+    assert calendar.intercalation_interval_years == 4
+    assert calendar.intercalary_days == 1
+    assert calendar.intercalation_rule == "One feast day closes every fourth year."
 
     assert calendar.weekday_names == [
              "Montak",
@@ -2007,6 +2014,42 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     assert has_element?(view, "#calendar-weekdays", "Fretak")
     assert has_element?(view, "#calendar-month-grid")
     assert has_element?(view, "#calendar-month-#{month.id}", "Frostfall")
+    assert has_element?(view, "#calendar-details", "+1 day every 4 years")
+  end
+
+  test "creates and deletes moons from the calendar section", %{conn: conn} do
+    {:ok, world} = Worlds.create_world_from_template(:blank, %{name: "Eldoria"})
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=calendar")
+
+    open_action(view, "moon")
+
+    view
+    |> form("#moon-form",
+      moon: %{
+        name: "Mani",
+        orbital_period_days: "26.89",
+        semi_major_axis_km: "392000",
+        mean_radius_km: "1720",
+        mass_lunar: "0.96",
+        orbital_eccentricity: "0.045",
+        inclination_degrees: "5.2",
+        tidal_role: "Sets the principal coastal tide.",
+        description: "A pale cratered moon."
+      }
+    )
+    |> render_submit()
+
+    moon = Repo.get_by!(Moon, world_id: world.id, name: "Mani")
+
+    assert has_element?(view, "#moon-#{moon.id}", "Mani")
+    assert has_element?(view, "#moon-#{moon.id}", "26.89000 days")
+
+    view
+    |> element("button[phx-click='delete_moon'][phx-value-id='#{moon.id}']")
+    |> render_click()
+
+    refute Repo.get(Moon, moon.id)
+    assert has_element?(view, "#moon-list", "No moons recorded")
   end
 
   test "selects calendars and months for editing from the calendar section", %{conn: conn} do

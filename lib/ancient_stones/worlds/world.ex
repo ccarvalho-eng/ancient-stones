@@ -18,6 +18,7 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Worlds.Item
   alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.LocationType
+  alias AncientStones.Worlds.Moon
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Race
@@ -40,6 +41,16 @@ defmodule AncientStones.Worlds.World do
     field :axial_tilt_degrees, :decimal
     field :day_length_hours, :decimal
     field :mean_radius_km, :integer
+    field :mass_earths, :decimal
+    field :surface_gravity_m_s2, :decimal
+    field :orbital_distance_au, :decimal
+    field :orbital_eccentricity, :decimal
+    field :atmospheric_pressure_atm, :decimal
+    field :bond_albedo, :decimal
+    field :ocean_fraction, :decimal
+    field :star_mass_solar, :decimal
+    field :star_luminosity_solar, :decimal
+    field :star_temperature_k, :integer
     field :map_projection, :string
 
     belongs_to(:galaxy, Galaxy)
@@ -71,6 +82,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:items, Item)
     has_many(:effects, Effect)
     has_many(:location_types, LocationType)
+    has_many(:moons, Moon)
     has_many(:occupations, Occupation)
     has_many(:political_offices, PoliticalOffice)
     has_many(:races, Race)
@@ -95,6 +107,16 @@ defmodule AncientStones.Worlds.World do
       :axial_tilt_degrees,
       :day_length_hours,
       :mean_radius_km,
+      :mass_earths,
+      :surface_gravity_m_s2,
+      :orbital_distance_au,
+      :orbital_eccentricity,
+      :atmospheric_pressure_atm,
+      :bond_albedo,
+      :ocean_fraction,
+      :star_mass_solar,
+      :star_luminosity_solar,
+      :star_temperature_k,
       :map_projection
     ])
     |> validate_required([:name])
@@ -105,8 +127,21 @@ defmodule AncientStones.Worlds.World do
     )
     |> validate_number(:day_length_hours, greater_than: 0)
     |> validate_number(:mean_radius_km, greater_than: 0)
+    |> validate_number(:mass_earths, greater_than: 0)
+    |> validate_number(:surface_gravity_m_s2, greater_than: 0)
+    |> validate_number(:orbital_distance_au, greater_than: 0)
+    |> validate_number(:orbital_eccentricity, greater_than_or_equal_to: 0, less_than: 1)
+    |> validate_number(:atmospheric_pressure_atm, greater_than: 0)
+    |> validate_number(:bond_albedo, greater_than_or_equal_to: 0, less_than_or_equal_to: 1)
+    |> validate_number(:ocean_fraction, greater_than_or_equal_to: 0, less_than_or_equal_to: 1)
+    |> validate_number(:star_mass_solar, greater_than: 0)
+    |> validate_number(:star_luminosity_solar, greater_than: 0)
+    |> validate_number(:star_temperature_k, greater_than: 0)
     |> check_constraint(:day_length_hours, name: :worlds_day_length_hours_positive)
     |> check_constraint(:mean_radius_km, name: :worlds_mean_radius_km_positive)
+    |> check_constraint(:mass_earths, name: :worlds_physical_values_positive)
+    |> check_constraint(:orbital_eccentricity, name: :worlds_orbital_eccentricity_range)
+    |> check_constraint(:bond_albedo, name: :worlds_physical_fractions_range)
     |> foreign_key_constraint(:galaxy_id)
   end
 end

@@ -73,6 +73,85 @@ defmodule AncientStonesWeb.WorldLive.New do
                     tooltip="Planet tilt in degrees. Earth is about 23.5 degrees."
                   />
                 </div>
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <.input
+                    field={@form[:day_length_hours]}
+                    type="number"
+                    label="Day Hours"
+                    step="0.01"
+                  />
+                  <.input field={@form[:mean_radius_km]} type="number" label="Radius (km)" />
+                </div>
+                <details id="new-world-advanced-physical-data" class="stone-border rounded-md border">
+                  <summary class="stone-heading cursor-pointer px-3 py-2 text-sm font-semibold">
+                    Advanced physical data
+                  </summary>
+                  <div class="stone-border grid gap-3 border-t p-3 sm:grid-cols-2">
+                    <.input
+                      field={@form[:mass_earths]}
+                      type="number"
+                      label="Mass (Earths)"
+                      step="0.00001"
+                    />
+                    <.input
+                      field={@form[:surface_gravity_m_s2]}
+                      type="number"
+                      label="Gravity (m/s²)"
+                      step="0.0001"
+                    />
+                    <.input
+                      field={@form[:atmospheric_pressure_atm]}
+                      type="number"
+                      label="Pressure (atm)"
+                      step="0.0001"
+                    />
+                    <.input
+                      field={@form[:ocean_fraction]}
+                      type="number"
+                      label="Ocean Fraction"
+                      step="0.00001"
+                      min="0"
+                      max="1"
+                    />
+                    <.input
+                      field={@form[:bond_albedo]}
+                      type="number"
+                      label="Bond Albedo"
+                      step="0.00001"
+                      min="0"
+                      max="1"
+                    />
+                    <.input
+                      field={@form[:orbital_distance_au]}
+                      type="number"
+                      label="Orbit (AU)"
+                      step="0.000001"
+                    />
+                    <.input
+                      field={@form[:orbital_eccentricity]}
+                      type="number"
+                      label="Eccentricity"
+                      step="0.000001"
+                    />
+                    <.input
+                      field={@form[:star_mass_solar]}
+                      type="number"
+                      label="Star Mass (Suns)"
+                      step="0.00001"
+                    />
+                    <.input
+                      field={@form[:star_luminosity_solar]}
+                      type="number"
+                      label="Star Luminosity (Suns)"
+                      step="0.00001"
+                    />
+                    <.input
+                      field={@form[:star_temperature_k]}
+                      type="number"
+                      label="Star Temperature (K)"
+                    />
+                  </div>
+                </details>
 
                 <.button
                   id="create-world-button"

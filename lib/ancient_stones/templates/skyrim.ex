@@ -68,6 +68,390 @@ defmodule AncientStones.Templates.Skyrim do
       commercial_ventures: snapshot.commercial_ventures
     }
     |> Map.merge(snapshot.world)
+    |> fill_missing(physical_world_defaults())
+    |> Map.put(:moons, moons())
+    |> enrich_credibility_fields()
+  end
+
+  defp physical_world_defaults do
+    %{
+      primary_star_name: "Magnus",
+      orbital_period_days: 365,
+      axial_tilt_degrees: "23.5",
+      day_length_hours: "24.0",
+      mean_radius_km: 6371,
+      mass_earths: "1.0",
+      surface_gravity_m_s2: "9.81",
+      orbital_distance_au: "1.0",
+      orbital_eccentricity: "0.0167",
+      atmospheric_pressure_atm: "1.0",
+      bond_albedo: "0.30",
+      ocean_fraction: "0.71",
+      star_mass_solar: "1.0",
+      star_luminosity_solar: "1.0",
+      star_temperature_k: 5772,
+      map_projection: "Equirectangular atlas"
+    }
+  end
+
+  defp moons do
+    [
+      %{
+        name: "Masser",
+        description: "The larger reddish moon visible above Nirn.",
+        orbital_period_days: "34.6",
+        semi_major_axis_km: 450_000,
+        mean_radius_km: 1_600,
+        mass_lunar: "0.65",
+        orbital_eccentricity: "0.03",
+        inclination_degrees: "4.0",
+        tidal_role: "The longer lunar cycle contributes to the strongest combined coastal tides."
+      },
+      %{
+        name: "Secunda",
+        description: "The smaller pale moon, moving more quickly across Nirn's sky.",
+        orbital_period_days: "24.4",
+        semi_major_axis_km: 360_000,
+        mean_radius_km: 900,
+        mass_lunar: "0.18",
+        orbital_eccentricity: "0.02",
+        inclination_degrees: "6.0",
+        tidal_role:
+          "Its shorter cycle modulates harbor depth and the timing of spring and neap tides."
+      }
+    ]
+  end
+
+  defp enrich_credibility_fields(data) do
+    data
+    |> Map.update(:calendars, [], &Enum.map(&1, fn calendar -> enrich_calendar(calendar) end))
+    |> Map.update(:continents, [], &enrich_continents/1)
+    |> Map.update(:households, [], &Enum.map(&1, fn household -> enrich_household(household) end))
+    |> Map.update(:political_offices, [], fn offices ->
+      Enum.map(offices, fn office -> enrich_office(office) end)
+    end)
+    |> Map.update(:creatures, [], &Enum.map(&1, fn creature -> enrich_creature(creature) end))
+  end
+
+  defp enrich_continents(continents) do
+    Enum.map(continents, fn continent ->
+      area_km2 = continent[:area_km2] || default_continent_area(continent.name)
+      provinces = Map.get(continent, :provinces, [])
+      province_count = max(length(provinces), 1)
+
+      enriched_provinces =
+        provinces
+        |> Enum.with_index(1)
+        |> Enum.map(fn {province, index} ->
+          enrich_province(
+            province,
+            continent,
+            div(area_km2, province_count),
+            index,
+            province_count
+          )
+        end)
+
+      calendars = Enum.map(Map.get(continent, :calendars, []), &enrich_calendar/1)
+
+      continent
+      |> fill_missing(%{area_km2: area_km2})
+      |> Map.put(:provinces, enriched_provinces)
+      |> Map.put(:calendars, calendars)
+    end)
+  end
+
+  defp enrich_province(province, continent, area_km2, index, province_count) do
+    {latitude, longitude} = geographic_position(province, continent, index, province_count)
+    climate = climate_measurements(province[:climate])
+    holds = Map.get(province, :holds, [])
+    hold_count = max(length(holds), 1)
+
+    enriched_holds =
+      holds
+      |> Enum.with_index(1)
+      |> Enum.map(fn {hold, hold_index} ->
+        enrich_hold(
+          hold,
+          continent,
+          div(area_km2, hold_count),
+          hold_index,
+          hold_count,
+          {latitude, longitude},
+          climate
+        )
+      end)
+
+    province
+    |> fill_missing(
+      Map.merge(climate, %{area_km2: area_km2, latitude: latitude, longitude: longitude})
+    )
+    |> Map.put(:holds, enriched_holds)
+  end
+
+  defp enrich_hold(
+         hold,
+         continent,
+         area_km2,
+         index,
+         hold_count,
+         province_position,
+         province_climate
+       ) do
+    {latitude, longitude} =
+      geographic_position(hold, continent, index, hold_count, province_position)
+
+    climate = Map.merge(province_climate, climate_measurements(hold[:climate]))
+
+    locations =
+      hold
+      |> Map.get(:locations, [])
+      |> enrich_locations(latitude, longitude)
+
+    hold
+    |> fill_missing(
+      Map.merge(climate, %{area_km2: area_km2, latitude: latitude, longitude: longitude})
+    )
+    |> Map.put(:locations, locations)
+  end
+
+  defp enrich_locations(locations, latitude, longitude) do
+    locations
+    |> Enum.with_index(1)
+    |> Enum.map(fn {location, index} ->
+      offset = Decimal.new(index) |> Decimal.div(Decimal.new(10_000))
+
+      location
+      |> fill_missing(%{
+        latitude: Decimal.add(Decimal.new(to_string(latitude)), offset),
+        longitude: Decimal.sub(Decimal.new(to_string(longitude)), offset)
+      })
+      |> Map.update(:children, [], &enrich_locations(&1, latitude, longitude))
+    end)
+  end
+
+  defp geographic_position(record, continent, index, count, fallback \\ nil) do
+    north = decimal_number(continent[:north_latitude], 75)
+    south = decimal_number(continent[:south_latitude], -60)
+    west = decimal_number(continent[:west_longitude], -150)
+    east = decimal_number(continent[:east_longitude], 150)
+
+    case {record[:map_x], record[:map_y], fallback} do
+      {map_x, map_y, _fallback} when is_integer(map_x) and is_integer(map_y) ->
+        latitude = north - map_y / 1000 * (north - south)
+        longitude = west + map_x / 1000 * (east - west)
+        {Float.round(latitude, 6), Float.round(longitude, 6)}
+
+      {_, _, {fallback_latitude, fallback_longitude}} ->
+        spacing = index / (count + 1)
+
+        {Float.round(fallback_latitude - 0.4 + spacing * 0.8, 6),
+         Float.round(fallback_longitude - 0.6 + spacing * 1.2, 6)}
+
+      _ ->
+        spacing = index / (count + 1)
+
+        {Float.round(north - spacing * (north - south), 6),
+         Float.round(west + spacing * (east - west), 6)}
+    end
+  end
+
+  defp climate_measurements(climate) do
+    case to_string(climate) do
+      "arctic" -> climate(-15, 7, 400, 55)
+      "coastal" -> climate(2, 16, 900, 190)
+      "cold" -> climate(-7, 14, 650, 130)
+      "dry" -> climate(4, 24, 300, 230)
+      "temperate" -> climate(0, 19, 650, 200)
+      "volcanic" -> climate(1, 16, 850, 180)
+      "wet" -> climate(2, 20, 1300, 230)
+      _ -> climate(-2, 16, 700, 170)
+    end
+  end
+
+  defp climate(winter, summer, precipitation, frost_free_days) do
+    %{
+      mean_winter_temperature_c: winter,
+      mean_summer_temperature_c: summer,
+      annual_precipitation_mm: precipitation,
+      frost_free_days: frost_free_days
+    }
+  end
+
+  defp enrich_calendar(calendar) do
+    fill_missing(calendar, %{
+      intercalation_interval_years: 4,
+      intercalary_days: 1,
+      intercalation_rule:
+        "One intercalary day follows Evening Star every fourth year to keep the civil year aligned with the seasons."
+    })
+  end
+
+  defp enrich_household(household) do
+    {residents, dependents, servants} = household_counts(household[:household_type])
+
+    fill_missing(household, %{
+      resident_count: residents,
+      dependent_count: dependents,
+      servant_count: servants
+    })
+  end
+
+  defp household_counts(type) when type in ["royal_household", :royal_household] do
+    {32, 10, 12}
+  end
+
+  defp household_counts(type) when type in ["magnate_household", :magnate_household] do
+    {18, 6, 5}
+  end
+
+  defp household_counts(type) when type in ["merchant_household", :merchant_household] do
+    {9, 3, 1}
+  end
+
+  defp household_counts(type) when type in ["craft_household", :craft_household] do
+    {7, 3, 1}
+  end
+
+  defp household_counts(_type) do
+    {8, 3, 1}
+  end
+
+  defp enrich_office(office) do
+    fill_missing(office, %{
+      selection_method: office_selection_method(office),
+      succession_rule: office_succession_rule(office),
+      term_started_year: 201,
+      term_length_years: office_term_length(office)
+    })
+  end
+
+  defp office_selection_method(%{office: office}) when office in ["High King", "High Queen"] do
+    "Recognized by the Moot from among eligible royal claimants"
+  end
+
+  defp office_selection_method(%{office: "Jarl"}) do
+    "Dynastic succession, appointment, or conquest recognized by the hold's ruling court"
+  end
+
+  defp office_selection_method(_office) do
+    "Appointed by the office's governing court or council"
+  end
+
+  defp office_succession_rule(%{office: office}) when office in ["High King", "High Queen"] do
+    "A vacancy is settled by a Moot when the jarls can assemble and recognize a claimant."
+  end
+
+  defp office_succession_rule(%{office: "Jarl"}) do
+    "A customary heir or successful claimant must secure control of the hold and recognition from its court."
+  end
+
+  defp office_succession_rule(_office) do
+    "The appointing authority names a successor when the office becomes vacant."
+  end
+
+  defp office_term_length(%{office: office})
+       when office in ["High King", "High Queen", "Jarl"] do
+    nil
+  end
+
+  defp office_term_length(_office) do
+    4
+  end
+
+  defp enrich_creature(creature) do
+    type = creature[:type]
+
+    fill_missing(creature, %{
+      population_status: "wild",
+      diet: creature_diet(type),
+      ecological_role: creature_ecological_role(type),
+      economic_uses: creature_economic_uses(type),
+      seasonal_pattern:
+        "Range, breeding, feeding, and encounters change with snow cover, migration, prey, and the local growing season."
+    })
+  end
+
+  defp creature_diet("Fish") do
+    "Aquatic invertebrates, smaller fish, and available organic matter."
+  end
+
+  defp creature_diet("Insect") do
+    "Nectar, plants, carrion, or smaller creatures according to species."
+  end
+
+  defp creature_diet(_type) do
+    "Plants, prey, carrion, or gathered food suited to its recorded habitat."
+  end
+
+  defp creature_ecological_role("Fish") do
+    "Aquatic consumer and prey within rivers, lakes, or coastal food webs."
+  end
+
+  defp creature_ecological_role(_type) do
+    "Predator, grazer, scavenger, pollinator, or prey within its recorded habitat."
+  end
+
+  defp creature_economic_uses("Fish") do
+    "Food, bait, oil, or trade where harvest is practical."
+  end
+
+  defp creature_economic_uses(_type) do
+    "Meat, hide, ingredients, protection, or hazard control where customary."
+  end
+
+  defp default_continent_area("Tamriel") do
+    12_000_000
+  end
+
+  defp default_continent_area("Akavir") do
+    15_000_000
+  end
+
+  defp default_continent_area("Atmora") do
+    4_000_000
+  end
+
+  defp default_continent_area("Yokuda") do
+    1_400_000
+  end
+
+  defp default_continent_area("Pyandonea") do
+    1_100_000
+  end
+
+  defp default_continent_area("Thras") do
+    180_000
+  end
+
+  defp default_continent_area(_name) do
+    900_000
+  end
+
+  defp decimal_number(nil, fallback) do
+    fallback
+  end
+
+  defp decimal_number(%Decimal{} = value, _fallback) do
+    Decimal.to_float(value)
+  end
+
+  defp decimal_number(value, _fallback) when is_number(value) do
+    value
+  end
+
+  defp decimal_number(value, _fallback) do
+    value |> Decimal.new() |> Decimal.to_float()
+  end
+
+  defp fill_missing(record, defaults) do
+    Enum.reduce(defaults, record, fn {key, value}, enriched ->
+      if Map.get(enriched, key) in [nil, ""] do
+        Map.put(enriched, key, value)
+      else
+        enriched
+      end
+    end)
   end
 
   defp snapshot do
@@ -332,7 +716,7 @@ defmodule AncientStones.Templates.Skyrim do
         currency:
           currency(
             "Aldmeri Stars",
-            "Rare star-cut electrum pieces preserved as heirlooms rather than common coin.",
+            "Rare star-cut electrum heirlooms kept in temple treasuries and noble collections.",
             "1.20"
           ),
         provinces: []

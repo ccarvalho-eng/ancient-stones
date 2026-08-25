@@ -313,17 +313,36 @@ defmodule AncientStones.Worlds.WorldGuide do
   end
 
   defp card(entity) do
-    %{
+    entity
+    |> Map.take([
+      :terrain,
+      :climate,
+      :climate_zone,
+      :moisture_regime,
+      :elevation_profile,
+      :geology,
+      :watershed,
+      :area_km2,
+      :latitude,
+      :longitude,
+      :mean_winter_temperature_c,
+      :mean_summer_temperature_c,
+      :annual_precipitation_mm,
+      :frost_free_days
+    ])
+    |> Map.merge(%{
       name: Map.get(entity, :name) || "Untitled",
       description: Map.get(entity, :description) || Map.get(entity, :notes)
-    }
+    })
   end
 
   defp location_card(location) do
     %{
       name: location.name,
       description: location.description,
-      detail: loaded_name(location.water_body)
+      detail: loaded_name(location.water_body),
+      latitude: location.latitude,
+      longitude: location.longitude
     }
   end
 
@@ -339,6 +358,16 @@ defmodule AncientStones.Worlds.WorldGuide do
       axial_tilt_degrees: world.axial_tilt_degrees,
       day_length_hours: world.day_length_hours,
       mean_radius_km: world.mean_radius_km,
+      mass_earths: world.mass_earths,
+      surface_gravity_m_s2: world.surface_gravity_m_s2,
+      orbital_distance_au: world.orbital_distance_au,
+      orbital_eccentricity: world.orbital_eccentricity,
+      atmospheric_pressure_atm: world.atmospheric_pressure_atm,
+      bond_albedo: world.bond_albedo,
+      ocean_fraction: world.ocean_fraction,
+      star_mass_solar: world.star_mass_solar,
+      star_luminosity_solar: world.star_luminosity_solar,
+      star_temperature_k: world.star_temperature_k,
       map_projection: world.map_projection
     }
   end
@@ -361,7 +390,20 @@ defmodule AncientStones.Worlds.WorldGuide do
 
       %{
         name: Map.get(office, :office) || Map.get(office, :title) || "Office",
-        holder: holder && holder.name
+        holder: holder && holder.name,
+        detail:
+          [
+            holder && holder.name,
+            office.selection_method,
+            office.term_started_year && "from year #{office.term_started_year}"
+          ]
+          |> Enum.reject(&is_nil/1)
+          |> Enum.join(" - "),
+        description: office.succession_rule || office.description,
+        selection_method: office.selection_method,
+        succession_rule: office.succession_rule,
+        term_started_year: office.term_started_year,
+        term_length_years: office.term_length_years
       }
     end)
   end

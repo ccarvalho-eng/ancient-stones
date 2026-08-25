@@ -1242,6 +1242,20 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end)
   end
 
+  def handle_event("create_moon", %{"moon" => params}, socket) do
+    create_and_reload(socket, fn ->
+      Worlds.create_moon(socket.assigns.world, params)
+    end)
+  end
+
+  def handle_event("delete_moon", %{"id" => id}, socket) do
+    delete_and_reload(socket, fn ->
+      with {:ok, moon} <- get_moon_in_world(socket, id) do
+        Worlds.delete_moon(moon)
+      end
+    end)
+  end
+
   def handle_event("show_action", %{"action" => action}, socket) do
     expanded_action =
       if socket.assigns.expanded_action == action do
@@ -2065,6 +2079,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:skill_options, option_list(skills))
     |> assign(:spell_options, option_list(spells))
     |> assign(:timeline_options, option_list(timelines))
+    |> assign(:moon_options, option_list(world.moons))
     |> assign(:timeline_era_options, option_list(timeline_eras))
     |> assign(:timeline_event_options, option_list(timeline_events))
     |> assign(:selected_timeline_era_options, selected_timeline_era_options)
@@ -2376,6 +2391,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         "weekday_names" => indexed_weekday_names(List.duplicate("", 7))
       })
     )
+    |> assign(:moon_form, data_form(:moon))
     |> assign(:civilization_form, data_form(:civilization, %{"timeline_era_id" => nil}))
     |> assign(:timeline_form, data_form(:timeline))
     |> assign(
@@ -2976,6 +2992,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp get_calendar_in_world(socket, calendar_id) do
     get_record_in_options(socket.assigns.calendar_options, calendar_id, &Worlds.get_calendar!/1)
+  end
+
+  defp get_moon_in_world(socket, moon_id) do
+    get_record_in_options(socket.assigns.moon_options, moon_id, &Worlds.get_moon!/1)
   end
 
   defp get_timeline_in_world(socket, timeline_id) do
@@ -3773,16 +3793,31 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp province_form_attrs(province, _continent_id) do
-    %{
-      "continent_id" => province.continent_id,
-      "name" => province.name,
-      "terrain" => province.terrain,
-      "climate" => province.climate,
-      "map_x" => province.map_x,
-      "map_y" => province.map_y,
-      "visibility" => province.visibility,
-      "description" => province.description
-    }
+    province
+    |> Map.from_struct()
+    |> Map.take([
+      :continent_id,
+      :name,
+      :terrain,
+      :climate,
+      :map_x,
+      :map_y,
+      :visibility,
+      :climate_zone,
+      :moisture_regime,
+      :elevation_profile,
+      :geology,
+      :watershed,
+      :area_km2,
+      :latitude,
+      :longitude,
+      :mean_winter_temperature_c,
+      :mean_summer_temperature_c,
+      :annual_precipitation_mm,
+      :frost_free_days,
+      :description
+    ])
+    |> string_keys()
   end
 
   defp hold_form_attrs(nil, _selected_province, province_id) do
@@ -3790,17 +3825,32 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp hold_form_attrs(hold, selected_province, _province_id) do
-    %{
-      "province_id" => hold.province_id,
-      "name" => hold.name,
-      "terrain" => hold.terrain,
-      "climate" => hold.climate,
-      "map_x" => hold.map_x,
-      "map_y" => hold.map_y,
-      "visibility" => hold.visibility,
-      "description" => hold.description,
-      "province_capital" => to_string(province_capital_hold?(selected_province, hold))
-    }
+    hold
+    |> Map.from_struct()
+    |> Map.take([
+      :province_id,
+      :name,
+      :terrain,
+      :climate,
+      :map_x,
+      :map_y,
+      :visibility,
+      :climate_zone,
+      :moisture_regime,
+      :elevation_profile,
+      :geology,
+      :watershed,
+      :area_km2,
+      :latitude,
+      :longitude,
+      :mean_winter_temperature_c,
+      :mean_summer_temperature_c,
+      :annual_precipitation_mm,
+      :frost_free_days,
+      :description
+    ])
+    |> string_keys()
+    |> Map.put("province_capital", to_string(province_capital_hold?(selected_province, hold)))
   end
 
   defp guild_membership_form_attrs(membership, guild \\ nil)
@@ -4000,6 +4050,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "description" => location.description,
       "map_x" => location.map_x,
       "map_y" => location.map_y,
+      "latitude" => location.latitude,
+      "longitude" => location.longitude,
       "visibility" => location.visibility,
       "location_type_id" => location.location_type_id,
       "capital" => to_string(selected_hold && selected_hold.capital_location_id == location.id)
@@ -4021,7 +4073,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         |> indexed_weekday_names(),
       "era" => calendar.era,
       "year_start_angle" => calendar.year_start_angle,
-      "perihelion_day" => calendar.perihelion_day
+      "perihelion_day" => calendar.perihelion_day,
+      "intercalation_interval_years" => calendar.intercalation_interval_years,
+      "intercalary_days" => calendar.intercalary_days,
+      "intercalation_rule" => calendar.intercalation_rule
     }
   end
 
@@ -4241,6 +4296,11 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "habitat" => creature.habitat,
       "temperament" => creature.temperament,
       "danger_level" => creature.danger_level,
+      "population_status" => creature.population_status,
+      "diet" => creature.diet,
+      "ecological_role" => creature.ecological_role,
+      "economic_uses" => creature.economic_uses,
+      "seasonal_pattern" => creature.seasonal_pattern,
       "description" => creature.description
     }
   end
@@ -4508,6 +4568,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "character_id" => selected_record_id(political_office.character),
       "office" => political_office.office,
       "politics" => political_office.politics,
+      "selection_method" => political_office.selection_method,
+      "succession_rule" => political_office.succession_rule,
+      "term_started_year" => political_office.term_started_year,
+      "term_length_years" => political_office.term_length_years,
       "description" => political_office.description
     }
   end
@@ -5495,6 +5559,46 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     to_string(value)
   end
 
+  defp geographic_coordinate_label(%{latitude: nil, longitude: nil}) do
+    "None"
+  end
+
+  defp geographic_coordinate_label(record) do
+    "#{display_value(record.latitude)}°, #{display_value(record.longitude)}°"
+  end
+
+  defp area_km2_label(nil) do
+    "None"
+  end
+
+  defp area_km2_label(area_km2) do
+    "#{area_km2} km²"
+  end
+
+  defp temperature_label(nil) do
+    "None"
+  end
+
+  defp temperature_label(temperature) do
+    "#{temperature} °C"
+  end
+
+  defp precipitation_label(nil) do
+    "None"
+  end
+
+  defp precipitation_label(millimetres) do
+    "#{millimetres} mm"
+  end
+
+  defp days_label(nil) do
+    "None"
+  end
+
+  defp days_label(days) do
+    "#{days} days"
+  end
+
   defp calendar_days_label(nil) do
     "None"
   end
@@ -5533,6 +5637,26 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp calendar_day_label(day) do
     "Day #{day}"
+  end
+
+  defp intercalation_label(%{
+         intercalation_interval_years: interval,
+         intercalary_days: days
+       })
+       when is_integer(interval) and is_integer(days) do
+    "+#{days} #{pluralized_unit(days, "day")} every #{interval} #{pluralized_unit(interval, "year")}"
+  end
+
+  defp intercalation_label(_calendar) do
+    "None"
+  end
+
+  defp pluralized_unit(1, unit) do
+    unit
+  end
+
+  defp pluralized_unit(_count, unit) do
+    "#{unit}s"
   end
 
   defp calendar_degrees_label(nil) do
@@ -6325,7 +6449,16 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp household_form_attrs(household, _locations, _characters) do
     household
     |> Map.from_struct()
-    |> Map.take([:name, :household_type, :status, :home_location_id, :description])
+    |> Map.take([
+      :name,
+      :household_type,
+      :status,
+      :home_location_id,
+      :resident_count,
+      :dependent_count,
+      :servant_count,
+      :description
+    ])
     |> string_keys()
   end
 
@@ -6801,6 +6934,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
             </div>
             <p class="text-xs text-zinc-500">
               {record_name(office.character)} / {display_value(office.politics)}
+            </p>
+            <p :if={office.selection_method} class="mt-0.5 text-xs text-zinc-500">
+              {office.selection_method}
             </p>
           </.link>
           <button

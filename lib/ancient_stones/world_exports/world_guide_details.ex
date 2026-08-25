@@ -15,6 +15,7 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
   alias AncientStones.Worlds.Item
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LoreConnection
+  alias AncientStones.Worlds.Moon
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillTree
@@ -34,6 +35,7 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
       documents: documents(world_id),
       connections: connections(world_id),
       maps: maps(world_id),
+      moons: moons(world_id),
       skill_trees: skill_trees(world_id),
       skills: skills(world_id),
       spells: spells(world_id),
@@ -218,6 +220,24 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
     end)
   end
 
+  defp moons(world_id) do
+    Moon
+    |> world_records(world_id)
+    |> Enum.map(fn moon ->
+      %{
+        name: moon.name,
+        description: moon.description,
+        orbital_period_days: moon.orbital_period_days,
+        semi_major_axis_km: moon.semi_major_axis_km,
+        mean_radius_km: moon.mean_radius_km,
+        mass_lunar: moon.mass_lunar,
+        orbital_eccentricity: moon.orbital_eccentricity,
+        inclination_degrees: moon.inclination_degrees,
+        tidal_role: moon.tidal_role
+      }
+    end)
+  end
+
   defp skill_trees(world_id) do
     SkillTree
     |> world_records(world_id)
@@ -298,6 +318,11 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
         habitat: creature.habitat,
         temperament: creature.temperament,
         danger_level: creature.danger_level,
+        population_status: creature.population_status,
+        diet: creature.diet,
+        ecological_role: creature.ecological_role,
+        economic_uses: creature.economic_uses,
+        seasonal_pattern: creature.seasonal_pattern,
         locations:
           Enum.map(creature.creature_locations, fn relation ->
             record(entity_name(relation.location), relation.presence, relation.description)
@@ -323,6 +348,9 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
         weekday_names: calendar.weekday_names,
         year_start_angle: calendar.year_start_angle,
         perihelion_day: calendar.perihelion_day,
+        intercalation_interval_years: calendar.intercalation_interval_years,
+        intercalary_days: calendar.intercalary_days,
+        intercalation_rule: calendar.intercalation_rule,
         months:
           calendar.months
           |> Enum.sort_by(& &1.position)
@@ -378,6 +406,8 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
       description: location.description,
       type: entity_name(location.location_type),
       hold: entity_name(location.hold),
+      latitude: location.latitude,
+      longitude: location.longitude,
       province: entity_name(location.hold.province),
       continent: entity_name(location.hold.province.continent),
       visibility: location.visibility,
@@ -462,6 +492,9 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
       description: household.description,
       household_type: household.household_type,
       status: household.status,
+      resident_count: household.resident_count,
+      dependent_count: household.dependent_count,
+      servant_count: household.servant_count,
       home_location: entity_name(household.home_location),
       memberships:
         household.memberships
@@ -623,6 +656,11 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
 
   defp measure(nil, _unit) do
     nil
+  end
+
+  defp measure(%Decimal{} = value, unit) do
+    value = value |> Decimal.normalize() |> Decimal.to_string(:normal)
+    "#{value} #{unit}"
   end
 
   defp measure(value, unit) do

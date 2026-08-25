@@ -459,6 +459,83 @@ defmodule AncientStonesWeb.WorldLive.Index do
                           tooltip="Projection used by the world's primary map."
                         />
                       </div>
+                      <details
+                        id="world-advanced-physical-data"
+                        class="stone-border rounded-md border"
+                      >
+                        <summary class="stone-heading cursor-pointer px-3 py-2 text-sm font-semibold">
+                          Advanced physical data
+                        </summary>
+                        <div class="stone-border space-y-3 border-t p-3">
+                          <div class="grid gap-3">
+                            <.input
+                              field={@world_form[:mass_earths]}
+                              type="number"
+                              label="Mass (Earths)"
+                              step="0.00001"
+                            />
+                            <.input
+                              field={@world_form[:surface_gravity_m_s2]}
+                              type="number"
+                              label="Gravity (m/s²)"
+                              step="0.0001"
+                            />
+                            <.input
+                              field={@world_form[:atmospheric_pressure_atm]}
+                              type="number"
+                              label="Pressure (atm)"
+                              step="0.0001"
+                            />
+                            <.input
+                              field={@world_form[:ocean_fraction]}
+                              type="number"
+                              label="Ocean Fraction"
+                              step="0.00001"
+                              min="0"
+                              max="1"
+                            />
+                            <.input
+                              field={@world_form[:bond_albedo]}
+                              type="number"
+                              label="Bond Albedo"
+                              step="0.00001"
+                              min="0"
+                              max="1"
+                            />
+                          </div>
+                          <div class="grid gap-3">
+                            <.input
+                              field={@world_form[:orbital_distance_au]}
+                              type="number"
+                              label="Orbit (AU)"
+                              step="0.000001"
+                            />
+                            <.input
+                              field={@world_form[:orbital_eccentricity]}
+                              type="number"
+                              label="Eccentricity"
+                              step="0.000001"
+                            />
+                            <.input
+                              field={@world_form[:star_mass_solar]}
+                              type="number"
+                              label="Star Mass (Suns)"
+                              step="0.00001"
+                            />
+                            <.input
+                              field={@world_form[:star_luminosity_solar]}
+                              type="number"
+                              label="Star Luminosity (Suns)"
+                              step="0.00001"
+                            />
+                            <.input
+                              field={@world_form[:star_temperature_k]}
+                              type="number"
+                              label="Star Temperature (K)"
+                            />
+                          </div>
+                        </div>
+                      </details>
                     </div>
                     <.button
                       id={
@@ -717,6 +794,16 @@ defmodule AncientStonesWeb.WorldLive.Index do
       "axial_tilt_degrees" => "",
       "day_length_hours" => "",
       "mean_radius_km" => "",
+      "mass_earths" => "",
+      "surface_gravity_m_s2" => "",
+      "orbital_distance_au" => "",
+      "orbital_eccentricity" => "",
+      "atmospheric_pressure_atm" => "",
+      "bond_albedo" => "",
+      "ocean_fraction" => "",
+      "star_mass_solar" => "",
+      "star_luminosity_solar" => "",
+      "star_temperature_k" => "",
       "map_projection" => ""
     }
     |> to_form(as: :world)
@@ -737,6 +824,16 @@ defmodule AncientStonesWeb.WorldLive.Index do
       "axial_tilt_degrees" => world.axial_tilt_degrees,
       "day_length_hours" => world.day_length_hours,
       "mean_radius_km" => world.mean_radius_km,
+      "mass_earths" => world.mass_earths,
+      "surface_gravity_m_s2" => world.surface_gravity_m_s2,
+      "orbital_distance_au" => world.orbital_distance_au,
+      "orbital_eccentricity" => world.orbital_eccentricity,
+      "atmospheric_pressure_atm" => world.atmospheric_pressure_atm,
+      "bond_albedo" => world.bond_albedo,
+      "ocean_fraction" => world.ocean_fraction,
+      "star_mass_solar" => world.star_mass_solar,
+      "star_luminosity_solar" => world.star_luminosity_solar,
+      "star_temperature_k" => world.star_temperature_k,
       "map_projection" => world.map_projection,
       "template_galaxy" => nil
     }

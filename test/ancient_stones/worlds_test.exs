@@ -205,9 +205,35 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(dashboard.creature_types, &(&1.name == "Dragon"))
     assert Enum.any?(dashboard.creatures, &(&1.name == "Frost Troll"))
     assert dashboard.galaxy.name == "Mundus"
-    assert is_nil(dashboard.primary_star_name)
-    assert is_nil(dashboard.orbital_period_days)
-    assert is_nil(dashboard.axial_tilt_degrees)
+    assert dashboard.primary_star_name == "Magnus"
+    assert dashboard.orbital_period_days == 365
+    assert Decimal.equal?(dashboard.axial_tilt_degrees, Decimal.new("23.5"))
+    assert Decimal.equal?(dashboard.mass_earths, Decimal.new("1.0"))
+    assert Decimal.equal?(dashboard.surface_gravity_m_s2, Decimal.new("9.81"))
+    assert Decimal.equal?(dashboard.orbital_distance_au, Decimal.new("1.0"))
+    assert Decimal.equal?(dashboard.ocean_fraction, Decimal.new("0.71"))
+    assert dashboard.star_temperature_k == 5_772
+    assert Enum.map(dashboard.moons, & &1.name) |> Enum.sort() == ["Masser", "Secunda"]
+
+    assert Enum.all?(all_provinces, fn province ->
+             province.area_km2 && province.latitude && province.longitude &&
+               province.mean_winter_temperature_c && province.mean_summer_temperature_c &&
+               province.annual_precipitation_mm && province.frost_free_days
+           end)
+
+    assert Enum.all?(all_holds, fn hold ->
+             hold.area_km2 && hold.latitude && hold.longitude &&
+               hold.mean_winter_temperature_c && hold.mean_summer_temperature_c &&
+               hold.annual_precipitation_mm && hold.frost_free_days
+           end)
+
+    assert Enum.all?(all_locations, &(&1.latitude && &1.longitude))
+
+    assert Enum.all?(continent.calendars, fn calendar ->
+             calendar.intercalation_interval_years && calendar.intercalary_days &&
+               calendar.intercalation_rule
+           end)
+
     assert Enum.any?(dashboard.civilizations, &(&1.name == "Dwemer"))
     assert length(dashboard.characters) == 50
     assert Enum.any?(dashboard.documents, &(&1.title == "The Book of the Dragonborn"))
@@ -260,7 +286,17 @@ defmodule AncientStones.WorldsTest do
     households = Worlds.list_households(world)
     assert length(households) == 6
     assert Enum.sum(Enum.map(households, &length(&1.memberships))) == 6
+    assert Enum.all?(households, &(&1.resident_count && &1.dependent_count && &1.servant_count))
     assert length(Worlds.list_landholdings(world)) == 6
+
+    assert Enum.all?(dashboard.political_offices, fn office ->
+             office.selection_method && office.succession_rule && office.term_started_year
+           end)
+
+    assert Enum.all?(dashboard.creatures, fn creature ->
+             creature.population_status && creature.diet && creature.ecological_role &&
+               creature.economic_uses && creature.seasonal_pattern
+           end)
 
     ventures = Worlds.list_commercial_ventures(world)
     assert length(ventures) == 5

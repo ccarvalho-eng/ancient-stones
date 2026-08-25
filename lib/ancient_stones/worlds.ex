@@ -44,6 +44,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.Landholding
+  alias AncientStones.Worlds.Moon
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Province
@@ -188,6 +189,7 @@ defmodule AncientStones.Worlds do
       effects: [],
       items: [item_effects: [:effect]],
       location_types: [:children],
+      moons: [],
       occupations: [],
       political_offices: [:character, :continent, :province, :hold],
       races: [:traits, civilization_races: [:civilization]],
@@ -1289,6 +1291,37 @@ defmodule AncientStones.Worlds do
 
   def delete_creature_location(%CreatureLocation{} = creature_location) do
     Repo.delete(creature_location)
+  end
+
+  def list_moons(%World{id: world_id}) do
+    Moon
+    |> where([moon], moon.world_id == ^world_id)
+    |> order_by([moon], asc: moon.name)
+    |> Repo.all()
+  end
+
+  def get_moon!(id) do
+    Repo.get!(Moon, id)
+  end
+
+  def change_moon(%Moon{} = moon, attrs \\ %{}) do
+    Moon.changeset(moon, attrs)
+  end
+
+  def create_moon(%World{id: world_id}, attrs) do
+    %Moon{world_id: world_id}
+    |> Moon.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_moon(%Moon{} = moon, attrs) do
+    moon
+    |> Moon.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_moon(%Moon{} = moon) do
+    Repo.delete(moon)
   end
 
   def create_spell(%World{id: world_id}, attrs) do
@@ -3515,6 +3548,16 @@ defmodule AncientStones.Worlds do
       :axial_tilt_degrees,
       :day_length_hours,
       :mean_radius_km,
+      :mass_earths,
+      :surface_gravity_m_s2,
+      :orbital_distance_au,
+      :orbital_eccentricity,
+      :atmospheric_pressure_atm,
+      :bond_albedo,
+      :ocean_fraction,
+      :star_mass_solar,
+      :star_luminosity_solar,
+      :star_temperature_k,
       :map_projection
     ])
     |> Map.merge(attrs)
@@ -3535,6 +3578,34 @@ defmodule AncientStones.Worlds do
     )
     |> maybe_put_attr(:day_length_hours, attrs[:day_length_hours] || attrs["day_length_hours"])
     |> maybe_put_attr(:mean_radius_km, attrs[:mean_radius_km] || attrs["mean_radius_km"])
+    |> maybe_put_attr(:mass_earths, attrs[:mass_earths] || attrs["mass_earths"])
+    |> maybe_put_attr(
+      :surface_gravity_m_s2,
+      attrs[:surface_gravity_m_s2] || attrs["surface_gravity_m_s2"]
+    )
+    |> maybe_put_attr(
+      :orbital_distance_au,
+      attrs[:orbital_distance_au] || attrs["orbital_distance_au"]
+    )
+    |> maybe_put_attr(
+      :orbital_eccentricity,
+      attrs[:orbital_eccentricity] || attrs["orbital_eccentricity"]
+    )
+    |> maybe_put_attr(
+      :atmospheric_pressure_atm,
+      attrs[:atmospheric_pressure_atm] || attrs["atmospheric_pressure_atm"]
+    )
+    |> maybe_put_attr(:bond_albedo, attrs[:bond_albedo] || attrs["bond_albedo"])
+    |> maybe_put_attr(:ocean_fraction, attrs[:ocean_fraction] || attrs["ocean_fraction"])
+    |> maybe_put_attr(:star_mass_solar, attrs[:star_mass_solar] || attrs["star_mass_solar"])
+    |> maybe_put_attr(
+      :star_luminosity_solar,
+      attrs[:star_luminosity_solar] || attrs["star_luminosity_solar"]
+    )
+    |> maybe_put_attr(
+      :star_temperature_k,
+      attrs[:star_temperature_k] || attrs["star_temperature_k"]
+    )
     |> maybe_put_attr(:map_projection, attrs[:map_projection] || attrs["map_projection"])
   end
 
@@ -3564,6 +3635,8 @@ defmodule AncientStones.Worlds do
       Map.get(template_data, :creatures, []),
       creature_type_by_name
     )
+
+    build_template_moons!(world, Map.get(template_data, :moons, []))
 
     god_by_name = build_template_gods!(world, Map.get(template_data, :gods, []))
     build_template_spells!(world, Map.get(template_data, :spells, []))
@@ -3671,6 +3744,8 @@ defmodule AncientStones.Worlds do
       Map.get(template_data, :creatures, []),
       creature_type_by_name
     )
+
+    build_template_moons!(world, Map.get(template_data, :moons, []))
 
     god_by_name = build_template_gods!(world, Map.get(template_data, :gods, []))
     build_template_spells!(world, Map.get(template_data, :spells, []))
@@ -3863,6 +3938,14 @@ defmodule AncientStones.Worlds do
 
       world
       |> create_creature(creature_data, creature_type: creature_type)
+      |> unwrap_transaction!()
+    end
+  end
+
+  defp build_template_moons!(world, moons) do
+    for moon_data <- moons do
+      world
+      |> create_moon(moon_data)
       |> unwrap_transaction!()
     end
   end

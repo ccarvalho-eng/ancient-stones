@@ -21,6 +21,8 @@ defmodule AncientStones.Worlds.Creature do
     {"Territorial", "territorial"}
   ]
 
+  @population_statuses [:wild, :domestic, :managed, :feral]
+
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
   schema "creatures" do
@@ -29,6 +31,11 @@ defmodule AncientStones.Worlds.Creature do
     field :temperament, :string
     field :danger_level, :string
     field :description, :string
+    field :population_status, Ecto.Enum, values: @population_statuses
+    field :diet, :string
+    field :ecological_role, :string
+    field :economic_uses, :string
+    field :seasonal_pattern, :string
 
     belongs_to(:world, World)
     belongs_to(:creature_type, CreatureType)
@@ -40,12 +47,24 @@ defmodule AncientStones.Worlds.Creature do
 
   def changeset(creature, attrs) do
     creature
-    |> cast(attrs, [:name, :habitat, :temperament, :danger_level, :description])
+    |> cast(attrs, [
+      :name,
+      :habitat,
+      :temperament,
+      :danger_level,
+      :population_status,
+      :diet,
+      :ecological_role,
+      :economic_uses,
+      :seasonal_pattern,
+      :description
+    ])
     |> validate_required([:name, :world_id])
     |> validate_inclusion(:temperament, option_values(@temperament_options))
     |> validate_inclusion(:danger_level, option_values(@danger_level_options))
     |> foreign_key_constraint(:world_id)
     |> foreign_key_constraint(:creature_type_id)
+    |> check_constraint(:population_status, name: :creatures_population_status_check)
     |> unique_constraint(:name, name: :creatures_world_id_name_index)
   end
 
@@ -55,6 +74,12 @@ defmodule AncientStones.Worlds.Creature do
 
   def danger_level_options do
     @danger_level_options
+  end
+
+  def population_status_options do
+    Enum.map(@population_statuses, fn status ->
+      {status |> Atom.to_string() |> String.capitalize(), status}
+    end)
   end
 
   defp option_values(options) do

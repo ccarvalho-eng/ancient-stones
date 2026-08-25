@@ -15,6 +15,10 @@ defmodule AncientStones.Worlds.PoliticalOffice do
     field :scope, :string
     field :politics, :string
     field :description, :string
+    field :selection_method, :string
+    field :succession_rule, :string
+    field :term_started_year, :integer
+    field :term_length_years, :integer
 
     belongs_to(:world, World)
     belongs_to(:continent, Continent)
@@ -27,10 +31,20 @@ defmodule AncientStones.Worlds.PoliticalOffice do
 
   def changeset(political_office, attrs) do
     political_office
-    |> cast(attrs, [:office, :scope, :politics, :description])
+    |> cast(attrs, [
+      :office,
+      :scope,
+      :politics,
+      :selection_method,
+      :succession_rule,
+      :term_started_year,
+      :term_length_years,
+      :description
+    ])
     |> validate_required([:office, :scope, :world_id])
     |> validate_inclusion(:scope, ["continent", "province", "hold"])
     |> validate_high_king_scope()
+    |> validate_number(:term_length_years, greater_than: 0)
     |> foreign_key_constraint(:world_id)
     |> foreign_key_constraint(:continent_id)
     |> foreign_key_constraint(:province_id)
@@ -40,6 +54,7 @@ defmodule AncientStones.Worlds.PoliticalOffice do
     |> unique_constraint(:office, name: :political_offices_continent_id_office_index)
     |> unique_constraint(:office, name: :political_offices_province_id_office_index)
     |> unique_constraint(:office, name: :political_offices_hold_id_office_index)
+    |> check_constraint(:term_length_years, name: :political_offices_term_length_positive)
   end
 
   defp validate_high_king_scope(changeset) do

@@ -15,6 +15,9 @@ defmodule AncientStones.Worlds.Calendar do
     field :era, :string
     field :year_start_angle, :decimal
     field :perihelion_day, :integer
+    field :intercalation_interval_years, :integer
+    field :intercalary_days, :integer
+    field :intercalation_rule, :string
 
     belongs_to(:continent, Continent)
     has_many(:months, CalendarMonth)
@@ -31,7 +34,10 @@ defmodule AncientStones.Worlds.Calendar do
       :weekday_names,
       :era,
       :year_start_angle,
-      :perihelion_day
+      :perihelion_day,
+      :intercalation_interval_years,
+      :intercalary_days,
+      :intercalation_rule
     ])
     |> update_change(:weekday_names, &normalize_weekday_names/1)
     |> validate_required([:name, :continent_id])
@@ -39,12 +45,43 @@ defmodule AncientStones.Worlds.Calendar do
     |> validate_weekday_names()
     |> validate_number(:year_start_angle, greater_than_or_equal_to: 0, less_than: 360)
     |> validate_number(:perihelion_day, greater_than: 0)
+    |> validate_number(:intercalation_interval_years, greater_than: 0)
+    |> validate_number(:intercalary_days, greater_than: 0)
+    |> validate_intercalation()
     |> foreign_key_constraint(:continent_id)
     |> check_constraint(:weekday_names,
       name: :calendars_weekday_names_count_matches_days_per_week,
       message: "must contain exactly one name for each day of the week"
     )
+    |> check_constraint(:intercalation_interval_years,
+      name: :calendars_intercalation_complete,
+      message: "must be set together with intercalary days"
+    )
     |> unique_constraint(:name, name: :calendars_continent_id_name_index)
+  end
+
+  defp validate_intercalation(changeset) do
+    interval = get_field(changeset, :intercalation_interval_years)
+    days = get_field(changeset, :intercalary_days)
+
+    cond do
+      interval && is_nil(days) ->
+        add_error(
+          changeset,
+          :intercalary_days,
+          "is required when an intercalation interval is set"
+        )
+
+      days && is_nil(interval) ->
+        add_error(
+          changeset,
+          :intercalation_interval_years,
+          "is required when intercalary days are set"
+        )
+
+      true ->
+        changeset
+    end
   end
 
   defp normalize_weekday_names(nil) do

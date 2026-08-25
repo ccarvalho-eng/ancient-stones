@@ -18,6 +18,19 @@ defmodule AncientStonesWeb.WorldLive.NewTest do
              "#world-form [title='Planet tilt in degrees. Earth is about 23.5 degrees.']"
            )
 
+    assert has_element?(view, "#new-world-advanced-physical-data:not([open])")
+
+    assert has_element?(
+             view,
+             "#new-world-advanced-physical-data #world_star_mass_solar"
+           )
+
+    assert has_element?(
+             view,
+             "#new-world-advanced-physical-data #world_star_luminosity_solar"
+           )
+
+    assert has_element?(view, "#new-world-advanced-physical-data #world_star_temperature_k")
     assert has_element?(view, "#create-world-button")
   end
 

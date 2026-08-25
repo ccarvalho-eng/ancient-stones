@@ -195,6 +195,26 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
                   prompt="Not recorded"
                   options={@character_options}
                 />
+                <div class="grid grid-cols-3 gap-2">
+                  <.input
+                    field={@household_form[:resident_count]}
+                    type="number"
+                    label="Residents"
+                    min="1"
+                  />
+                  <.input
+                    field={@household_form[:dependent_count]}
+                    type="number"
+                    label="Dependents"
+                    min="0"
+                  />
+                  <.input
+                    field={@household_form[:servant_count]}
+                    type="number"
+                    label="Servants"
+                    min="0"
+                  />
+                </div>
                 <.input
                   field={@household_form[:description]}
                   type="textarea"
@@ -367,7 +387,10 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
           {"Character", humanize(@household.household_type)},
           {"Usual residence", record_name(@household.home_location, "Not located")},
           {"Status", humanize(@household.status)},
-          {"Recorded members", length(@household.memberships)}
+          {"Recorded members", length(@household.memberships)},
+          {"Estimated residents", @household.resident_count},
+          {"Dependents", @household.dependent_count},
+          {"Servants", @household.servant_count}
         ]} />
         <.membership_list
           memberships={@household.memberships}

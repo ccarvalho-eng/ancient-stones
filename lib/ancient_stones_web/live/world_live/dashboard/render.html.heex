@@ -759,6 +759,31 @@
                       value={visibility_label(@selected_path.province.visibility)}
                       icon={visibility_icon(@selected_path.province.visibility)}
                     />
+                    <.detail
+                      label="Area"
+                      value={area_km2_label(@selected_path.province.area_km2)}
+                    />
+                    <.detail
+                      label="Position"
+                      value={geographic_coordinate_label(@selected_path.province)}
+                      icon="hero-globe-alt"
+                    />
+                    <.detail
+                      label="Winter Mean"
+                      value={temperature_label(@selected_path.province.mean_winter_temperature_c)}
+                    />
+                    <.detail
+                      label="Summer Mean"
+                      value={temperature_label(@selected_path.province.mean_summer_temperature_c)}
+                    />
+                    <.detail
+                      label="Annual Moisture"
+                      value={precipitation_label(@selected_path.province.annual_precipitation_mm)}
+                    />
+                    <.detail
+                      label="Frost-free Season"
+                      value={days_label(@selected_path.province.frost_free_days)}
+                    />
                   </div>
 
                   <.political_office_group
@@ -832,6 +857,28 @@
                       label="Visibility"
                       value={visibility_label(@selected_hold.visibility)}
                       icon={visibility_icon(@selected_hold.visibility)}
+                    />
+                    <.detail label="Area" value={area_km2_label(@selected_hold.area_km2)} />
+                    <.detail
+                      label="Position"
+                      value={geographic_coordinate_label(@selected_hold)}
+                      icon="hero-globe-alt"
+                    />
+                    <.detail
+                      label="Winter Mean"
+                      value={temperature_label(@selected_hold.mean_winter_temperature_c)}
+                    />
+                    <.detail
+                      label="Summer Mean"
+                      value={temperature_label(@selected_hold.mean_summer_temperature_c)}
+                    />
+                    <.detail
+                      label="Annual Moisture"
+                      value={precipitation_label(@selected_hold.annual_precipitation_mm)}
+                    />
+                    <.detail
+                      label="Frost-free Season"
+                      value={days_label(@selected_hold.frost_free_days)}
                     />
                   </div>
 
@@ -1031,6 +1078,11 @@
                       label="Visibility"
                       value={visibility_label(@selected_location.visibility)}
                       icon={visibility_icon(@selected_location.visibility)}
+                    />
+                    <.detail
+                      label="Position"
+                      value={geographic_coordinate_label(@selected_location)}
+                      icon="hero-globe-alt"
                     />
                   </div>
 
@@ -1249,6 +1301,58 @@
                     type="textarea"
                     label="Description"
                   />
+                  <div class="grid grid-cols-3 gap-2">
+                    <.input field={@province_form[:area_km2]} type="number" label="Area (km²)" />
+                    <.input
+                      field={@province_form[:latitude]}
+                      type="number"
+                      label="Latitude"
+                      step="0.000001"
+                    />
+                    <.input
+                      field={@province_form[:longitude]}
+                      type="number"
+                      label="Longitude"
+                      step="0.000001"
+                    />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input
+                      field={@province_form[:mean_winter_temperature_c]}
+                      type="number"
+                      label="Winter Mean (°C)"
+                      step="0.01"
+                    />
+                    <.input
+                      field={@province_form[:mean_summer_temperature_c]}
+                      type="number"
+                      label="Summer Mean (°C)"
+                      step="0.01"
+                    />
+                    <.input
+                      field={@province_form[:annual_precipitation_mm]}
+                      type="number"
+                      label="Rain/Snow (mm)"
+                    />
+                    <.input
+                      field={@province_form[:frost_free_days]}
+                      type="number"
+                      label="Frost-free Days"
+                    />
+                  </div>
+                  <.input field={@province_form[:climate_zone]} type="text" label="Climate Zone" />
+                  <.input
+                    field={@province_form[:moisture_regime]}
+                    type="text"
+                    label="Moisture Regime"
+                  />
+                  <.input
+                    field={@province_form[:elevation_profile]}
+                    type="text"
+                    label="Elevation Profile"
+                  />
+                  <.input field={@province_form[:geology]} type="text" label="Geology" />
+                  <.input field={@province_form[:watershed]} type="text" label="Watershed" />
                   <div class="grid grid-cols-2 gap-2">
                     <.input field={@province_form[:map_x]} type="number" label="Map X" />
                     <.input field={@province_form[:map_y]} type="number" label="Map Y" />
@@ -1300,6 +1404,58 @@
                     options={Geography.climate_options()}
                   />
                   <.input field={@hold_form[:description]} type="textarea" label="Description" />
+                  <div class="grid grid-cols-3 gap-2">
+                    <.input field={@hold_form[:area_km2]} type="number" label="Area (km²)" />
+                    <.input
+                      field={@hold_form[:latitude]}
+                      type="number"
+                      label="Latitude"
+                      step="0.000001"
+                    />
+                    <.input
+                      field={@hold_form[:longitude]}
+                      type="number"
+                      label="Longitude"
+                      step="0.000001"
+                    />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input
+                      field={@hold_form[:mean_winter_temperature_c]}
+                      type="number"
+                      label="Winter Mean (°C)"
+                      step="0.01"
+                    />
+                    <.input
+                      field={@hold_form[:mean_summer_temperature_c]}
+                      type="number"
+                      label="Summer Mean (°C)"
+                      step="0.01"
+                    />
+                    <.input
+                      field={@hold_form[:annual_precipitation_mm]}
+                      type="number"
+                      label="Rain/Snow (mm)"
+                    />
+                    <.input
+                      field={@hold_form[:frost_free_days]}
+                      type="number"
+                      label="Frost-free Days"
+                    />
+                  </div>
+                  <.input field={@hold_form[:climate_zone]} type="text" label="Climate Zone" />
+                  <.input
+                    field={@hold_form[:moisture_regime]}
+                    type="text"
+                    label="Moisture Regime"
+                  />
+                  <.input
+                    field={@hold_form[:elevation_profile]}
+                    type="text"
+                    label="Elevation Profile"
+                  />
+                  <.input field={@hold_form[:geology]} type="text" label="Geology" />
+                  <.input field={@hold_form[:watershed]} type="text" label="Watershed" />
                   <div class="grid grid-cols-2 gap-2">
                     <.input field={@hold_form[:map_x]} type="number" label="Map X" />
                     <.input field={@hold_form[:map_y]} type="number" label="Map Y" />
@@ -1419,6 +1575,18 @@
                   <div class="grid grid-cols-2 gap-2">
                     <.input field={@location_form[:map_x]} type="number" label="Map X" />
                     <.input field={@location_form[:map_y]} type="number" label="Map Y" />
+                    <.input
+                      field={@location_form[:latitude]}
+                      type="number"
+                      label="Latitude"
+                      step="0.000001"
+                    />
+                    <.input
+                      field={@location_form[:longitude]}
+                      type="number"
+                      label="Longitude"
+                      step="0.000001"
+                    />
                   </div>
                   <.input
                     field={@location_form[:visibility]}
@@ -1465,6 +1633,18 @@
                   <div class="grid grid-cols-2 gap-2">
                     <.input field={@location_edit_form[:map_x]} type="number" label="Map X" />
                     <.input field={@location_edit_form[:map_y]} type="number" label="Map Y" />
+                    <.input
+                      field={@location_edit_form[:latitude]}
+                      type="number"
+                      label="Latitude"
+                      step="0.000001"
+                    />
+                    <.input
+                      field={@location_edit_form[:longitude]}
+                      type="number"
+                      label="Longitude"
+                      step="0.000001"
+                    />
                   </div>
                   <.input
                     field={@location_edit_form[:visibility]}
@@ -1582,6 +1762,28 @@
                     label="Politics"
                   />
                   <.input
+                    field={@political_office_form[:selection_method]}
+                    type="text"
+                    label="Selection Method"
+                  />
+                  <.input
+                    field={@political_office_form[:succession_rule]}
+                    type="textarea"
+                    label="Succession Rule"
+                  />
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input
+                      field={@political_office_form[:term_started_year]}
+                      type="number"
+                      label="Term Began"
+                    />
+                    <.input
+                      field={@political_office_form[:term_length_years]}
+                      type="number"
+                      label="Term Years"
+                    />
+                  </div>
+                  <.input
                     field={@political_office_form[:description]}
                     type="textarea"
                     label="Description"
@@ -1629,6 +1831,28 @@
                     type="text"
                     label="Politics"
                   />
+                  <.input
+                    field={@political_office_edit_form[:selection_method]}
+                    type="text"
+                    label="Selection Method"
+                  />
+                  <.input
+                    field={@political_office_edit_form[:succession_rule]}
+                    type="textarea"
+                    label="Succession Rule"
+                  />
+                  <div class="grid grid-cols-2 gap-2">
+                    <.input
+                      field={@political_office_edit_form[:term_started_year]}
+                      type="number"
+                      label="Term Began"
+                    />
+                    <.input
+                      field={@political_office_edit_form[:term_length_years]}
+                      type="number"
+                      label="Term Years"
+                    />
+                  </div>
                   <.input
                     field={@political_office_edit_form[:description]}
                     type="textarea"
@@ -6423,6 +6647,23 @@
                         label="Temperament"
                         value={display_value(@selected_creature.temperament)}
                       />
+                      <.detail
+                        label="Population"
+                        value={display_value(@selected_creature.population_status)}
+                      />
+                      <.detail label="Diet" value={display_value(@selected_creature.diet)} />
+                      <.detail
+                        label="Ecological Role"
+                        value={display_value(@selected_creature.ecological_role)}
+                      />
+                      <.detail
+                        label="Human Uses"
+                        value={display_value(@selected_creature.economic_uses)}
+                      />
+                      <.detail
+                        label="Seasonal Pattern"
+                        value={display_value(@selected_creature.seasonal_pattern)}
+                      />
                     </div>
 
                     <div class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
@@ -6537,6 +6778,29 @@
                         options={AncientStones.Worlds.Creature.danger_level_options()}
                       />
                       <.input
+                        field={@creature_form[:population_status]}
+                        type="select"
+                        label="Population"
+                        prompt="Not recorded"
+                        options={AncientStones.Worlds.Creature.population_status_options()}
+                      />
+                      <.input field={@creature_form[:diet]} type="text" label="Diet" />
+                      <.input
+                        field={@creature_form[:ecological_role]}
+                        type="text"
+                        label="Ecological Role"
+                      />
+                      <.input
+                        field={@creature_form[:economic_uses]}
+                        type="text"
+                        label="Human Uses"
+                      />
+                      <.input
+                        field={@creature_form[:seasonal_pattern]}
+                        type="textarea"
+                        label="Seasonal Pattern"
+                      />
+                      <.input
                         field={@creature_form[:description]}
                         type="textarea"
                         label="Description"
@@ -6587,6 +6851,29 @@
                         label="Danger"
                         prompt="None"
                         options={AncientStones.Worlds.Creature.danger_level_options()}
+                      />
+                      <.input
+                        field={@creature_edit_form[:population_status]}
+                        type="select"
+                        label="Population"
+                        prompt="Not recorded"
+                        options={AncientStones.Worlds.Creature.population_status_options()}
+                      />
+                      <.input field={@creature_edit_form[:diet]} type="text" label="Diet" />
+                      <.input
+                        field={@creature_edit_form[:ecological_role]}
+                        type="text"
+                        label="Ecological Role"
+                      />
+                      <.input
+                        field={@creature_edit_form[:economic_uses]}
+                        type="text"
+                        label="Human Uses"
+                      />
+                      <.input
+                        field={@creature_edit_form[:seasonal_pattern]}
+                        type="textarea"
+                        label="Seasonal Pattern"
                       />
                       <.input
                         field={@creature_edit_form[:description]}
@@ -6809,6 +7096,43 @@
                     </button>
                   </div>
                 </div>
+                <div id="moon-list" class="border-t border-zinc-200 p-3">
+                  <p class="text-[11px] font-semibold uppercase text-zinc-500">Moons</p>
+                  <div class="mt-2 space-y-2">
+                    <p :if={@world.moons == []} class="text-sm text-zinc-500">
+                      No moons recorded.
+                    </p>
+                    <article
+                      :for={moon <- sorted(@world.moons)}
+                      id={"moon-#{moon.id}"}
+                      class="rounded border border-zinc-200 bg-zinc-50 p-2"
+                    >
+                      <div class="flex items-start justify-between gap-2">
+                        <div>
+                          <p class="text-sm font-semibold text-zinc-800">{moon.name}</p>
+                          <p class="mt-1 text-xs text-zinc-500">
+                            {display_value(moon.orbital_period_days)} days · {display_value(
+                              moon.semi_major_axis_km
+                            )} km
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          phx-click="delete_moon"
+                          phx-value-id={moon.id}
+                          data-confirm={"Delete #{moon.name}?"}
+                          class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200"
+                          aria-label={"Delete #{moon.name}"}
+                        >
+                          <.icon name="hero-trash" class="size-4" />
+                        </button>
+                      </div>
+                      <p class="mt-2 text-xs leading-5 text-zinc-600">
+                        {moon.description || moon.tidal_role || "No description yet."}
+                      </p>
+                    </article>
+                  </div>
+                </div>
               </section>
 
               <main class="overflow-hidden rounded-md border border-zinc-200 bg-white">
@@ -6895,6 +7219,10 @@
                       <.detail
                         label="Axial Tilt"
                         value={calendar_degrees_label(@world.axial_tilt_degrees)}
+                      />
+                      <.detail
+                        label="Intercalation"
+                        value={intercalation_label(@selected_calendar)}
                       />
                     </div>
 
@@ -7007,6 +7335,64 @@
 
                 <div id="calendar-action-list" class="max-h-[800px] overflow-y-auto">
                   <.action_section
+                    action="moon"
+                    expanded_action={@expanded_action}
+                    icon="hero-moon"
+                    title="Add Moon"
+                  >
+                    <.form
+                      for={@moon_form}
+                      id="moon-form"
+                      phx-submit="create_moon"
+                      class="space-y-2"
+                    >
+                      <.input field={@moon_form[:name]} type="text" label="Name" required />
+                      <div class="grid grid-cols-2 gap-2">
+                        <.input
+                          field={@moon_form[:orbital_period_days]}
+                          type="number"
+                          label="Orbit Days"
+                          step="0.00001"
+                        />
+                        <.input
+                          field={@moon_form[:semi_major_axis_km]}
+                          type="number"
+                          label="Orbit Radius (km)"
+                        />
+                        <.input
+                          field={@moon_form[:mean_radius_km]}
+                          type="number"
+                          label="Moon Radius (km)"
+                        />
+                        <.input
+                          field={@moon_form[:mass_lunar]}
+                          type="number"
+                          label="Mass (Lunas)"
+                          step="0.000001"
+                        />
+                        <.input
+                          field={@moon_form[:orbital_eccentricity]}
+                          type="number"
+                          label="Eccentricity"
+                          step="0.000001"
+                        />
+                        <.input
+                          field={@moon_form[:inclination_degrees]}
+                          type="number"
+                          label="Inclination"
+                          step="0.0001"
+                        />
+                      </div>
+                      <.input field={@moon_form[:tidal_role]} type="textarea" label="Tidal Role" />
+                      <.input
+                        field={@moon_form[:description]}
+                        type="textarea"
+                        label="Description"
+                      />
+                      <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">Create</.button>
+                    </.form>
+                  </.action_section>
+                  <.action_section
                     action="calendar"
                     expanded_action={@expanded_action}
                     icon="hero-calendar-days"
@@ -7038,6 +7424,23 @@
                         field={@calendar_form[:perihelion_day]}
                         type="number"
                         label="Perihelion Day"
+                      />
+                      <div class="grid grid-cols-2 gap-2">
+                        <.input
+                          field={@calendar_form[:intercalation_interval_years]}
+                          type="number"
+                          label="Leap Interval (years)"
+                        />
+                        <.input
+                          field={@calendar_form[:intercalary_days]}
+                          type="number"
+                          label="Added Days"
+                        />
+                      </div>
+                      <.input
+                        field={@calendar_form[:intercalation_rule]}
+                        type="textarea"
+                        label="Intercalation Rule"
                       />
                       <.input
                         field={@calendar_form[:description]}
@@ -7082,6 +7485,23 @@
                         field={@calendar_edit_form[:perihelion_day]}
                         type="number"
                         label="Perihelion Day"
+                      />
+                      <div class="grid grid-cols-2 gap-2">
+                        <.input
+                          field={@calendar_edit_form[:intercalation_interval_years]}
+                          type="number"
+                          label="Leap Interval (years)"
+                        />
+                        <.input
+                          field={@calendar_edit_form[:intercalary_days]}
+                          type="number"
+                          label="Added Days"
+                        />
+                      </div>
+                      <.input
+                        field={@calendar_edit_form[:intercalation_rule]}
+                        type="textarea"
+                        label="Intercalation Rule"
                       />
                       <.input
                         field={@calendar_edit_form[:description]}

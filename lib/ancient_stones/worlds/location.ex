@@ -23,6 +23,8 @@ defmodule AncientStones.Worlds.Location do
     field :description, :string
     field :map_x, :integer
     field :map_y, :integer
+    field :latitude, :decimal
+    field :longitude, :decimal
     field :visibility, Ecto.Enum, values: Geography.visibility_values(), default: :known
 
     belongs_to(:hold, Hold)
@@ -48,8 +50,10 @@ defmodule AncientStones.Worlds.Location do
 
   def changeset(location, attrs) do
     location
-    |> cast(attrs, [:name, :description, :map_x, :map_y, :visibility])
+    |> cast(attrs, [:name, :description, :map_x, :map_y, :latitude, :longitude, :visibility])
     |> validate_required([:name, :hold_id, :location_type_id])
+    |> validate_number(:latitude, greater_than_or_equal_to: -90, less_than_or_equal_to: 90)
+    |> validate_number(:longitude, greater_than_or_equal_to: -180, less_than_or_equal_to: 180)
     |> foreign_key_constraint(:hold_id)
     |> foreign_key_constraint(:parent_location_id)
     |> foreign_key_constraint(:location_type_id)
@@ -60,5 +64,6 @@ defmodule AncientStones.Worlds.Location do
       name: :locations_hold_id_map_coordinates_index,
       message: "coordinates already used by another location in this hold"
     )
+    |> check_constraint(:latitude, name: :locations_geographic_coordinates_range)
   end
 end

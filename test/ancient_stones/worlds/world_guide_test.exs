@@ -24,12 +24,35 @@ defmodule AncientStones.Worlds.WorldGuideTest do
                  axial_tilt_degrees: 24.5,
                  day_length_hours: 26,
                  mean_radius_km: 7_112,
+                 mass_earths: 1.04,
+                 surface_gravity_m_s2: 9.86,
+                 orbital_distance_au: 1.02,
+                 orbital_eccentricity: 0.018,
+                 atmospheric_pressure_atm: 1.02,
+                 bond_albedo: 0.30,
+                 ocean_fraction: 0.68,
+                 star_mass_solar: 1.01,
+                 star_luminosity_solar: 1.02,
+                 star_temperature_k: 5_785,
                  map_projection: "Equal Earth"
                },
                galaxy: galaxy
              )
 
+    assert {:ok, _moon} =
+             Worlds.create_moon(world, %{
+               name: "Mani",
+               orbital_period_days: 26.89,
+               semi_major_axis_km: 392_000,
+               mean_radius_km: 1_720,
+               mass_lunar: 0.96,
+               orbital_eccentricity: 0.045,
+               inclination_degrees: 5.2,
+               tidal_role: "Sets the principal coastal tide."
+             })
+
     guide = WorldGuide.load!(world.id)
+    manual = WorldManual.build(guide)
     pdf = WorldGuidePdf.render(guide)
 
     assert guide.world.name == "Aldrun"
@@ -40,10 +63,25 @@ defmodule AncientStones.Worlds.WorldGuideTest do
     assert guide.world.axial_tilt_degrees == Decimal.new("24.5")
     assert guide.world.day_length_hours == Decimal.new("26")
     assert guide.world.mean_radius_km == 7_112
+    assert Decimal.equal?(guide.world.mass_earths, Decimal.new("1.04"))
+    assert Decimal.equal?(guide.world.surface_gravity_m_s2, Decimal.new("9.86"))
+    assert Decimal.equal?(guide.world.orbital_distance_au, Decimal.new("1.02"))
+    assert Decimal.equal?(guide.world.orbital_eccentricity, Decimal.new("0.018"))
+    assert Decimal.equal?(guide.world.atmospheric_pressure_atm, Decimal.new("1.02"))
+    assert Decimal.equal?(guide.world.bond_albedo, Decimal.new("0.3"))
+    assert Decimal.equal?(guide.world.ocean_fraction, Decimal.new("0.68"))
+    assert Decimal.equal?(guide.world.star_mass_solar, Decimal.new("1.01"))
+    assert Decimal.equal?(guide.world.star_luminosity_solar, Decimal.new("1.02"))
+    assert guide.world.star_temperature_k == 5_785
     assert guide.world.map_projection == "Equal Earth"
     assert guide.continents == []
     assert guide.trade_routes == []
     assert guide.tax_policies == []
+
+    assert Enum.find(manual.chapters, &(&1.id == "overview")).facts
+           |> Enum.member?({"Surface gravity", "9.86 m/s²"})
+
+    assert [%{title: "Mani"}] = Enum.find(manual.chapters, &(&1.id == "moons")).records
     assert pdf =~ "%PDF-"
     assert byte_size(pdf) > 1_000
   end
