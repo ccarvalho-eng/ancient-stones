@@ -19,6 +19,7 @@ defmodule AncientStones.WorldExports.WorldManual do
         chapter("guilds", "Guilds", resolved(guide, details, :guilds), &guild_record/1),
         chapter("gods", "Gods", Map.get(details, :gods, []), &god_record/1),
         chapter("people", "People", resolved(guide, details, :characters), &character_record/1),
+        society_chapter(details),
         skills_chapter(details),
         chapter("spells", "Spells", Map.get(details, :spells, []), &spell_record/1),
         chapter("items", "Items", Map.get(details, :items, []), &item_record/1),
@@ -237,6 +238,9 @@ defmodule AncientStones.WorldExports.WorldManual do
       facts([
         {"Race", Map.get(character, :race)},
         {"Status", Map.get(character, :status)},
+        {"Social status", humanize(Map.get(character, :social_status))},
+        {"Life stage", humanize(Map.get(character, :life_stage))},
+        {"Means", humanize(Map.get(character, :wealth_band))},
         {"Home", Map.get(character, :home_location)},
         {"Politics", Map.get(character, :politics)}
       ]),
@@ -247,6 +251,59 @@ defmodule AncientStones.WorldExports.WorldManual do
         {:skills, "Skills"},
         {:spells, "Spellbook"},
         {:inventory, "Inventory"}
+      ])
+    )
+  end
+
+  defp society_chapter(details) do
+    records =
+      section(
+        "Households",
+        Enum.map(Map.get(details, :households, []), &household_record/1)
+      ) ++
+        section(
+          "Personal ties",
+          Enum.map(
+            Map.get(details, :character_relationships, []),
+            &character_relationship_record/1
+          )
+        )
+
+    chapter_from_records("society", "Society", records)
+  end
+
+  defp household_record(household) do
+    record(
+      household.name,
+      join_values([Map.get(household, :household_type), Map.get(household, :status)]),
+      Map.get(household, :description),
+      facts([{"Usual residence", Map.get(household, :home_location)}]),
+      section(
+        "People of the household",
+        Enum.map(Map.get(household, :memberships, []), &simple_record/1)
+      ) ++
+        section(
+          "Tenure and use rights",
+          Enum.map(Map.get(household, :landholdings, []), &simple_record/1)
+        )
+    )
+  end
+
+  defp character_relationship_record(relationship) do
+    record(
+      relationship.name,
+      join_values([
+        Map.get(relationship, :relationship_type),
+        Map.get(relationship, :status)
+      ]),
+      Map.get(relationship, :description),
+      facts([
+        {Map.get(relationship, :character_a) || "First person",
+         Map.get(relationship, :character_a_role)},
+        {Map.get(relationship, :character_b) || "Second person",
+         Map.get(relationship, :character_b_role)},
+        {"Began", Map.get(relationship, :start_date_label)},
+        {"Ended", Map.get(relationship, :end_date_label)}
       ])
     )
   end

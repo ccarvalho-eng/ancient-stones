@@ -291,4 +291,84 @@ defmodule AncientStones.Worlds.WorldGuideTest do
 
     assert connections =~ "The fellowship commissions tools"
   end
+
+  test "exports historical Society records and character social observations" do
+    {:ok, world} = Worlds.create_world(%{name: "Audrun"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tyrven"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Frostgard"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Gronvale"})
+    {:ok, location_type} = Worlds.create_location_type(world, %{name: "Hall"})
+    {:ok, hall} = Worlds.create_location(hold, location_type, %{name: "River Hall"})
+
+    {:ok, first_character} =
+      Worlds.create_character(world, %{
+        name: "Ragna Torvaldsdottir",
+        social_status: :freeholder,
+        life_stage: :adult,
+        wealth_band: :comfortable
+      })
+
+    {:ok, second_character} = Worlds.create_character(world, %{name: "Arne Ragnasson"})
+
+    {:ok, household} =
+      Worlds.create_household(
+        world,
+        %{name: "Ragna's household", household_type: :farmstead},
+        home_location: hall,
+        head_character: first_character
+      )
+
+    {:ok, _membership} =
+      Worlds.create_household_membership(household, second_character, %{
+        role: :child,
+        is_primary: true,
+        description: "Keeps a place at the hall while working the river fields."
+      })
+
+    {:ok, _holding} =
+      Worlds.create_landholding(
+        household,
+        %{
+          name: "River meadow rights",
+          tenure_type: :customary,
+          primary_use: :pasture
+        },
+        location: hall
+      )
+
+    {:ok, _relationship} =
+      Worlds.create_character_relationship(world, first_character, second_character, %{
+        relationship_type: :parent_child,
+        character_a_role: "mother",
+        character_b_role: "son"
+      })
+
+    guide = WorldGuide.load!(world.id)
+    manual = WorldManual.build(guide)
+
+    society = Enum.find(manual.chapters, &(&1.id == "society"))
+    assert inspect(society) =~ "Ragna's household"
+    assert inspect(society) =~ "River meadow rights"
+    assert inspect(society) =~ "mother"
+    assert inspect(society) =~ "Arne Ragnasson"
+
+    people = Enum.find(manual.chapters, &(&1.id == "people"))
+    ragna = Enum.find(people.records, &(&1.title == "Ragna Torvaldsdottir"))
+    assert {"Social status", "freeholder"} in ragna.facts
+    assert {"Life stage", "adult"} in ragna.facts
+    assert {"Means", "comfortable"} in ragna.facts
+
+    epub = WorldGuideEpub.render(guide)
+    assert {:ok, files} = :zip.unzip(epub, [:memory])
+
+    assert {~c"EPUB/society.xhtml", society_xhtml} =
+             List.keyfind(files, ~c"EPUB/society.xhtml", 0)
+
+    assert society_xhtml =~ "Ragna&#39;s household"
+    assert society_xhtml =~ "River meadow rights"
+
+    pdf = WorldGuidePdf.render(guide)
+    assert pdf =~ "%PDF-"
+    assert byte_size(pdf) > 1_000
+  end
 end
