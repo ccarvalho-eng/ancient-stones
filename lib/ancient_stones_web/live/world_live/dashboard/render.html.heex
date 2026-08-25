@@ -7178,7 +7178,11 @@
         <% end %>
       <% end %>
     </div>
-    <details id="world-export-menu" class="group fixed right-5 bottom-5 z-[100]">
+    <details
+      id="world-export-menu"
+      class="group fixed right-5 bottom-5 z-[100]"
+      phx-click-away={JS.remove_attribute("open", to: "#world-export-menu")}
+    >
       <summary
         id="world-export-toggle"
         class="stone-button flex cursor-pointer list-none items-center gap-2 rounded-md border px-4 py-2.5 text-sm font-semibold shadow-lg transition hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2"
