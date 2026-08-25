@@ -14,6 +14,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.CharacterInventoryCategory
   alias AncientStones.Worlds.CharacterInventoryItem
   alias AncientStones.Worlds.CharacterOccupation
+  alias AncientStones.Worlds.CharacterRelationship
   alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.CharacterSkill
   alias AncientStones.Worlds.CharacterSpellbookEntry
@@ -33,10 +34,13 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.GuildMembership
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.HoldCommerceEntry
+  alias AncientStones.Worlds.Household
+  alias AncientStones.Worlds.HouseholdMembership
   alias AncientStones.Worlds.Item
   alias AncientStones.Worlds.ItemEffect
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
+  alias AncientStones.Worlds.Landholding
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Province
@@ -240,6 +244,9 @@ defmodule AncientStones.Worlds do
       province_ids = province_ids_for_continents(continent_ids)
       hold_ids = hold_ids_for_provinces(province_ids)
 
+      delete_landholdings_for_world(world_id)
+      delete_character_relationships_for_world(world_id)
+      delete_household_memberships_for_world(world_id)
       delete_locations_for_holds(hold_ids)
       delete_location_types_for_world(world_id)
       delete_holds_by_ids(hold_ids)
@@ -464,18 +471,22 @@ defmodule AncientStones.Worlds do
 
   @doc "Deletes a continent and all nested provinces, holds, and locations."
   def delete_continent(%Continent{id: continent_id} = continent) do
-    Repo.transaction(fn ->
-      province_ids = province_ids_for_continents([continent_id])
-      hold_ids = hold_ids_for_provinces(province_ids)
+    province_ids = province_ids_for_continents([continent_id])
+    hold_ids = hold_ids_for_provinces(province_ids)
 
-      delete_locations_for_holds(hold_ids)
-      delete_holds_by_ids(hold_ids)
-      delete_provinces_by_ids(province_ids)
+    if landholdings_for_hold_ids?(hold_ids) do
+      {:error, :geography_has_landholdings}
+    else
+      Repo.transaction(fn ->
+        delete_locations_for_holds(hold_ids)
+        delete_holds_by_ids(hold_ids)
+        delete_provinces_by_ids(province_ids)
 
-      continent
-      |> Repo.delete()
-      |> unwrap_transaction!()
-    end)
+        continent
+        |> Repo.delete()
+        |> unwrap_transaction!()
+      end)
+    end
   end
 
   def list_provinces(%Continent{id: continent_id}) do
@@ -508,16 +519,20 @@ defmodule AncientStones.Worlds do
 
   @doc "Deletes a province and all nested holds and locations."
   def delete_province(%Province{id: province_id} = province) do
-    Repo.transaction(fn ->
-      hold_ids = hold_ids_for_provinces([province_id])
+    hold_ids = hold_ids_for_provinces([province_id])
 
-      delete_locations_for_holds(hold_ids)
-      delete_holds_by_ids(hold_ids)
+    if landholdings_for_hold_ids?(hold_ids) do
+      {:error, :geography_has_landholdings}
+    else
+      Repo.transaction(fn ->
+        delete_locations_for_holds(hold_ids)
+        delete_holds_by_ids(hold_ids)
 
-      province
-      |> Repo.delete()
-      |> unwrap_transaction!()
-    end)
+        province
+        |> Repo.delete()
+        |> unwrap_transaction!()
+      end)
+    end
   end
 
   def list_holds(%Province{id: province_id}) do
@@ -564,13 +579,17 @@ defmodule AncientStones.Worlds do
 
   @doc "Deletes a hold and all locations inside it."
   def delete_hold(%Hold{id: hold_id} = hold) do
-    Repo.transaction(fn ->
-      delete_locations_for_holds([hold_id])
+    if landholdings_for_hold_ids?([hold_id]) do
+      {:error, :geography_has_landholdings}
+    else
+      Repo.transaction(fn ->
+        delete_locations_for_holds([hold_id])
 
-      hold
-      |> Repo.delete()
-      |> unwrap_transaction!()
-    end)
+        hold
+        |> Repo.delete()
+        |> unwrap_transaction!()
+      end)
+    end
   end
 
   def list_guilds(%World{id: world_id}) do
@@ -846,6 +865,302 @@ defmodule AncientStones.Worlds do
     end)
   end
 
+  @doc "Lists households in a world without expanding the main dashboard preload."
+  def list_households(%World{id: world_id}, search \\ "") do
+    Household
+    |> where([household], household.world_id == ^world_id)
+    |> maybe_search_households(search)
+    |> order_by([household], asc: household.name)
+    |> Repo.all()
+    |> Repo.preload(household_preloads())
+  end
+
+  def get_household!(%World{id: world_id}, id) do
+    Household
+    |> where([household], household.world_id == ^world_id and household.id == ^id)
+    |> Repo.one!()
+    |> Repo.preload(household_preloads())
+  end
+
+  def get_household(%World{}, id) when id in [nil, ""], do: nil
+
+  def get_household(%World{id: world_id}, id) do
+    Household
+    |> where([household], household.world_id == ^world_id and household.id == ^id)
+    |> Repo.one()
+    |> case do
+      nil -> nil
+      household -> Repo.preload(household, household_preloads())
+    end
+  end
+
+  def change_household(%Household{} = household, attrs \\ %{}) do
+    Household.changeset(household, attrs)
+  end
+
+  def create_household(%World{id: world_id} = world, attrs, refs \\ []) do
+    home_location = Keyword.get(refs, :home_location)
+    head_character = Keyword.get(refs, :head_character)
+
+    with :ok <- validate_optional_location_world(home_location, world_id, :home_location),
+         :ok <- validate_optional_character_world(head_character, world_id) do
+      changeset =
+        %Household{world_id: world_id}
+        |> Household.changeset(attrs)
+        |> put_optional_ref(:home_location_id, home_location)
+
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:household, changeset)
+      |> maybe_add_household_head(head_character)
+      |> Repo.transact()
+      |> case do
+        {:ok, %{household: household}} -> {:ok, get_household!(world, household.id)}
+        {:error, _operation, reason, _changes} -> {:error, reason}
+      end
+    end
+  end
+
+  def update_household(%Household{} = household, attrs, refs \\ []) do
+    home_location = Keyword.get(refs, :home_location)
+
+    with :ok <-
+           validate_optional_location_world(home_location, household.world_id, :home_location) do
+      household
+      |> Household.changeset(attrs)
+      |> put_ref(:home_location_id, home_location)
+      |> Repo.update()
+    end
+  end
+
+  def delete_household(%Household{id: household_id} = household) do
+    if Repo.exists?(from holding in Landholding, where: holding.household_id == ^household_id) do
+      {:error, :household_has_landholdings}
+    else
+      Repo.delete(household)
+    end
+  end
+
+  def create_household_membership(
+        %Household{} = household,
+        %Character{} = character,
+        attrs
+      ) do
+    with :ok <- validate_character_world(character, household.world_id) do
+      %HouseholdMembership{household_id: household.id, character_id: character.id}
+      |> HouseholdMembership.changeset(attrs)
+      |> Repo.insert()
+    end
+  end
+
+  def list_household_memberships(%Household{id: household_id}) do
+    HouseholdMembership
+    |> where([membership], membership.household_id == ^household_id)
+    |> order_by([membership], desc: membership.is_primary, asc: membership.inserted_at)
+    |> Repo.all()
+    |> Repo.preload([:character, household: [:home_location]])
+  end
+
+  def get_household_membership!(%World{id: world_id}, id) do
+    HouseholdMembership
+    |> join(:inner, [membership], household in assoc(membership, :household))
+    |> where([membership, household], membership.id == ^id and household.world_id == ^world_id)
+    |> Repo.one!()
+    |> Repo.preload([:character, household: [:home_location]])
+  end
+
+  def change_household_membership(%HouseholdMembership{} = membership, attrs \\ %{}) do
+    HouseholdMembership.changeset(membership, attrs)
+  end
+
+  def update_household_membership(%HouseholdMembership{} = membership, attrs) do
+    membership
+    |> HouseholdMembership.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_household_membership(%HouseholdMembership{} = membership) do
+    Repo.delete(membership)
+  end
+
+  @doc "Lists kinship, marriage, fosterage, and guardianship ties for one world."
+  def list_character_relationships(%World{id: world_id}, search \\ "") do
+    CharacterRelationship
+    |> where([relationship], relationship.world_id == ^world_id)
+    |> join(:inner, [relationship], character_a in assoc(relationship, :character_a))
+    |> join(
+      :inner,
+      [relationship, _character_a],
+      character_b in assoc(relationship, :character_b)
+    )
+    |> maybe_search_character_relationships(search)
+    |> order_by([relationship, character_a, character_b],
+      asc: character_a.name,
+      asc: character_b.name
+    )
+    |> preload([_relationship, character_a, character_b],
+      character_a: character_a,
+      character_b: character_b
+    )
+    |> Repo.all()
+  end
+
+  def get_character_relationship!(%World{id: world_id}, id) do
+    CharacterRelationship
+    |> where([relationship], relationship.world_id == ^world_id and relationship.id == ^id)
+    |> Repo.one!()
+    |> Repo.preload([:character_a, :character_b])
+  end
+
+  def change_character_relationship(%CharacterRelationship{} = relationship, attrs \\ %{}) do
+    CharacterRelationship.changeset(relationship, attrs)
+  end
+
+  def create_character_relationship(
+        %World{id: world_id},
+        %Character{} = character_a,
+        %Character{} = character_b,
+        attrs
+      ) do
+    with :ok <- validate_character_world(character_a, world_id),
+         :ok <- validate_character_world(character_b, world_id),
+         :ok <- validate_distinct_characters(character_a, character_b) do
+      {canonical_a, canonical_b, canonical_attrs} =
+        canonical_relationship(character_a, character_b, default_relationship_roles(attrs))
+
+      %CharacterRelationship{
+        world_id: world_id,
+        character_a_id: canonical_a.id,
+        character_b_id: canonical_b.id
+      }
+      |> CharacterRelationship.changeset(canonical_attrs)
+      |> Repo.insert()
+    end
+  end
+
+  def update_character_relationship(%CharacterRelationship{} = relationship, attrs) do
+    relationship
+    |> CharacterRelationship.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def update_character_relationship(
+        %CharacterRelationship{} = relationship,
+        %Character{} = character_a,
+        %Character{} = character_b,
+        attrs
+      ) do
+    with :ok <- validate_character_world(character_a, relationship.world_id),
+         :ok <- validate_character_world(character_b, relationship.world_id),
+         :ok <- validate_distinct_characters(character_a, character_b) do
+      {canonical_a, canonical_b, canonical_attrs} =
+        canonical_relationship(character_a, character_b, default_relationship_roles(attrs))
+
+      relationship
+      |> CharacterRelationship.changeset(canonical_attrs)
+      |> Ecto.Changeset.put_change(:character_a_id, canonical_a.id)
+      |> Ecto.Changeset.put_change(:character_b_id, canonical_b.id)
+      |> Repo.update()
+    end
+  end
+
+  def delete_character_relationship(%CharacterRelationship{} = relationship) do
+    Repo.delete(relationship)
+  end
+
+  @doc "Lists household tenure and use records within one world."
+  def list_landholdings(%World{id: world_id}, search \\ "") do
+    Landholding
+    |> join(:inner, [holding], household in assoc(holding, :household))
+    |> where([_holding, household], household.world_id == ^world_id)
+    |> maybe_search_landholdings(search)
+    |> order_by([holding, household], asc: household.name, asc: holding.name)
+    |> Repo.all()
+    |> Repo.preload([:hold, :location, household: [:home_location]])
+  end
+
+  def get_landholding!(%World{id: world_id}, id) do
+    Landholding
+    |> join(:inner, [holding], household in assoc(holding, :household))
+    |> where([holding, household], holding.id == ^id and household.world_id == ^world_id)
+    |> Repo.one!()
+    |> Repo.preload([:hold, :location, household: [:home_location]])
+  end
+
+  def change_landholding(%Landholding{} = landholding, attrs \\ %{}) do
+    Landholding.changeset(landholding, attrs)
+  end
+
+  def create_landholding(%Household{} = household, attrs, refs) do
+    hold = Keyword.get(refs, :hold)
+    location = Keyword.get(refs, :location)
+
+    with :ok <- validate_single_landholding_scope(hold, location),
+         :ok <- validate_optional_hold_world(hold, household.world_id),
+         :ok <- validate_optional_location_world(location, household.world_id, :landholding) do
+      %Landholding{
+        household_id: household.id,
+        hold_id: ref_id(hold),
+        location_id: ref_id(location)
+      }
+      |> Landholding.changeset(attrs)
+      |> Repo.insert()
+    end
+  end
+
+  def update_landholding(%Landholding{} = holding, attrs, refs) do
+    household = Repo.get!(Household, holding.household_id)
+    hold = Keyword.get(refs, :hold)
+    location = Keyword.get(refs, :location)
+
+    with :ok <- validate_single_landholding_scope(hold, location),
+         :ok <- validate_optional_hold_world(hold, household.world_id),
+         :ok <- validate_optional_location_world(location, household.world_id, :landholding) do
+      holding
+      |> Landholding.changeset(attrs)
+      |> Ecto.Changeset.put_change(:hold_id, ref_id(hold))
+      |> Ecto.Changeset.put_change(:location_id, ref_id(location))
+      |> Repo.update()
+    end
+  end
+
+  def delete_landholding(%Landholding{} = landholding) do
+    Repo.delete(landholding)
+  end
+
+  @doc "Loads the household, relationship, and tenure records shown on one character detail."
+  def get_character_society(%World{id: world_id}, %Character{id: character_id}) do
+    memberships =
+      HouseholdMembership
+      |> join(:inner, [membership], household in assoc(membership, :household))
+      |> where(
+        [membership, household],
+        membership.character_id == ^character_id and household.world_id == ^world_id
+      )
+      |> order_by([membership, household], desc: membership.is_primary, asc: household.name)
+      |> Repo.all()
+      |> Repo.preload(household: [:home_location, landholdings: [:hold, :location]])
+
+    relationships =
+      CharacterRelationship
+      |> where(
+        [relationship],
+        relationship.world_id == ^world_id and
+          (relationship.character_a_id == ^character_id or
+             relationship.character_b_id == ^character_id)
+      )
+      |> order_by([relationship], asc: relationship.relationship_type)
+      |> Repo.all()
+      |> Repo.preload([:character_a, :character_b])
+
+    landholdings =
+      memberships
+      |> Enum.flat_map(& &1.household.landholdings)
+      |> Enum.uniq_by(& &1.id)
+      |> Enum.sort_by(& &1.name)
+
+    %{memberships: memberships, relationships: relationships, landholdings: landholdings}
+  end
+
   def create_character_role(%World{id: world_id}, attrs) do
     %CharacterRole{world_id: world_id}
     |> CharacterRole.changeset(attrs)
@@ -995,8 +1310,26 @@ defmodule AncientStones.Worlds do
   end
 
   @doc "Deletes a character from a world."
-  def delete_character(%Character{} = character) do
-    Repo.delete(character)
+  def delete_character(%Character{id: character_id} = character) do
+    membership_exists? =
+      Repo.exists?(
+        from membership in HouseholdMembership,
+          where: membership.character_id == ^character_id
+      )
+
+    relationship_exists? =
+      Repo.exists?(
+        from relationship in CharacterRelationship,
+          where:
+            relationship.character_a_id == ^character_id or
+              relationship.character_b_id == ^character_id
+      )
+
+    if membership_exists? or relationship_exists? do
+      {:error, :character_has_society_history}
+    else
+      Repo.delete(character)
+    end
   end
 
   def create_occupation(%World{id: world_id}, attrs) do
@@ -1772,25 +2105,31 @@ defmodule AncientStones.Worlds do
 
   @doc "Deletes a location type, its child types, and locations using those types."
   def delete_location_type(%LocationType{} = location_type) do
-    Repo.transaction(fn ->
-      location_type_ids = location_type_ids_with_descendants(location_type)
+    location_type_ids = location_type_ids_with_descendants(location_type)
 
+    location_ids =
       Location
       |> where([location], location.location_type_id in ^location_type_ids)
       |> select([location], location.id)
       |> Repo.all()
-      |> clear_capitals_for_locations()
 
-      Location
-      |> where([location], location.location_type_id in ^location_type_ids)
-      |> Repo.delete_all()
+    if landholdings_for_location_ids?(location_ids) do
+      {:error, :geography_has_landholdings}
+    else
+      Repo.transaction(fn ->
+        clear_capitals_for_locations(location_ids)
 
-      LocationType
-      |> where([location_type], location_type.id in ^location_type_ids)
-      |> Repo.delete_all()
+        Location
+        |> where([location], location.location_type_id in ^location_type_ids)
+        |> Repo.delete_all()
 
-      location_type
-    end)
+        LocationType
+        |> where([location_type], location_type.id in ^location_type_ids)
+        |> Repo.delete_all()
+
+        location_type
+      end)
+    end
   end
 
   def list_locations(%Hold{id: hold_id}) do
@@ -1874,17 +2213,21 @@ defmodule AncientStones.Worlds do
 
   @doc "Deletes a location and nested child locations."
   def delete_location(%Location{} = location) do
-    Repo.transaction(fn ->
-      location_ids = location_ids_with_descendants(location)
+    location_ids = location_ids_with_descendants(location)
 
-      clear_capitals_for_locations(location_ids)
+    if landholdings_for_location_ids?(location_ids) do
+      {:error, :geography_has_landholdings}
+    else
+      Repo.transaction(fn ->
+        clear_capitals_for_locations(location_ids)
 
-      Location
-      |> where([location], location.id in ^location_ids)
-      |> Repo.delete_all()
+        Location
+        |> where([location], location.id in ^location_ids)
+        |> Repo.delete_all()
 
-      location
-    end)
+        location
+      end)
+    end
   end
 
   @doc "Creates a nested location inside an existing location while keeping it in the same hold."
@@ -2095,6 +2438,64 @@ defmodule AncientStones.Worlds do
     |> where([hold], hold.province_id in ^province_ids)
     |> select([hold], hold.id)
     |> Repo.all()
+  end
+
+  defp delete_landholdings_for_world(world_id) do
+    household_ids =
+      Household
+      |> where([household], household.world_id == ^world_id)
+      |> select([household], household.id)
+
+    Landholding
+    |> where([holding], holding.household_id in subquery(household_ids))
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  defp delete_character_relationships_for_world(world_id) do
+    CharacterRelationship
+    |> where([relationship], relationship.world_id == ^world_id)
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  defp delete_household_memberships_for_world(world_id) do
+    household_ids =
+      Household
+      |> where([household], household.world_id == ^world_id)
+      |> select([household], household.id)
+
+    HouseholdMembership
+    |> where([membership], membership.household_id in subquery(household_ids))
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  defp landholdings_for_hold_ids?([]), do: false
+
+  defp landholdings_for_hold_ids?(hold_ids) do
+    location_ids =
+      Location
+      |> where([location], location.hold_id in ^hold_ids)
+      |> select([location], location.id)
+
+    Landholding
+    |> where(
+      [holding],
+      holding.hold_id in ^hold_ids or holding.location_id in subquery(location_ids)
+    )
+    |> Repo.exists?()
+  end
+
+  defp landholdings_for_location_ids?([]), do: false
+
+  defp landholdings_for_location_ids?(location_ids) do
+    Landholding
+    |> where([holding], holding.location_id in ^location_ids)
+    |> Repo.exists?()
   end
 
   defp delete_locations_for_holds([]) do
@@ -3274,6 +3675,180 @@ defmodule AncientStones.Worlds do
   defp trade_route_in_world?(id, world_id) do
     TradeRoute
     |> where([route], route.id == ^id and route.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
+  defp household_preloads do
+    [
+      home_location: [:hold],
+      memberships: [:character],
+      landholdings: [:hold, :location]
+    ]
+  end
+
+  defp maybe_search_households(query, search) when search in [nil, ""], do: query
+
+  defp maybe_search_households(query, search) do
+    pattern = "%#{String.trim(search)}%"
+
+    where(
+      query,
+      [household],
+      ilike(household.name, ^pattern) or ilike(household.description, ^pattern)
+    )
+  end
+
+  defp maybe_search_character_relationships(query, search) when search in [nil, ""], do: query
+
+  defp maybe_search_character_relationships(query, search) do
+    pattern = "%#{String.trim(search)}%"
+
+    where(
+      query,
+      [relationship, character_a, character_b],
+      ilike(character_a.name, ^pattern) or ilike(character_b.name, ^pattern) or
+        ilike(relationship.description, ^pattern)
+    )
+  end
+
+  defp maybe_search_landholdings(query, search) when search in [nil, ""], do: query
+
+  defp maybe_search_landholdings(query, search) do
+    pattern = "%#{String.trim(search)}%"
+
+    where(
+      query,
+      [holding, household],
+      ilike(holding.name, ^pattern) or ilike(holding.description, ^pattern) or
+        ilike(household.name, ^pattern)
+    )
+  end
+
+  defp maybe_add_household_head(multi, nil), do: multi
+
+  defp maybe_add_household_head(multi, character) do
+    Ecto.Multi.run(multi, :head_membership, fn repo, %{household: household} ->
+      %HouseholdMembership{household_id: household.id, character_id: character.id}
+      |> HouseholdMembership.changeset(%{role: :head, status: :active, is_primary: true})
+      |> repo.insert()
+    end)
+  end
+
+  defp validate_optional_location_world(nil, _world_id, _kind), do: :ok
+
+  defp validate_optional_location_world(%Location{id: location_id}, world_id, kind) do
+    if location_in_world?(location_id, world_id) do
+      :ok
+    else
+      case kind do
+        :home_location -> {:error, :home_location_outside_world}
+        :landholding -> {:error, :location_outside_world}
+      end
+    end
+  end
+
+  defp validate_optional_hold_world(nil, _world_id), do: :ok
+
+  defp validate_optional_hold_world(%Hold{id: hold_id}, world_id) do
+    if hold_in_world?(hold_id, world_id), do: :ok, else: {:error, :hold_outside_world}
+  end
+
+  defp validate_optional_character_world(nil, _world_id), do: :ok
+
+  defp validate_optional_character_world(%Character{} = character, world_id) do
+    validate_character_world(character, world_id)
+  end
+
+  defp validate_character_world(%Character{world_id: world_id}, world_id), do: :ok
+  defp validate_character_world(%Character{}, _world_id), do: {:error, :character_outside_world}
+
+  defp validate_distinct_characters(%Character{id: id}, %Character{id: id}) do
+    {:error, :relationship_requires_two_characters}
+  end
+
+  defp validate_distinct_characters(%Character{}, %Character{}), do: :ok
+
+  defp canonical_relationship(character_a, character_b, attrs) do
+    attrs = Map.new(attrs, fn {key, value} -> {to_string(key), value} end)
+
+    if character_a.id < character_b.id do
+      {character_a, character_b, attrs}
+    else
+      swapped_attrs =
+        attrs
+        |> Map.put("character_a_role", Map.get(attrs, "character_b_role"))
+        |> Map.put("character_b_role", Map.get(attrs, "character_a_role"))
+
+      {character_b, character_a, swapped_attrs}
+    end
+  end
+
+  defp default_relationship_roles(attrs) do
+    attrs = Map.new(attrs, fn {key, value} -> {to_string(key), value} end)
+
+    {default_a, default_b} =
+      case attrs["relationship_type"] do
+        type when type in [:parent_child, "parent_child"] ->
+          {"parent", "child"}
+
+        type when type in [:siblings, "siblings"] ->
+          {"sibling", "sibling"}
+
+        type when type in [:spouses, "spouses"] ->
+          {"spouse", "spouse"}
+
+        type when type in [:partners, "partners"] ->
+          {"partner", "partner"}
+
+        type when type in [:betrothed, "betrothed"] ->
+          {"betrothed", "betrothed"}
+
+        type when type in [:foster_parent_child, "foster_parent_child"] ->
+          {"foster parent", "foster child"}
+
+        type when type in [:foster_siblings, "foster_siblings"] ->
+          {"foster sibling", "foster sibling"}
+
+        type when type in [:guardian_ward, "guardian_ward"] ->
+          {"guardian", "ward"}
+
+        _type ->
+          {nil, nil}
+      end
+
+    attrs
+    |> put_default_role("character_a_role", default_a)
+    |> put_default_role("character_b_role", default_b)
+  end
+
+  defp put_default_role(attrs, key, default) do
+    if attrs[key] in [nil, ""] do
+      Map.put(attrs, key, default)
+    else
+      attrs
+    end
+  end
+
+  defp validate_single_landholding_scope(nil, nil) do
+    {:error, :landholding_requires_one_geographic_scope}
+  end
+
+  defp validate_single_landholding_scope(%Hold{}, %Location{}) do
+    {:error, :landholding_requires_one_geographic_scope}
+  end
+
+  defp validate_single_landholding_scope(%Hold{}, nil), do: :ok
+  defp validate_single_landholding_scope(nil, %Location{}), do: :ok
+
+  defp location_in_world?(id, world_id) do
+    Location
+    |> join(:inner, [location], hold in assoc(location, :hold))
+    |> join(:inner, [_location, hold], province in assoc(hold, :province))
+    |> join(:inner, [_location, _hold, province], continent in assoc(province, :continent))
+    |> where(
+      [location, _hold, _province, continent],
+      location.id == ^id and continent.world_id == ^world_id
+    )
     |> Repo.exists?()
   end
 

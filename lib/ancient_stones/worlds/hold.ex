@@ -6,6 +6,7 @@ defmodule AncientStones.Worlds.Hold do
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.HoldCommerceEntry
   alias AncientStones.Worlds.Location
+  alias AncientStones.Worlds.Landholding
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Province
 
@@ -28,6 +29,7 @@ defmodule AncientStones.Worlds.Hold do
     belongs_to(:province, Province)
     belongs_to(:capital_location, Location)
     has_many(:locations, Location)
+    has_many(:landholdings, Landholding)
     has_many(:commerce_entries, HoldCommerceEntry)
     has_many(:political_offices, PoliticalOffice)
     has_many(:map_items, MapItem)

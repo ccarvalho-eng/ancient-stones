@@ -49,6 +49,7 @@ defmodule AncientStones.Worlds.TradeFlow do
     |> foreign_key_constraint(:currency_id)
     |> check_constraint(:quantity, name: :trade_flows_quantity_positive)
     |> check_constraint(:declared_value, name: :trade_flows_declared_value_non_negative)
+    |> check_constraint(:frequency, name: :trade_flows_frequency)
     |> unique_constraint(:commodity, name: :trade_flows_trade_route_id_commodity_index)
   end
 
