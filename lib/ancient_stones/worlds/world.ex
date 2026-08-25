@@ -13,6 +13,7 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Galaxies.Galaxy
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
+  alias AncientStones.Worlds.Household
   alias AncientStones.Worlds.Item
   alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.LocationType
@@ -20,6 +21,7 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.LoreConnection
+  alias AncientStones.Worlds.CharacterRelationship
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillTree
   alias AncientStones.Worlds.Spell
@@ -48,6 +50,8 @@ defmodule AncientStones.Worlds.World do
     has_many(:documents, Document)
     has_many(:gods, God)
     has_many(:guilds, Guild)
+    has_many(:households, Household)
+    has_many(:character_relationships, CharacterRelationship)
     has_many(:items, Item)
     has_many(:effects, Effect)
     has_many(:location_types, LocationType)

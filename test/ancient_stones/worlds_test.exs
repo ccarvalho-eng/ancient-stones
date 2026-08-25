@@ -8,9 +8,13 @@ defmodule AncientStones.WorldsTest do
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.Effect
   alias AncientStones.Worlds.Hold
+  alias AncientStones.Worlds.Household
+  alias AncientStones.Worlds.HouseholdMembership
   alias AncientStones.Worlds.ItemEffect
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
+  alias AncientStones.Worlds.CharacterRelationship
+  alias AncientStones.Worlds.Landholding
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.World
 
@@ -663,12 +667,377 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(troll.locations, &(&1.name == "Graywinter Watch"))
   end
 
+  describe "historical society records" do
+    test "creates a household with an optional head in one transaction" do
+      %{world: world, location: location} = society_geography_fixture("Audrun")
+      {:ok, head} = Worlds.create_character(world, %{name: "Ragna Torvaldsdottir"})
+
+      assert {:ok, %Household{} = household} =
+               Worlds.create_household(
+                 world,
+                 %{
+                   name: "Ragna's household",
+                   household_type: :farmstead,
+                   description: "A working farmstead household of kin, dependents, and laborers."
+                 },
+                 home_location: location,
+                 head_character: head
+               )
+
+      household = Worlds.get_household!(world, household.id)
+
+      assert household.home_location.id == location.id
+      assert [%HouseholdMembership{role: :head, is_primary: true}] = household.memberships
+      assert hd(household.memberships).character.id == head.id
+    end
+
+    test "rejects household references from another world without partial writes" do
+      %{world: world} = society_geography_fixture("Audrun")
+      %{location: foreign_location} = society_geography_fixture("Tyrven")
+
+      assert Worlds.create_household(world, %{name: "Foreign hall"},
+               home_location: foreign_location
+             ) == {:error, :home_location_outside_world}
+
+      refute Repo.get_by(Household, name: "Foreign hall")
+    end
+
+    test "allows only one active primary household per character" do
+      %{world: world} = society_geography_fixture("Audrun")
+      {:ok, character} = Worlds.create_character(world, %{name: "Leif Ketilsson"})
+      {:ok, first_household} = Worlds.create_household(world, %{name: "Ketil's farm"})
+      {:ok, second_household} = Worlds.create_household(world, %{name: "Leif's winter lodging"})
+
+      assert {:ok, _membership} =
+               Worlds.create_household_membership(first_household, character, %{
+                 role: :child,
+                 is_primary: true
+               })
+
+      assert {:error, changeset} =
+               Worlds.create_household_membership(second_household, character, %{
+                 role: :guest,
+                 is_primary: true
+               })
+
+      assert %{character_id: [_]} = errors_on(changeset)
+    end
+
+    test "rolls back household creation when the initial head membership fails" do
+      %{world: world} = society_geography_fixture("Audrun")
+      {:ok, character} = Worlds.create_character(world, %{name: "Leif Ketilsson"})
+
+      {:ok, first_household} =
+        Worlds.create_household(world, %{name: "Ketil's farm"}, head_character: character)
+
+      assert {:error, changeset} =
+               Worlds.create_household(
+                 world,
+                 %{name: "Uncommitted winter lodging"},
+                 head_character: character
+               )
+
+      assert %{character_id: [_]} = errors_on(changeset)
+      assert Worlds.get_household!(world, first_household.id)
+      refute Repo.get_by(Household, name: "Uncommitted winter lodging")
+    end
+
+    test "rejects a household member from another world" do
+      %{world: world} = society_geography_fixture("Audrun")
+      %{world: foreign_world} = society_geography_fixture("Tyrven")
+      {:ok, household} = Worlds.create_household(world, %{name: "Ketil's farm"})
+      {:ok, foreign_character} = Worlds.create_character(foreign_world, %{name: "Yrsa"})
+
+      assert Worlds.create_household_membership(household, foreign_character, %{
+               role: :guest
+             }) == {:error, :character_outside_world}
+    end
+
+    test "canonicalizes relationships and rejects self-links and reciprocal duplicates" do
+      %{world: world} = society_geography_fixture("Audrun")
+      {:ok, mother} = Worlds.create_character(world, %{name: "Sigrid Ketilsdottir"})
+      {:ok, son} = Worlds.create_character(world, %{name: "Arne Sigurdsson"})
+
+      assert {:ok, %CharacterRelationship{} = relationship} =
+               Worlds.create_character_relationship(world, mother, son, %{
+                 relationship_type: :parent_child,
+                 character_a_role: "mother",
+                 character_b_role: "son"
+               })
+
+      assert relationship.character_a_id < relationship.character_b_id
+
+      assert {:error, duplicate_changeset} =
+               Worlds.create_character_relationship(world, son, mother, %{
+                 relationship_type: :parent_child,
+                 character_a_role: "son",
+                 character_b_role: "mother"
+               })
+
+      assert %{character_a_id: [_]} = errors_on(duplicate_changeset)
+
+      assert Worlds.create_character_relationship(world, mother, mother, %{
+               relationship_type: :siblings
+             }) == {:error, :relationship_requires_two_characters}
+    end
+
+    test "keeps relationship roles with their people when canonical order swaps" do
+      %{world: world} = society_geography_fixture("Audrun")
+      {:ok, first_character} = Worlds.create_character(world, %{name: "Sigrid"})
+      {:ok, second_character} = Worlds.create_character(world, %{name: "Arne"})
+
+      [canonical_first, canonical_second] =
+        Enum.sort_by([first_character, second_character], & &1.id)
+
+      assert {:ok, relationship} =
+               Worlds.create_character_relationship(
+                 world,
+                 canonical_second,
+                 canonical_first,
+                 %{
+                   relationship_type: :guardian_ward,
+                   character_a_role: "guardian",
+                   character_b_role: "ward"
+                 }
+               )
+
+      assert relationship.character_a_id == canonical_first.id
+      assert relationship.character_a_role == "ward"
+      assert relationship.character_b_id == canonical_second.id
+      assert relationship.character_b_role == "guardian"
+
+      {:ok, third_character} = Worlds.create_character(world, %{name: "Bolli"})
+
+      assert {:ok, inferred} =
+               Worlds.create_character_relationship(
+                 world,
+                 canonical_first,
+                 third_character,
+                 %{relationship_type: :foster_parent_child}
+               )
+
+      roles_by_character = %{
+        inferred.character_a_id => inferred.character_a_role,
+        inferred.character_b_id => inferred.character_b_role
+      }
+
+      assert roles_by_character[canonical_first.id] == "foster parent"
+      assert roles_by_character[third_character.id] == "foster child"
+    end
+
+    test "rejects relationships that cross worlds" do
+      %{world: world} = society_geography_fixture("Audrun")
+      %{world: other_world} = society_geography_fixture("Tyrven")
+      {:ok, local} = Worlds.create_character(world, %{name: "Astrid"})
+      {:ok, foreign} = Worlds.create_character(other_world, %{name: "Yrsa"})
+
+      assert Worlds.create_character_relationship(world, local, foreign, %{
+               relationship_type: :siblings
+             }) == {:error, :character_outside_world}
+    end
+
+    test "records land tenure at exactly one world-scoped geographic level" do
+      %{world: world, hold: hold, location: location} = society_geography_fixture("Audrun")
+      {:ok, household} = Worlds.create_household(world, %{name: "Sten's household"})
+
+      assert {:ok, %Landholding{} = holding} =
+               Worlds.create_landholding(
+                 household,
+                 %{
+                   name: "South meadow rights",
+                   tenure_type: :communal_right,
+                   primary_use: :pasture
+                 },
+                 hold: hold
+               )
+
+      assert holding.hold_id == hold.id
+      assert is_nil(holding.location_id)
+
+      assert Worlds.create_landholding(
+               household,
+               %{name: "Ambiguous holding", tenure_type: :customary},
+               hold: hold,
+               location: location
+             ) == {:error, :landholding_requires_one_geographic_scope}
+    end
+
+    test "rejects foreign geographic scopes when creating or updating tenure" do
+      %{world: world, hold: hold} = society_geography_fixture("Audrun")
+      %{hold: foreign_hold, location: foreign_location} = society_geography_fixture("Tyrven")
+      {:ok, household} = Worlds.create_household(world, %{name: "Sten's household"})
+
+      assert Worlds.create_landholding(
+               household,
+               %{name: "Foreign meadow", tenure_type: :customary},
+               hold: foreign_hold
+             ) == {:error, :hold_outside_world}
+
+      {:ok, holding} =
+        Worlds.create_landholding(
+          household,
+          %{name: "Home meadow", tenure_type: :customary},
+          hold: hold
+        )
+
+      assert Worlds.update_landholding(
+               holding,
+               %{name: "Foreign workshop", tenure_type: :customary},
+               location: foreign_location
+             ) == {:error, :location_outside_world}
+
+      assert Repo.get!(Landholding, holding.id).hold_id == hold.id
+    end
+
+    test "preserves landholding history when a household deletion is attempted" do
+      %{world: world, hold: hold} = society_geography_fixture("Audrun")
+      {:ok, household} = Worlds.create_household(world, %{name: "Ingrid's household"})
+
+      {:ok, _holding} =
+        Worlds.create_landholding(
+          household,
+          %{name: "North field", tenure_type: :allodial, primary_use: :farming},
+          hold: hold
+        )
+
+      assert Worlds.delete_household(household) == {:error, :household_has_landholdings}
+      assert Repo.get(Household, household.id)
+    end
+
+    test "refuses geographic deletion while tenure records still refer to it" do
+      %{
+        world: world,
+        continent: continent,
+        province: province,
+        hold: hold,
+        location_type: location_type,
+        location: location
+      } = society_geography_fixture("Audrun")
+
+      {:ok, household} = Worlds.create_household(world, %{name: "Ingrid's household"})
+
+      {:ok, _holding} =
+        Worlds.create_landholding(
+          household,
+          %{name: "Workshop right", tenure_type: :customary, primary_use: :workshop},
+          location: location
+        )
+
+      assert Worlds.delete_location(location) == {:error, :geography_has_landholdings}
+      assert Worlds.delete_hold(hold) == {:error, :geography_has_landholdings}
+      assert Worlds.delete_province(province) == {:error, :geography_has_landholdings}
+      assert Worlds.delete_continent(continent) == {:error, :geography_has_landholdings}
+
+      assert Worlds.delete_location_type(location_type) ==
+               {:error, :geography_has_landholdings}
+
+      assert Repo.get(Location, location.id)
+      assert Repo.get(Hold, hold.id)
+    end
+
+    test "refuses character deletion while household history refers to the person" do
+      %{world: world} = society_geography_fixture("Audrun")
+      {:ok, character} = Worlds.create_character(world, %{name: "Ingrid"})
+
+      {:ok, household} =
+        Worlds.create_household(world, %{name: "Ingrid's household"}, head_character: character)
+
+      assert Worlds.delete_character(character) == {:error, :character_has_society_history}
+      assert Repo.get(Character, character.id)
+      assert Worlds.get_household!(world, household.id).memberships != []
+    end
+
+    test "refuses character deletion while a personal relationship refers to the person" do
+      %{world: world} = society_geography_fixture("Audrun")
+      {:ok, first_character} = Worlds.create_character(world, %{name: "Ingrid"})
+      {:ok, second_character} = Worlds.create_character(world, %{name: "Ragna"})
+
+      {:ok, relationship} =
+        Worlds.create_character_relationship(world, first_character, second_character, %{
+          relationship_type: :siblings
+        })
+
+      assert Worlds.delete_character(first_character) ==
+               {:error, :character_has_society_history}
+
+      assert Repo.get(Character, first_character.id)
+      assert Repo.get(CharacterRelationship, relationship.id)
+    end
+
+    test "deletes the Society graph in dependency order with its world" do
+      %{world: world, hold: hold} = society_geography_fixture("Audrun")
+      {:ok, character} = Worlds.create_character(world, %{name: "Ingrid"})
+      {:ok, relative} = Worlds.create_character(world, %{name: "Ragna"})
+
+      {:ok, household} =
+        Worlds.create_household(world, %{name: "Ingrid's household"}, head_character: character)
+
+      [membership] = Worlds.list_household_memberships(household)
+
+      {:ok, relationship} =
+        Worlds.create_character_relationship(world, character, relative, %{
+          relationship_type: :siblings
+        })
+
+      {:ok, holding} =
+        Worlds.create_landholding(
+          household,
+          %{name: "North field", tenure_type: :customary, primary_use: :farming},
+          hold: hold
+        )
+
+      assert {:ok, _world} = Worlds.delete_world(world)
+      refute Repo.get(World, world.id)
+      refute Repo.get(Household, household.id)
+      refute Repo.get(HouseholdMembership, membership.id)
+      refute Repo.get(CharacterRelationship, relationship.id)
+      refute Repo.get(Landholding, holding.id)
+    end
+
+    test "stores broad social observations without requiring them for unknown people" do
+      %{world: world} = society_geography_fixture("Audrun")
+
+      assert {:ok, known} =
+               Worlds.create_character(world, %{
+                 name: "Bolli Arnfinnsson",
+                 social_status: :freeholder,
+                 life_stage: :adult,
+                 wealth_band: :comfortable
+               })
+
+      assert known.social_status == :freeholder
+      assert known.life_stage == :adult
+      assert known.wealth_band == :comfortable
+
+      assert {:ok, unknown} = Worlds.create_character(world, %{name: "Unnamed traveler"})
+      assert is_nil(unknown.social_status)
+    end
+  end
+
   defp continent_named(continents, name) when is_list(continents) do
     Enum.find(continents, &(&1.name == name))
   end
 
   defp continent_named(world, name) do
     Enum.find(world.continents, &(&1.name == name))
+  end
+
+  defp society_geography_fixture(world_name) do
+    {:ok, world} = Worlds.create_world(%{name: world_name})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Known Lands"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Frostgard"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Gronvale"})
+    {:ok, type} = Worlds.create_location_type(world, %{name: "Farmstead"})
+    {:ok, location} = Worlds.create_location(hold, type, %{name: "River Farm"})
+
+    %{
+      world: world,
+      continent: continent,
+      province: province,
+      hold: hold,
+      location_type: type,
+      location: location
+    }
   end
 
   defp province_named(continent, name) do

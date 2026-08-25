@@ -11,6 +11,8 @@ defmodule AncientStones.Worlds.Location do
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.LoreConnection
+  alias AncientStones.Worlds.Household
+  alias AncientStones.Worlds.Landholding
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -34,6 +36,8 @@ defmodule AncientStones.Worlds.Location do
     has_many(:source_lore_connections, LoreConnection, foreign_key: :source_location_id)
     has_many(:target_lore_connections, LoreConnection, foreign_key: :target_location_id)
     has_many(:map_items, MapItem)
+    has_many(:households, Household, foreign_key: :home_location_id)
+    has_many(:landholdings, Landholding)
 
     timestamps(type: :utc_datetime)
   end
