@@ -6,6 +6,7 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.Civilization
+  alias AncientStones.Worlds.CommercialVenture
   alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.CreatureType
@@ -26,6 +27,8 @@ defmodule AncientStones.Worlds.World do
   alias AncientStones.Worlds.SkillTree
   alias AncientStones.Worlds.Spell
   alias AncientStones.Worlds.Timeline
+  alias AncientStones.Worlds.TaxPolicy
+  alias AncientStones.Worlds.WaterBody
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -44,6 +47,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:characters, Character)
     has_many(:character_roles, CharacterRole)
     has_many(:civilizations, Civilization)
+    has_many(:commercial_ventures, CommercialVenture)
     has_many(:continents, Continent)
     has_many(:creature_types, CreatureType)
     has_many(:creatures, Creature)
@@ -51,6 +55,18 @@ defmodule AncientStones.Worlds.World do
     has_many(:gods, God)
     has_many(:guilds, Guild)
     has_many(:households, Household)
+
+    has_many(:hold_economic_profiles,
+      through: [:continents, :provinces, :holds, :economic_profile]
+    )
+
+    has_many(:commodity_balances,
+      through: [:continents, :provinces, :holds, :commodity_balances]
+    )
+
+    has_many(:tax_policies, TaxPolicy)
+    has_many(:tax_assessments, through: [:tax_policies, :tax_assessments])
+    has_many(:water_bodies, WaterBody)
     has_many(:character_relationships, CharacterRelationship)
     has_many(:items, Item)
     has_many(:effects, Effect)

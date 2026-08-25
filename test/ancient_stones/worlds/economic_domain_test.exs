@@ -1,7 +1,11 @@
 defmodule AncientStones.Worlds.EconomicDomainTest do
   use AncientStones.DataCase, async: true
 
+  alias AncientStones.Repo
   alias AncientStones.Worlds
+  alias AncientStones.Worlds.CommodityBalance
+  alias AncientStones.Worlds.HoldEconomicProfile
+  alias AncientStones.Worlds.TaxAssessment
   alias AncientStones.Worlds.TaxExemption
   alias AncientStones.Worlds.TaxPolicy
   alias AncientStones.Worlds.TaxRevenueShare
@@ -169,6 +173,153 @@ defmodule AncientStones.Worlds.EconomicDomainTest do
              )
 
     assert "would allocate more than 100%" in errors_on(changeset).percentage
+  end
+
+  test "records world-scoped hold population and resilience estimates" do
+    economy = create_economy("Aldrun")
+    other = create_economy("Veyra")
+
+    assert {:ok, %HoldEconomicProfile{} = profile} =
+             Worlds.create_hold_economic_profile(economy.origin_hold, %{
+               population_estimate: 24_000,
+               household_estimate: 4_900,
+               urban_population_estimate: 3_200,
+               arable_hectares_estimate: "18400",
+               pasture_hectares_estimate: "22100",
+               staple_reserve_months: "3.4",
+               assessment_label: "Late harvest estimate",
+               confidence: :medium
+             })
+
+    assert Enum.map(Worlds.list_hold_economic_profiles(economy.world), & &1.id) == [profile.id]
+    assert Worlds.list_hold_economic_profiles(other.world) == []
+
+    assert {:error, changeset} =
+             Worlds.create_hold_economic_profile(economy.destination_hold, %{
+               population_estimate: 2_000,
+               household_estimate: 400,
+               urban_population_estimate: 2_001,
+               assessment_label: "Impossible estimate"
+             })
+
+    assert "cannot exceed total population" in errors_on(changeset).urban_population_estimate
+  end
+
+  test "derives ordinary and bad-year commodity balances" do
+    economy = create_economy("Aldrun")
+
+    assert {:ok, %CommodityBalance{} = balance} =
+             Worlds.create_commodity_balance(economy.origin_hold, %{
+               commodity: "Rye equivalent",
+               category: "staple food",
+               unit: "tonne",
+               annual_output: "5100",
+               annual_local_need: "4600",
+               stored_reserve: "900",
+               bad_year_output_percentage: "62",
+               storage_loss_percentage: "8"
+             })
+
+    assert Decimal.equal?(CommodityBalance.ordinary_balance(balance), Decimal.new("500"))
+    assert Decimal.equal?(CommodityBalance.bad_year_output(balance), Decimal.new("3162"))
+
+    assert {:error, changeset} =
+             Worlds.create_commodity_balance(economy.destination_hold, %{
+               commodity: "Barley",
+               unit: "tonne",
+               annual_output: "20",
+               annual_local_need: "25",
+               stored_reserve: "4",
+               bad_year_output_percentage: "101",
+               storage_loss_percentage: "4"
+             })
+
+    assert "must be less than or equal to 100" in errors_on(changeset).bad_year_output_percentage
+  end
+
+  test "records tax capacity and rejects a currency from another world" do
+    economy = create_economy("Aldrun")
+    other = create_economy("Veyra")
+    {:ok, policy} = create_policy(economy)
+
+    attrs = %{
+      assessment_period_label: "Common year 312",
+      cash_yield: "8400",
+      in_kind_value: "11600",
+      customary_labor_days: 2_900,
+      confidence: :medium
+    }
+
+    assert {:ok, %TaxAssessment{} = assessment} =
+             Worlds.create_tax_assessment(policy, attrs, %{currency: economy.currency})
+
+    assert Enum.map(Worlds.list_tax_assessments(economy.world), & &1.id) == [assessment.id]
+    assert Worlds.list_tax_assessments(other.world) == []
+
+    assert {:error, changeset} =
+             Worlds.create_tax_assessment(
+               policy,
+               %{attrs | assessment_period_label: "Common year 313"},
+               %{currency: other.currency}
+             )
+
+    assert "does not belong to this world" in errors_on(changeset).currency_id
+  end
+
+  test "loads structured trade and commerce coverage and cascades hold estimates" do
+    economy = create_economy("Aldrun")
+    {:ok, route} = create_route(economy, "Measured Road")
+
+    assert {:ok, flow} =
+             Worlds.create_trade_flow(
+               route,
+               %{
+                 commodity: "Salt",
+                 quantity: "12",
+                 unit: "cart-load",
+                 declared_value: "180",
+                 coverage_scope: :representative_consignment,
+                 quantity_basis: "Ordinary fair-week convoy"
+               },
+               %{currency: economy.currency}
+             )
+
+    assert Worlds.get_trade_flow!(flow.id).coverage_scope == :representative_consignment
+
+    assert {:ok, commerce_entry} =
+             Worlds.create_hold_commerce_entry(economy.origin_hold, %{
+               name: "Market dues",
+               kind: "income",
+               amount: 320,
+               accounting_scope: :treasury_revenue,
+               coverage_scope: :estimated_total
+             })
+
+    assert Worlds.get_hold_commerce_entry!(commerce_entry.id).accounting_scope ==
+             :treasury_revenue
+
+    {:ok, profile} =
+      Worlds.create_hold_economic_profile(economy.origin_hold, %{
+        population_estimate: 1_000,
+        household_estimate: 200,
+        urban_population_estimate: 100,
+        assessment_label: "Estimate"
+      })
+
+    {:ok, balance} =
+      Worlds.create_commodity_balance(economy.origin_hold, %{
+        commodity: "Oats",
+        unit: "tonne",
+        annual_output: 200,
+        annual_local_need: 190,
+        stored_reserve: 30,
+        bad_year_output_percentage: 70,
+        storage_loss_percentage: 5
+      })
+
+    assert {:ok, _hold} = Worlds.delete_hold(economy.origin_hold)
+    assert Repo.get(HoldEconomicProfile, profile.id) == nil
+    assert Repo.get(CommodityBalance, balance.id) == nil
   end
 
   defp create_route(economy, name) do

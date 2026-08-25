@@ -382,6 +382,7 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
           world={@world}
         />
         <.holding_list holdings={@household.landholdings} />
+        <.venture_participation memberships={@household.venture_memberships} world={@world} />
       <% else %>
         <.empty_details text="Select a household or record one. A household may include kin, servants, dependents, fosterlings, and hired laborers sharing one economic unit." />
       <% end %>
@@ -466,6 +467,45 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
         <dd class="stone-heading mt-1 text-sm font-medium">{value}</dd>
       </div>
     </dl>
+    """
+  end
+
+  attr :memberships, :list, required: true
+  attr :world, :any, required: true
+
+  defp venture_participation(assigns) do
+    ~H"""
+    <section
+      id="household-venture-participation"
+      class="mt-6 rounded border border-stone-200 dark:border-zinc-700"
+    >
+      <header class="border-b border-stone-200 bg-stone-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+        <h3 class="stone-heading text-xs font-semibold uppercase tracking-wide">
+          Commercial partnerships
+        </h3>
+      </header>
+      <p :if={@memberships == []} class="stone-muted px-3 py-4 text-sm">
+        No venture participation recorded.
+      </p>
+      <article
+        :for={membership <- @memberships}
+        id={"household-venture-membership-#{membership.id}"}
+        class="flex items-start justify-between gap-4 border-b border-stone-100 px-3 py-3 last:border-b-0 dark:border-zinc-800"
+      >
+        <div>
+          <.link
+            patch={
+              ~p"/worlds/#{@world}/dashboard?section=economy&mode=venture&commercial_venture_id=#{membership.commercial_venture.id}"
+            }
+            class="stone-heading text-sm font-semibold hover:underline"
+          >{membership.commercial_venture.name}</.link>
+          <p :if={membership.contribution not in [nil, ""]} class="stone-muted mt-1 text-xs">
+            {membership.contribution}
+          </p>
+        </div>
+        <span class="stone-muted text-xs">{membership.role}</span>
+      </article>
+    </section>
     """
   end
 

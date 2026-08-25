@@ -85,10 +85,31 @@ defmodule AncientStones.WorldExports.WorldManual do
         "Continents, provinces, holds, settlements, landmarks, offices, and regional commerce.",
       facts: [],
       records:
-        Enum.map(Map.get(guide, :continents, []), fn continent ->
-          continent_record(continent, Map.get(details, :locations, []))
-        end)
+        section(
+          "Named waters",
+          Enum.map(Map.get(guide, :water_bodies, []), &water_body_record/1)
+        ) ++
+          section(
+            "Water connections",
+            Enum.map(Map.get(guide, :water_connections, []), &simple_record/1)
+          ) ++
+          Enum.map(Map.get(guide, :continents, []), fn continent ->
+            continent_record(continent, Map.get(details, :locations, []))
+          end)
     }
+  end
+
+  defp water_body_record(water) do
+    record(
+      water.name,
+      Map.get(water, :detail),
+      Map.get(water, :description),
+      facts([
+        {"Prevailing conditions", Map.get(water, :prevailing_conditions)},
+        {"Hazards", Map.get(water, :hazards)}
+      ]),
+      entity_records("Provinces", Map.get(water, :provinces, []))
+    )
   end
 
   defp continent_record(continent, locations) do
@@ -125,16 +146,28 @@ defmodule AncientStones.WorldExports.WorldManual do
         matches -> matches
       end
 
+    profile = Map.get(hold, :economic_profile)
+
     children =
       entity_records("Offices", Map.get(hold, :offices, [])) ++
         entity_records("Regional economy", Map.get(hold, :commerce, [])) ++
+        entity_records("Commodity balances", Map.get(hold, :commodity_balances, [])) ++
         section("Places and establishments", Enum.map(hold_locations, &location_record/1))
 
     record(
       hold.name,
       join_values([Map.get(hold, :terrain), Map.get(hold, :climate)]),
       Map.get(hold, :description),
-      [],
+      facts([
+        {"Population estimate", profile && Map.get(profile, :population_estimate)},
+        {"Household estimate", profile && Map.get(profile, :household_estimate)},
+        {"Urban population", profile && Map.get(profile, :urban_population_estimate)},
+        {"Arable hectares", profile && Map.get(profile, :arable_hectares_estimate)},
+        {"Pasture hectares", profile && Map.get(profile, :pasture_hectares_estimate)},
+        {"Staple reserve months", profile && Map.get(profile, :staple_reserve_months)},
+        {"Estimate", profile && Map.get(profile, :assessment_label)},
+        {"Confidence", profile && Map.get(profile, :confidence)}
+      ]),
       children
     )
   end
@@ -155,7 +188,10 @@ defmodule AncientStones.WorldExports.WorldManual do
       location.name,
       Map.get(location, :type) || Map.get(location, :detail),
       Map.get(location, :description),
-      facts([{"Coordinates", coordinates(location)}]),
+      facts([
+        {"Water body", Map.get(location, :water_body)},
+        {"Coordinates", coordinates(location)}
+      ]),
       section("Associated people", people)
     )
   end
@@ -442,9 +478,17 @@ defmodule AncientStones.WorldExports.WorldManual do
   defp economy(guide) do
     routes = Map.get(guide, :trade_routes, [])
     policies = Map.get(guide, :tax_policies, [])
+    profiles = Map.get(guide, :economic_profiles, [])
+    balances = Map.get(guide, :commodity_balances, [])
+    assessments = Map.get(guide, :tax_assessments, [])
+    ventures = Map.get(guide, :commercial_ventures, [])
 
     records =
-      section("Trade routes", Enum.map(routes, &economic_record(&1, :flows, "Commodity flows"))) ++
+      section("Hold capacity", Enum.map(profiles, &simple_record/1)) ++
+        section("Commodity balances", Enum.map(balances, &simple_record/1)) ++
+        section("Tax assessments", Enum.map(assessments, &simple_record/1)) ++
+        section("Merchant houses and partnerships", Enum.map(ventures, &venture_record/1)) ++
+        section("Trade routes", Enum.map(routes, &trade_route_record/1)) ++
         section(
           "Tax policies",
           Enum.map(policies, fn policy ->
@@ -460,6 +504,10 @@ defmodule AncientStones.WorldExports.WorldManual do
                 section(
                   "Exemptions",
                   Enum.map(Map.get(policy, :exemptions, []), &simple_record/1)
+                ) ++
+                section(
+                  "Assessments",
+                  Enum.map(Map.get(policy, :assessments, []), &simple_record/1)
                 )
             )
           end)
@@ -468,13 +516,30 @@ defmodule AncientStones.WorldExports.WorldManual do
     chapter_from_records("economy", "Trade and taxation", records)
   end
 
-  defp economic_record(entity, child_key, child_title) do
+  defp venture_record(venture) do
     record(
-      entity.name,
-      Map.get(entity, :detail),
-      Map.get(entity, :description),
+      venture.name,
+      Map.get(venture, :detail),
+      Map.get(venture, :description),
+      facts([
+        {"Capital and assets", Map.get(venture, :capital_basis)},
+        {"Formed", Map.get(venture, :formation_label)},
+        {"Ended", Map.get(venture, :end_label)}
+      ]),
+      section("Partners", Enum.map(Map.get(venture, :members, []), &simple_record/1)) ++
+        section("Route work", Enum.map(Map.get(venture, :routes, []), &simple_record/1))
+    )
+  end
+
+  defp trade_route_record(route) do
+    record(
+      route.name,
+      Map.get(route, :detail),
+      Map.get(route, :description),
       [],
-      section(child_title, Enum.map(Map.get(entity, child_key, []), &simple_record/1))
+      section("Commodity flows", Enum.map(Map.get(route, :flows, []), &simple_record/1)) ++
+        section("Itinerary stops", Enum.map(Map.get(route, :stops, []), &simple_record/1)) ++
+        section("Route legs", Enum.map(Map.get(route, :legs, []), &simple_record/1))
     )
   end
 

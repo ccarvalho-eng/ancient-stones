@@ -23,6 +23,8 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.CivilizationRace
   alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.ContinentCurrency
+  alias AncientStones.Worlds.CommodityBalance
+  alias AncientStones.Worlds.CommercialVenture
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.CreatureLocation
   alias AncientStones.Worlds.CreatureType
@@ -34,6 +36,7 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.GuildMembership
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.HoldCommerceEntry
+  alias AncientStones.Worlds.HoldEconomicProfile
   alias AncientStones.Worlds.Household
   alias AncientStones.Worlds.HouseholdMembership
   alias AncientStones.Worlds.Item
@@ -44,13 +47,20 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.Occupation
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Province
+  alias AncientStones.Worlds.ProvinceWaterBody
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.RaceTrait
   alias AncientStones.Worlds.TaxExemption
+  alias AncientStones.Worlds.TaxAssessment
   alias AncientStones.Worlds.TaxPolicy
   alias AncientStones.Worlds.TaxRevenueShare
   alias AncientStones.Worlds.TradeFlow
   alias AncientStones.Worlds.TradeRoute
+  alias AncientStones.Worlds.TradeRouteLeg
+  alias AncientStones.Worlds.TradeRouteLegWater
+  alias AncientStones.Worlds.TradeRouteStop
+  alias AncientStones.Worlds.VentureMembership
+  alias AncientStones.Worlds.VentureTradeRoute
   alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.Skill
   alias AncientStones.Worlds.SkillLevel
@@ -62,6 +72,8 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.TimelineEra
   alias AncientStones.Worlds.TimelineEvent
   alias AncientStones.Worlds.World
+  alias AncientStones.Worlds.WaterBody
+  alias AncientStones.Worlds.WaterBodyConnection
 
   @doc "Lists worlds alphabetically for the geography workspace."
   def list_worlds do
@@ -126,7 +138,8 @@ defmodule AncientStones.Worlds do
         inventory_items: [:item, :inventory_category],
         character_occupations: [:occupation],
         character_skills: [:skill],
-        spellbook_entries: [:spell]
+        spellbook_entries: [:spell],
+        venture_memberships: [:commercial_venture]
       ],
       character_roles: [],
       civilizations: [
@@ -143,12 +156,15 @@ defmodule AncientStones.Worlds do
           holds: [
             :capital_location,
             :commerce_entries,
+            :economic_profile,
+            :commodity_balances,
             political_offices: [:character],
             locations: [
               :location_type,
+              :water_body,
               character_locations: [:character],
               creature_locations: [creature: [:creature_type]],
-              child_locations: [:location_type, character_locations: [:character]]
+              child_locations: [:location_type, :water_body, character_locations: [:character]]
             ]
           ]
         ]
@@ -244,6 +260,9 @@ defmodule AncientStones.Worlds do
       province_ids = province_ids_for_continents(continent_ids)
       hold_ids = hold_ids_for_provinces(province_ids)
 
+      delete_tax_assessments_for_world(world_id)
+      delete_commercial_venture_graph_for_world(world_id)
+      delete_waterway_graph_for_world(world_id)
       delete_landholdings_for_world(world_id)
       delete_character_relationships_for_world(world_id)
       delete_household_memberships_for_world(world_id)
@@ -474,19 +493,28 @@ defmodule AncientStones.Worlds do
     province_ids = province_ids_for_continents([continent_id])
     hold_ids = hold_ids_for_provinces(province_ids)
 
-    if landholdings_for_hold_ids?(hold_ids) do
-      {:error, :geography_has_landholdings}
-    else
-      Repo.transaction(fn ->
-        delete_locations_for_holds(hold_ids)
-        delete_holds_by_ids(hold_ids)
-        delete_provinces_by_ids(province_ids)
+    Repo.transaction(fn ->
+      lock_continents([continent_id])
+      lock_provinces(province_ids)
+      lock_geography_holds(hold_ids)
 
-        continent
-        |> Repo.delete()
-        |> unwrap_transaction!()
-      end)
-    end
+      cond do
+        landholdings_for_hold_ids?(hold_ids) ->
+          Repo.rollback(:geography_has_landholdings)
+
+        trade_route_stops_for_hold_ids?(hold_ids) ->
+          Repo.rollback(:geography_has_trade_route_stops)
+
+        true ->
+          delete_locations_for_holds(hold_ids)
+          delete_holds_by_ids(hold_ids)
+          delete_provinces_by_ids(province_ids)
+
+          continent
+          |> Repo.delete()
+          |> unwrap_transaction!()
+      end
+    end)
   end
 
   def list_provinces(%Continent{id: continent_id}) do
@@ -521,18 +549,26 @@ defmodule AncientStones.Worlds do
   def delete_province(%Province{id: province_id} = province) do
     hold_ids = hold_ids_for_provinces([province_id])
 
-    if landholdings_for_hold_ids?(hold_ids) do
-      {:error, :geography_has_landholdings}
-    else
-      Repo.transaction(fn ->
-        delete_locations_for_holds(hold_ids)
-        delete_holds_by_ids(hold_ids)
+    Repo.transaction(fn ->
+      lock_provinces([province_id])
+      lock_geography_holds(hold_ids)
 
-        province
-        |> Repo.delete()
-        |> unwrap_transaction!()
-      end)
-    end
+      cond do
+        landholdings_for_hold_ids?(hold_ids) ->
+          Repo.rollback(:geography_has_landholdings)
+
+        trade_route_stops_for_hold_ids?(hold_ids) ->
+          Repo.rollback(:geography_has_trade_route_stops)
+
+        true ->
+          delete_locations_for_holds(hold_ids)
+          delete_holds_by_ids(hold_ids)
+
+          province
+          |> Repo.delete()
+          |> unwrap_transaction!()
+      end
+    end)
   end
 
   def list_holds(%Province{id: province_id}) do
@@ -579,17 +615,24 @@ defmodule AncientStones.Worlds do
 
   @doc "Deletes a hold and all locations inside it."
   def delete_hold(%Hold{id: hold_id} = hold) do
-    if landholdings_for_hold_ids?([hold_id]) do
-      {:error, :geography_has_landholdings}
-    else
-      Repo.transaction(fn ->
-        delete_locations_for_holds([hold_id])
+    Repo.transaction(fn ->
+      lock_geography_holds([hold_id])
 
-        hold
-        |> Repo.delete()
-        |> unwrap_transaction!()
-      end)
-    end
+      cond do
+        landholdings_for_hold_ids?([hold_id]) ->
+          Repo.rollback(:geography_has_landholdings)
+
+        trade_route_stops_for_hold_ids?([hold_id]) ->
+          Repo.rollback(:geography_has_trade_route_stops)
+
+        true ->
+          delete_locations_for_holds([hold_id])
+
+          hold
+          |> Repo.delete()
+          |> unwrap_transaction!()
+      end
+    end)
   end
 
   def list_guilds(%World{id: world_id}) do
@@ -933,10 +976,21 @@ defmodule AncientStones.Worlds do
   end
 
   def delete_household(%Household{id: household_id} = household) do
-    if Repo.exists?(from holding in Landholding, where: holding.household_id == ^household_id) do
-      {:error, :household_has_landholdings}
-    else
-      Repo.delete(household)
+    cond do
+      Repo.exists?(from holding in Landholding, where: holding.household_id == ^household_id) ->
+        {:error, :household_has_landholdings}
+
+      Repo.exists?(
+        from membership in VentureMembership,
+          where: membership.household_id == ^household_id
+      ) ->
+        {:error, :household_has_venture_history}
+
+      true ->
+        household
+        |> Ecto.Changeset.change()
+        |> Ecto.Changeset.no_assoc_constraint(:venture_memberships)
+        |> Repo.delete()
     end
   end
 
@@ -1325,10 +1379,19 @@ defmodule AncientStones.Worlds do
               relationship.character_b_id == ^character_id
       )
 
-    if membership_exists? or relationship_exists? do
+    venture_membership_exists? =
+      Repo.exists?(
+        from membership in VentureMembership,
+          where: membership.character_id == ^character_id
+      )
+
+    if membership_exists? or relationship_exists? or venture_membership_exists? do
       {:error, :character_has_society_history}
     else
-      Repo.delete(character)
+      character
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.no_assoc_constraint(:venture_memberships)
+      |> Repo.delete()
     end
   end
 
@@ -1478,6 +1541,82 @@ defmodule AncientStones.Worlds do
     Repo.delete(hold_commerce_entry)
   end
 
+  def list_hold_economic_profiles(%World{id: world_id}, search \\ nil) do
+    HoldEconomicProfile
+    |> join(:inner, [profile], hold in assoc(profile, :hold))
+    |> join(:inner, [_profile, hold], province in assoc(hold, :province))
+    |> join(:inner, [_profile, _hold, province], continent in assoc(province, :continent))
+    |> where([_profile, _hold, _province, continent], continent.world_id == ^world_id)
+    |> maybe_search_hold_economic_profiles(search)
+    |> order_by([_profile, hold], asc: hold.name)
+    |> Repo.all()
+    |> Repo.preload(hold: :province)
+  end
+
+  def get_hold_economic_profile!(id) do
+    HoldEconomicProfile
+    |> Repo.get!(id)
+    |> Repo.preload(hold: :province)
+  end
+
+  def change_hold_economic_profile(%HoldEconomicProfile{} = profile, attrs \\ %{}) do
+    HoldEconomicProfile.changeset(profile, attrs)
+  end
+
+  def create_hold_economic_profile(%Hold{id: hold_id}, attrs) do
+    %HoldEconomicProfile{hold_id: hold_id}
+    |> HoldEconomicProfile.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_hold_economic_profile(%HoldEconomicProfile{} = profile, attrs) do
+    profile
+    |> HoldEconomicProfile.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_hold_economic_profile(%HoldEconomicProfile{} = profile) do
+    Repo.delete(profile)
+  end
+
+  def list_commodity_balances(%World{id: world_id}, search \\ nil) do
+    CommodityBalance
+    |> join(:inner, [balance], hold in assoc(balance, :hold))
+    |> join(:inner, [_balance, hold], province in assoc(hold, :province))
+    |> join(:inner, [_balance, _hold, province], continent in assoc(province, :continent))
+    |> where([_balance, _hold, _province, continent], continent.world_id == ^world_id)
+    |> maybe_search_commodity_balances(search)
+    |> order_by([balance, hold], asc: hold.name, asc: balance.commodity)
+    |> Repo.all()
+    |> Repo.preload(hold: :province)
+  end
+
+  def get_commodity_balance!(id) do
+    CommodityBalance
+    |> Repo.get!(id)
+    |> Repo.preload(hold: :province)
+  end
+
+  def change_commodity_balance(%CommodityBalance{} = balance, attrs \\ %{}) do
+    CommodityBalance.changeset(balance, attrs)
+  end
+
+  def create_commodity_balance(%Hold{id: hold_id}, attrs) do
+    %CommodityBalance{hold_id: hold_id}
+    |> CommodityBalance.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  def update_commodity_balance(%CommodityBalance{} = balance, attrs) do
+    balance
+    |> CommodityBalance.changeset(attrs)
+    |> Repo.update()
+  end
+
+  def delete_commodity_balance(%CommodityBalance{} = balance) do
+    Repo.delete(balance)
+  end
+
   def create_inventory_category(%Character{id: character_id}, attrs) do
     %CharacterInventoryCategory{character_id: character_id}
     |> CharacterInventoryCategory.changeset(attrs)
@@ -1596,6 +1735,369 @@ defmodule AncientStones.Worlds do
     Repo.delete(calendar)
   end
 
+  def list_water_bodies(%World{id: world_id}, search \\ nil) do
+    WaterBody
+    |> where([water], water.world_id == ^world_id)
+    |> maybe_search_water_bodies(search)
+    |> order_by([water], asc: water.name)
+    |> Repo.all()
+    |> Repo.preload(:parent_water_body)
+  end
+
+  def get_water_body!(id) do
+    WaterBody
+    |> Repo.get!(id)
+    |> Repo.preload([:parent_water_body, province_links: :province])
+  end
+
+  def change_water_body(%WaterBody{} = water_body, attrs \\ %{}) do
+    WaterBody.changeset(water_body, attrs)
+  end
+
+  def create_water_body(%World{id: world_id}, attrs, refs \\ %{}) do
+    %WaterBody{world_id: world_id}
+    |> WaterBody.changeset(
+      attrs,
+      economic_ref_ids(refs, parent_water_body: :parent_water_body_id)
+    )
+    |> validate_water_body_parent(world_id)
+    |> Repo.insert()
+  end
+
+  def update_water_body(%WaterBody{world_id: world_id} = water_body, attrs, refs \\ %{}) do
+    Repo.transaction(fn ->
+      lock_world_waters(world_id)
+
+      changeset =
+        water_body
+        |> WaterBody.changeset(
+          attrs,
+          economic_ref_ids(refs, parent_water_body: :parent_water_body_id)
+        )
+        |> validate_water_body_parent(world_id)
+        |> validate_water_body_cycle()
+
+      changeset
+      |> Repo.update()
+      |> unwrap_transaction!()
+      |> refresh_world_water_paths!()
+    end)
+  end
+
+  def delete_water_body(%WaterBody{} = water_body) do
+    water_body
+    |> WaterBody.delete_changeset()
+    |> Repo.delete()
+  end
+
+  def list_water_body_connections(%World{id: world_id}) do
+    WaterBodyConnection
+    |> join(:inner, [connection], origin in assoc(connection, :origin_water_body))
+    |> where([_connection, origin], origin.world_id == ^world_id)
+    |> order_by([connection], asc: connection.connection_type)
+    |> Repo.all()
+    |> Repo.preload([:origin_water_body, :destination_water_body])
+  end
+
+  def get_water_body_connection!(id) do
+    WaterBodyConnection
+    |> Repo.get!(id)
+    |> Repo.preload([:origin_water_body, :destination_water_body])
+  end
+
+  def change_water_body_connection(%WaterBodyConnection{} = connection, attrs \\ %{}) do
+    WaterBodyConnection.changeset(connection, attrs)
+  end
+
+  def create_water_body_connection(%World{id: world_id}, attrs, refs) do
+    Repo.transaction(fn ->
+      lock_world_water_connections(world_id)
+
+      %WaterBodyConnection{}
+      |> WaterBodyConnection.changeset(attrs, water_connection_ref_ids(refs))
+      |> validate_water_connection_refs(world_id)
+      |> Repo.insert()
+      |> unwrap_transaction!()
+      |> refresh_world_water_paths!()
+    end)
+  end
+
+  def update_water_body_connection(%WaterBodyConnection{} = connection, attrs, refs \\ %{}) do
+    connection = Repo.preload(connection, :origin_water_body)
+
+    Repo.transaction(fn ->
+      world_id = connection.origin_water_body.world_id
+      lock_world_water_connections(world_id)
+
+      connection
+      |> WaterBodyConnection.changeset(attrs, water_connection_ref_ids(refs))
+      |> validate_water_connection_refs(world_id)
+      |> Repo.update()
+      |> unwrap_transaction!()
+      |> refresh_world_water_paths!()
+    end)
+  end
+
+  def delete_water_body_connection(%WaterBodyConnection{} = connection) do
+    connection = Repo.preload(connection, :origin_water_body)
+
+    Repo.transaction(fn ->
+      world_id = connection.origin_water_body.world_id
+      lock_world_water_connections(world_id)
+
+      connection
+      |> Repo.delete()
+      |> unwrap_transaction!()
+
+      refresh_world_water_paths!(%World{id: world_id})
+      connection
+    end)
+  end
+
+  def list_province_water_bodies(%World{id: world_id}) do
+    ProvinceWaterBody
+    |> join(:inner, [link], province in assoc(link, :province))
+    |> join(:inner, [_link, province], continent in assoc(province, :continent))
+    |> where([_link, _province, continent], continent.world_id == ^world_id)
+    |> order_by([link], asc: link.relationship)
+    |> Repo.all()
+    |> Repo.preload([:province, :water_body])
+  end
+
+  def create_province_water_body(%Province{} = province, %WaterBody{} = water_body, attrs) do
+    %ProvinceWaterBody{}
+    |> ProvinceWaterBody.changeset(attrs, %{
+      province_id: province.id,
+      water_body_id: water_body.id
+    })
+    |> validate_world_ref(
+      :water_body_id,
+      water_body.id,
+      &province_and_water_share_world?(province, &1)
+    )
+    |> Repo.insert()
+  end
+
+  def update_province_water_body(
+        %ProvinceWaterBody{} = link,
+        %Province{} = province,
+        %WaterBody{} = water_body,
+        attrs
+      ) do
+    changeset =
+      link
+      |> ProvinceWaterBody.changeset(attrs, %{
+        province_id: province.id,
+        water_body_id: water_body.id
+      })
+      |> validate_world_ref(
+        :water_body_id,
+        water_body.id,
+        &province_and_water_share_world?(province, &1)
+      )
+
+    Repo.transaction(fn ->
+      lock_province_water_link(link.id)
+
+      if province_water_link_in_use?(link) and
+           (link.province_id != province.id or link.water_body_id != water_body.id) do
+        changeset
+        |> Ecto.Changeset.add_error(:water_body_id, "is used by waterfront locations")
+        |> Repo.rollback()
+      else
+        changeset
+        |> Repo.update()
+        |> unwrap_transaction!()
+      end
+    end)
+  end
+
+  def delete_province_water_body(%ProvinceWaterBody{} = link) do
+    Repo.transaction(fn ->
+      lock_province_water_link(link.id)
+
+      if province_water_link_in_use?(link) do
+        Repo.rollback(:province_water_has_locations)
+      else
+        link
+        |> Repo.delete()
+        |> unwrap_transaction!()
+      end
+    end)
+  end
+
+  def set_location_water_body(%World{id: world_id}, %Location{} = location, water_body) do
+    cond do
+      not location_in_world?(location.id, world_id) ->
+        {:error, :reference_outside_world}
+
+      water_body && not water_body_in_world?(water_body.id, world_id) ->
+        {:error, :reference_outside_world}
+
+      true ->
+        Repo.transaction(fn ->
+          if water_body &&
+               not lock_location_province_water_link(location.id, water_body.id) do
+            Repo.rollback(:water_not_linked_to_location_province)
+          end
+
+          updated_location =
+            location
+            |> Ecto.Changeset.change(water_body_id: water_body && water_body.id)
+            |> Ecto.Changeset.foreign_key_constraint(:water_body_id)
+            |> Repo.update()
+            |> unwrap_transaction!()
+
+          refresh_world_water_paths!(%World{id: world_id})
+          updated_location
+        end)
+    end
+  end
+
+  def list_trade_route_stops(%TradeRoute{id: route_id}) do
+    TradeRouteStop
+    |> where([stop], stop.trade_route_id == ^route_id)
+    |> order_by([stop], asc: stop.position)
+    |> Repo.all()
+    |> Repo.preload(location: :hold)
+  end
+
+  def get_trade_route_stop!(id) do
+    TradeRouteStop
+    |> Repo.get!(id)
+    |> Repo.preload([:trade_route, location: :hold])
+  end
+
+  def change_trade_route_stop(%TradeRouteStop{} = stop, attrs \\ %{}) do
+    TradeRouteStop.changeset(stop, attrs)
+  end
+
+  def create_trade_route_stop(
+        %TradeRoute{id: route_id, world_id: world_id},
+        %Location{} = location,
+        attrs
+      ) do
+    Repo.transaction(fn ->
+      lock_trade_route(route_id)
+
+      %TradeRouteStop{trade_route_id: route_id}
+      |> TradeRouteStop.changeset(attrs, %{location_id: location.id})
+      |> validate_world_ref(:location_id, location.id, &location_in_world?(&1, world_id))
+      |> validate_trade_route_stop_position(route_id, nil)
+      |> Repo.insert()
+      |> unwrap_transaction!()
+    end)
+  end
+
+  def update_trade_route_stop(%TradeRouteStop{} = stop, attrs, refs \\ %{}) do
+    stop = Repo.preload(stop, :trade_route)
+
+    Repo.transaction(fn ->
+      lock_trade_route(stop.trade_route_id)
+
+      updated_stop =
+        stop
+        |> TradeRouteStop.changeset(attrs, economic_ref_ids(refs, location: :location_id))
+        |> validate_route_stop_location(stop.trade_route.world_id)
+        |> validate_trade_route_stop_position(stop.trade_route_id, stop)
+        |> Repo.update()
+        |> unwrap_transaction!()
+
+      refresh_route_water_paths!(stop.trade_route_id)
+      validate_route_topology!(stop.trade_route_id, updated_stop)
+      updated_stop
+    end)
+  end
+
+  def delete_trade_route_stop(%TradeRouteStop{} = stop) do
+    Repo.transaction(fn ->
+      lock_trade_route(stop.trade_route_id)
+
+      stop
+      |> validate_trade_route_stop_deletion()
+      |> Repo.delete()
+      |> unwrap_transaction!()
+    end)
+  end
+
+  def list_trade_route_legs(%TradeRoute{id: route_id}) do
+    TradeRouteLeg
+    |> where([leg], leg.trade_route_id == ^route_id)
+    |> order_by([leg], asc: leg.position)
+    |> Repo.all()
+    |> Repo.preload([
+      :water_body,
+      water_traversals: :water_body,
+      origin_stop: [location: :hold],
+      destination_stop: [location: :hold]
+    ])
+  end
+
+  def get_trade_route_leg!(id) do
+    TradeRouteLeg
+    |> Repo.get!(id)
+    |> Repo.preload([
+      :trade_route,
+      :water_body,
+      water_traversals: :water_body,
+      origin_stop: [location: :hold],
+      destination_stop: [location: :hold]
+    ])
+  end
+
+  def change_trade_route_leg(%TradeRouteLeg{} = leg, attrs \\ %{}) do
+    TradeRouteLeg.changeset(leg, attrs)
+  end
+
+  def create_trade_route_leg(%TradeRoute{id: route_id, world_id: world_id}, attrs, refs) do
+    Repo.transaction(fn ->
+      lock_trade_route(route_id)
+
+      leg =
+        %TradeRouteLeg{trade_route_id: route_id}
+        |> TradeRouteLeg.changeset(attrs, trade_route_leg_ref_ids(refs))
+        |> validate_trade_route_leg_refs(route_id, world_id)
+        |> validate_trade_route_leg_position(route_id, nil)
+        |> Repo.insert()
+        |> unwrap_transaction!()
+        |> sync_trade_route_leg_water_path!()
+
+      validate_route_topology!(route_id, leg)
+      leg
+    end)
+  end
+
+  def update_trade_route_leg(%TradeRouteLeg{} = leg, attrs, refs \\ %{}) do
+    leg = Repo.preload(leg, :trade_route)
+
+    Repo.transaction(fn ->
+      lock_trade_route(leg.trade_route_id)
+
+      updated_leg =
+        leg
+        |> TradeRouteLeg.changeset(attrs, trade_route_leg_ref_ids(refs))
+        |> validate_trade_route_leg_refs(leg.trade_route_id, leg.trade_route.world_id)
+        |> validate_trade_route_leg_position(leg.trade_route_id, leg)
+        |> Repo.update()
+        |> unwrap_transaction!()
+        |> sync_trade_route_leg_water_path!()
+
+      validate_route_topology!(leg.trade_route_id, updated_leg)
+      updated_leg
+    end)
+  end
+
+  def delete_trade_route_leg(%TradeRouteLeg{} = leg) do
+    Repo.transaction(fn ->
+      lock_trade_route(leg.trade_route_id)
+
+      leg
+      |> validate_trade_route_leg_deletion()
+      |> Repo.delete()
+      |> unwrap_transaction!()
+    end)
+  end
+
   def list_trade_routes(%World{id: world_id}) do
     TradeRoute
     |> where([route], route.world_id == ^world_id)
@@ -1622,10 +2124,20 @@ defmodule AncientStones.Worlds do
   end
 
   def update_trade_route(%TradeRoute{world_id: world_id} = route, attrs, refs \\ %{}) do
-    route
-    |> TradeRoute.changeset(attrs, economic_ref_ids(refs, route_ref_fields()))
-    |> validate_trade_route_refs(world_id)
-    |> Repo.update()
+    Repo.transaction(fn ->
+      lock_trade_route(route.id)
+
+      updated_route =
+        route
+        |> TradeRoute.changeset(attrs, economic_ref_ids(refs, route_ref_fields()))
+        |> validate_trade_route_refs(world_id)
+        |> Repo.update()
+        |> unwrap_transaction!()
+
+      refresh_route_water_paths!(route.id)
+      validate_route_topology!(route.id, updated_route)
+      updated_route
+    end)
   end
 
   def delete_trade_route(%TradeRoute{} = route), do: Repo.delete(route)
@@ -1664,6 +2176,169 @@ defmodule AncientStones.Worlds do
   end
 
   def delete_trade_flow(%TradeFlow{} = flow), do: Repo.delete(flow)
+
+  def list_commercial_ventures(%World{id: world_id}, search \\ nil) do
+    CommercialVenture
+    |> where([venture], venture.world_id == ^world_id)
+    |> maybe_search_commercial_ventures(search)
+    |> order_by([venture], asc: venture.name)
+    |> Repo.all()
+    |> Repo.preload(commercial_venture_preloads())
+  end
+
+  def get_commercial_venture!(%World{id: world_id}, id) do
+    CommercialVenture
+    |> where([venture], venture.world_id == ^world_id and venture.id == ^id)
+    |> Repo.one!()
+    |> Repo.preload(commercial_venture_preloads())
+  end
+
+  def change_commercial_venture(%CommercialVenture{} = venture, attrs \\ %{}) do
+    CommercialVenture.changeset(venture, attrs)
+  end
+
+  def create_commercial_venture(%World{id: world_id}, attrs, refs \\ %{}) do
+    %CommercialVenture{world_id: world_id}
+    |> CommercialVenture.changeset(
+      attrs,
+      economic_ref_ids(refs, home_location: :home_location_id)
+    )
+    |> validate_commercial_venture_refs(world_id)
+    |> Repo.insert()
+  end
+
+  def update_commercial_venture(
+        %CommercialVenture{world_id: world_id} = venture,
+        attrs,
+        refs \\ %{}
+      ) do
+    venture
+    |> CommercialVenture.changeset(
+      attrs,
+      economic_ref_ids(refs, home_location: :home_location_id)
+    )
+    |> validate_commercial_venture_refs(world_id)
+    |> Repo.update()
+  end
+
+  def delete_commercial_venture(%CommercialVenture{} = venture) do
+    Repo.delete(venture)
+  end
+
+  def list_venture_memberships(%CommercialVenture{id: venture_id}) do
+    VentureMembership
+    |> where([membership], membership.commercial_venture_id == ^venture_id)
+    |> order_by([membership], asc: membership.role)
+    |> Repo.all()
+    |> Repo.preload([:household, :character])
+  end
+
+  def list_character_venture_memberships(%Character{id: character_id}) do
+    VentureMembership
+    |> where([membership], membership.character_id == ^character_id)
+    |> order_by([membership], asc: membership.role)
+    |> Repo.all()
+    |> Repo.preload(:commercial_venture)
+  end
+
+  def list_household_venture_memberships(%Household{id: household_id}) do
+    VentureMembership
+    |> where([membership], membership.household_id == ^household_id)
+    |> order_by([membership], asc: membership.role)
+    |> Repo.all()
+    |> Repo.preload(:commercial_venture)
+  end
+
+  def get_venture_membership!(id) do
+    VentureMembership
+    |> Repo.get!(id)
+    |> Repo.preload([:commercial_venture, :household, :character])
+  end
+
+  def change_venture_membership(%VentureMembership{} = membership, attrs \\ %{}) do
+    VentureMembership.changeset(membership, attrs)
+  end
+
+  def create_venture_membership(
+        %CommercialVenture{} = venture,
+        attrs,
+        refs
+      ) do
+    %VentureMembership{commercial_venture_id: venture.id}
+    |> VentureMembership.changeset(attrs, venture_membership_ref_ids(refs))
+    |> validate_venture_membership_refs(venture.world_id)
+    |> persist_venture_membership(venture.id)
+  end
+
+  def update_venture_membership(%VentureMembership{} = membership, attrs, refs \\ %{}) do
+    membership = Repo.preload(membership, :commercial_venture)
+
+    membership
+    |> VentureMembership.changeset(attrs, venture_membership_ref_ids(refs))
+    |> validate_venture_membership_refs(membership.commercial_venture.world_id)
+    |> persist_venture_membership(membership.commercial_venture_id, membership.id)
+  end
+
+  def delete_venture_membership(%VentureMembership{} = membership) do
+    Repo.delete(membership)
+  end
+
+  def list_venture_trade_routes(%CommercialVenture{id: venture_id}) do
+    VentureTradeRoute
+    |> where([link], link.commercial_venture_id == ^venture_id)
+    |> order_by([link], asc: link.role)
+    |> Repo.all()
+    |> Repo.preload(:trade_route)
+  end
+
+  def get_venture_trade_route!(id) do
+    VentureTradeRoute
+    |> Repo.get!(id)
+    |> Repo.preload([:commercial_venture, :trade_route])
+  end
+
+  def change_venture_trade_route(%VentureTradeRoute{} = link, attrs \\ %{}) do
+    VentureTradeRoute.changeset(link, attrs)
+  end
+
+  def create_venture_trade_route(
+        %CommercialVenture{} = venture,
+        %TradeRoute{} = route,
+        attrs
+      ) do
+    %VentureTradeRoute{}
+    |> VentureTradeRoute.changeset(attrs, %{
+      commercial_venture_id: venture.id,
+      trade_route_id: route.id
+    })
+    |> validate_world_ref(
+      :trade_route_id,
+      route.id,
+      &trade_route_in_world?(&1, venture.world_id)
+    )
+    |> Repo.insert()
+  end
+
+  def update_venture_trade_route(
+        %VentureTradeRoute{} = link,
+        %TradeRoute{} = route,
+        attrs
+      ) do
+    link = Repo.preload(link, :commercial_venture)
+
+    link
+    |> VentureTradeRoute.changeset(attrs, %{trade_route_id: route.id})
+    |> validate_world_ref(
+      :trade_route_id,
+      route.id,
+      &trade_route_in_world?(&1, link.commercial_venture.world_id)
+    )
+    |> Repo.update()
+  end
+
+  def delete_venture_trade_route(%VentureTradeRoute{} = link) do
+    Repo.delete(link)
+  end
 
   def list_tax_policies(%World{id: world_id}) do
     TaxPolicy
@@ -1705,6 +2380,46 @@ defmodule AncientStones.Worlds do
   end
 
   def delete_tax_policy(%TaxPolicy{} = policy), do: Repo.delete(policy)
+
+  def list_tax_assessments(%World{id: world_id}, search \\ nil) do
+    TaxAssessment
+    |> join(:inner, [assessment], policy in assoc(assessment, :tax_policy))
+    |> where([_assessment, policy], policy.world_id == ^world_id)
+    |> maybe_search_tax_assessments(search)
+    |> order_by([assessment, policy], asc: policy.name, desc: assessment.assessment_period_label)
+    |> Repo.all()
+    |> Repo.preload([:currency, tax_policy: [:continent, :province, :hold]])
+  end
+
+  def get_tax_assessment!(id) do
+    TaxAssessment
+    |> Repo.get!(id)
+    |> Repo.preload([:currency, tax_policy: [:continent, :province, :hold]])
+  end
+
+  def change_tax_assessment(%TaxAssessment{} = assessment, attrs \\ %{}) do
+    TaxAssessment.changeset(assessment, attrs)
+  end
+
+  def create_tax_assessment(%TaxPolicy{id: policy_id, world_id: world_id}, attrs, refs) do
+    %TaxAssessment{tax_policy_id: policy_id}
+    |> TaxAssessment.changeset(attrs, economic_ref_ids(refs, currency: :currency_id))
+    |> validate_currency_ref(world_id)
+    |> Repo.insert()
+  end
+
+  def update_tax_assessment(%TaxAssessment{} = assessment, attrs, refs \\ %{}) do
+    assessment = Repo.preload(assessment, :tax_policy)
+
+    assessment
+    |> TaxAssessment.changeset(attrs, economic_ref_ids(refs, currency: :currency_id))
+    |> validate_currency_ref(assessment.tax_policy.world_id)
+    |> Repo.update()
+  end
+
+  def delete_tax_assessment(%TaxAssessment{} = assessment) do
+    Repo.delete(assessment)
+  end
 
   def list_tax_exemptions(%World{id: world_id}) do
     TaxExemption
@@ -2113,23 +2828,31 @@ defmodule AncientStones.Worlds do
       |> select([location], location.id)
       |> Repo.all()
 
-    if landholdings_for_location_ids?(location_ids) do
-      {:error, :geography_has_landholdings}
-    else
-      Repo.transaction(fn ->
-        clear_capitals_for_locations(location_ids)
+    Repo.transaction(fn ->
+      lock_location_types(location_type_ids)
+      lock_locations(location_ids)
 
-        Location
-        |> where([location], location.location_type_id in ^location_type_ids)
-        |> Repo.delete_all()
+      cond do
+        landholdings_for_location_ids?(location_ids) ->
+          Repo.rollback(:geography_has_landholdings)
 
-        LocationType
-        |> where([location_type], location_type.id in ^location_type_ids)
-        |> Repo.delete_all()
+        trade_route_stops_for_location_ids?(location_ids) ->
+          Repo.rollback(:geography_has_trade_route_stops)
 
-        location_type
-      end)
-    end
+        true ->
+          clear_capitals_for_locations(location_ids)
+
+          Location
+          |> where([location], location.location_type_id in ^location_type_ids)
+          |> Repo.delete_all()
+
+          LocationType
+          |> where([location_type], location_type.id in ^location_type_ids)
+          |> Repo.delete_all()
+
+          location_type
+      end
+    end)
   end
 
   def list_locations(%Hold{id: hold_id}) do
@@ -2215,19 +2938,26 @@ defmodule AncientStones.Worlds do
   def delete_location(%Location{} = location) do
     location_ids = location_ids_with_descendants(location)
 
-    if landholdings_for_location_ids?(location_ids) do
-      {:error, :geography_has_landholdings}
-    else
-      Repo.transaction(fn ->
-        clear_capitals_for_locations(location_ids)
+    Repo.transaction(fn ->
+      lock_locations(location_ids)
 
-        Location
-        |> where([location], location.id in ^location_ids)
-        |> Repo.delete_all()
+      cond do
+        landholdings_for_location_ids?(location_ids) ->
+          Repo.rollback(:geography_has_landholdings)
 
-        location
-      end)
-    end
+        trade_route_stops_for_location_ids?(location_ids) ->
+          Repo.rollback(:geography_has_trade_route_stops)
+
+        true ->
+          clear_capitals_for_locations(location_ids)
+
+          Location
+          |> where([location], location.id in ^location_ids)
+          |> Repo.delete_all()
+
+          location
+      end
+    end)
   end
 
   @doc "Creates a nested location inside an existing location while keeping it in the same hold."
@@ -2440,6 +3170,82 @@ defmodule AncientStones.Worlds do
     |> Repo.all()
   end
 
+  defp delete_tax_assessments_for_world(world_id) do
+    policy_ids =
+      TaxPolicy
+      |> where([policy], policy.world_id == ^world_id)
+      |> select([policy], policy.id)
+
+    TaxAssessment
+    |> where([assessment], assessment.tax_policy_id in subquery(policy_ids))
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  defp delete_commercial_venture_graph_for_world(world_id) do
+    venture_ids =
+      CommercialVenture
+      |> where([venture], venture.world_id == ^world_id)
+      |> select([venture], venture.id)
+
+    VentureTradeRoute
+    |> where([link], link.commercial_venture_id in subquery(venture_ids))
+    |> Repo.delete_all()
+
+    VentureMembership
+    |> where([membership], membership.commercial_venture_id in subquery(venture_ids))
+    |> Repo.delete_all()
+
+    CommercialVenture
+    |> where([venture], venture.id in subquery(venture_ids))
+    |> Repo.delete_all()
+
+    :ok
+  end
+
+  defp delete_waterway_graph_for_world(world_id) do
+    route_ids =
+      TradeRoute
+      |> where([route], route.world_id == ^world_id)
+      |> select([route], route.id)
+
+    water_body_ids =
+      WaterBody
+      |> where([water], water.world_id == ^world_id)
+      |> select([water], water.id)
+
+    TradeRouteLeg
+    |> where([leg], leg.trade_route_id in subquery(route_ids))
+    |> Repo.delete_all()
+
+    TradeRouteStop
+    |> where([stop], stop.trade_route_id in subquery(route_ids))
+    |> Repo.delete_all()
+
+    Location
+    |> where([location], location.water_body_id in subquery(water_body_ids))
+    |> Repo.update_all(set: [water_body_id: nil])
+
+    WaterBodyConnection
+    |> where([connection], connection.origin_water_body_id in subquery(water_body_ids))
+    |> Repo.delete_all()
+
+    ProvinceWaterBody
+    |> where([link], link.water_body_id in subquery(water_body_ids))
+    |> Repo.delete_all()
+
+    WaterBody
+    |> where([water], water.id in subquery(water_body_ids))
+    |> Repo.update_all(set: [parent_water_body_id: nil])
+
+    WaterBody
+    |> where([water], water.id in subquery(water_body_ids))
+    |> Repo.delete_all()
+
+    :ok
+  end
+
   defp delete_landholdings_for_world(world_id) do
     household_ids =
       Household
@@ -2474,6 +3280,56 @@ defmodule AncientStones.Worlds do
     :ok
   end
 
+  defp lock_continents(continent_ids) do
+    Continent
+    |> where([continent], continent.id in ^continent_ids)
+    |> order_by([continent], asc: continent.id)
+    |> lock("FOR UPDATE")
+    |> Repo.all()
+
+    :ok
+  end
+
+  defp lock_provinces(province_ids) do
+    Province
+    |> where([province], province.id in ^province_ids)
+    |> order_by([province], asc: province.id)
+    |> lock("FOR UPDATE")
+    |> Repo.all()
+
+    :ok
+  end
+
+  defp lock_geography_holds(hold_ids) do
+    Hold
+    |> where([hold], hold.id in ^hold_ids)
+    |> order_by([hold], asc: hold.id)
+    |> lock("FOR UPDATE")
+    |> Repo.all()
+
+    :ok
+  end
+
+  defp lock_location_types(location_type_ids) do
+    LocationType
+    |> where([location_type], location_type.id in ^location_type_ids)
+    |> order_by([location_type], asc: location_type.id)
+    |> lock("FOR UPDATE")
+    |> Repo.all()
+
+    :ok
+  end
+
+  defp lock_locations(location_ids) do
+    Location
+    |> where([location], location.id in ^location_ids)
+    |> order_by([location], asc: location.id)
+    |> lock("FOR UPDATE")
+    |> Repo.all()
+
+    :ok
+  end
+
   defp landholdings_for_hold_ids?([]), do: false
 
   defp landholdings_for_hold_ids?(hold_ids) do
@@ -2495,6 +3351,27 @@ defmodule AncientStones.Worlds do
   defp landholdings_for_location_ids?(location_ids) do
     Landholding
     |> where([holding], holding.location_id in ^location_ids)
+    |> Repo.exists?()
+  end
+
+  defp trade_route_stops_for_hold_ids?([]) do
+    false
+  end
+
+  defp trade_route_stops_for_hold_ids?(hold_ids) do
+    TradeRouteStop
+    |> join(:inner, [stop], location in assoc(stop, :location))
+    |> where([_stop, location], location.hold_id in ^hold_ids)
+    |> Repo.exists?()
+  end
+
+  defp trade_route_stops_for_location_ids?([]) do
+    false
+  end
+
+  defp trade_route_stops_for_location_ids?(location_ids) do
+    TradeRouteStop
+    |> where([stop], stop.location_id in ^location_ids)
     |> Repo.exists?()
   end
 
@@ -3487,10 +4364,877 @@ defmodule AncientStones.Worlds do
     ]
   end
 
+  defp economic_ref_ids(refs, fields) when is_list(refs) do
+    economic_ref_ids(Map.new(refs), fields)
+  end
+
   defp economic_ref_ids(refs, fields) do
     fields
     |> Enum.filter(fn {key, _field} -> Map.has_key?(refs, key) end)
     |> Map.new(fn {key, field} -> {field, ref_id(Map.get(refs, key))} end)
+  end
+
+  defp water_connection_ref_ids(refs) do
+    economic_ref_ids(refs,
+      origin_water_body: :origin_water_body_id,
+      destination_water_body: :destination_water_body_id
+    )
+  end
+
+  defp trade_route_leg_ref_ids(refs) do
+    economic_ref_ids(refs,
+      origin_stop: :origin_stop_id,
+      destination_stop: :destination_stop_id,
+      water_body: :water_body_id
+    )
+  end
+
+  defp venture_membership_ref_ids(refs) do
+    economic_ref_ids(refs,
+      household: :household_id,
+      character: :character_id
+    )
+  end
+
+  defp validate_commercial_venture_refs(changeset, world_id) do
+    location_id = Ecto.Changeset.get_field(changeset, :home_location_id)
+
+    validate_world_ref(
+      changeset,
+      :home_location_id,
+      location_id,
+      &location_in_world?(&1, world_id)
+    )
+  end
+
+  defp validate_venture_membership_refs(changeset, world_id) do
+    household_id = Ecto.Changeset.get_field(changeset, :household_id)
+    character_id = Ecto.Changeset.get_field(changeset, :character_id)
+
+    changeset
+    |> validate_world_ref(
+      :household_id,
+      household_id,
+      &household_in_world?(&1, world_id)
+    )
+    |> validate_world_ref(
+      :character_id,
+      character_id,
+      &character_in_world?(&1, world_id)
+    )
+  end
+
+  defp persist_venture_membership(changeset, venture_id, excluded_membership_id \\ nil) do
+    Repo.transaction(fn ->
+      CommercialVenture
+      |> where([venture], venture.id == ^venture_id)
+      |> lock("FOR UPDATE")
+      |> Repo.one!()
+
+      changeset = validate_venture_share_total(changeset, venture_id, excluded_membership_id)
+
+      if changeset.valid? do
+        result =
+          if is_nil(excluded_membership_id) do
+            Repo.insert(changeset)
+          else
+            Repo.update(changeset)
+          end
+
+        case result do
+          {:ok, membership} -> membership
+          {:error, invalid_changeset} -> Repo.rollback(invalid_changeset)
+        end
+      else
+        Repo.rollback(changeset)
+      end
+    end)
+  end
+
+  defp validate_venture_share_total(changeset, venture_id, excluded_membership_id) do
+    share = Ecto.Changeset.get_field(changeset, :share_percentage)
+    status = Ecto.Changeset.get_field(changeset, :status)
+
+    candidate_share =
+      if status in [:active, :inherited] and not is_nil(share) do
+        share
+      else
+        Decimal.new(0)
+      end
+
+    query =
+      VentureMembership
+      |> where(
+        [membership],
+        membership.commercial_venture_id == ^venture_id and
+          membership.status in [:active, :inherited] and
+          not is_nil(membership.share_percentage)
+      )
+      |> maybe_exclude_venture_membership(excluded_membership_id)
+
+    allocated_share = Repo.aggregate(query, :sum, :share_percentage) || Decimal.new(0)
+
+    if Decimal.gt?(Decimal.add(allocated_share, candidate_share), Decimal.new(100)) do
+      Ecto.Changeset.add_error(changeset, :share_percentage, "would allocate more than 100%")
+    else
+      changeset
+    end
+  end
+
+  defp maybe_exclude_venture_membership(query, nil) do
+    query
+  end
+
+  defp maybe_exclude_venture_membership(query, membership_id) do
+    where(query, [membership], membership.id != ^membership_id)
+  end
+
+  defp validate_water_body_parent(changeset, world_id) do
+    parent_id = Ecto.Changeset.get_field(changeset, :parent_water_body_id)
+
+    validate_world_ref(
+      changeset,
+      :parent_water_body_id,
+      parent_id,
+      &water_body_in_world?(&1, world_id)
+    )
+  end
+
+  defp validate_water_body_cycle(changeset) do
+    water_body_id = Ecto.Changeset.get_field(changeset, :id)
+    parent_id = Ecto.Changeset.get_field(changeset, :parent_water_body_id)
+
+    if water_body_id && parent_id && water_body_ancestor?(parent_id, water_body_id) do
+      Ecto.Changeset.add_error(
+        changeset,
+        :parent_water_body_id,
+        "would create a containment cycle"
+      )
+    else
+      changeset
+    end
+  end
+
+  defp validate_water_connection_refs(changeset, world_id) do
+    changeset
+    |> validate_world_ref(
+      :origin_water_body_id,
+      Ecto.Changeset.get_field(changeset, :origin_water_body_id),
+      &water_body_in_world?(&1, world_id)
+    )
+    |> validate_world_ref(
+      :destination_water_body_id,
+      Ecto.Changeset.get_field(changeset, :destination_water_body_id),
+      &water_body_in_world?(&1, world_id)
+    )
+  end
+
+  defp validate_route_stop_location(changeset, world_id) do
+    location_id = Ecto.Changeset.get_field(changeset, :location_id)
+    validate_world_ref(changeset, :location_id, location_id, &location_in_world?(&1, world_id))
+  end
+
+  defp validate_trade_route_stop_position(changeset, route_id, nil) do
+    final_position =
+      TradeRouteStop
+      |> where([stop], stop.trade_route_id == ^route_id)
+      |> Repo.aggregate(:max, :position)
+
+    expected_position = if final_position, do: final_position + 1, else: 1
+
+    leg_count =
+      TradeRouteLeg
+      |> where([leg], leg.trade_route_id == ^route_id)
+      |> Repo.aggregate(:count)
+
+    complete? = final_position && final_position >= 2 && leg_count == final_position - 1
+
+    cond do
+      complete? ->
+        Ecto.Changeset.add_error(
+          changeset,
+          :position,
+          "remove the final leg before extending a completed itinerary"
+        )
+
+      Ecto.Changeset.get_field(changeset, :position) != expected_position ->
+        Ecto.Changeset.add_error(changeset, :position, "must be the next itinerary position")
+
+      true ->
+        changeset
+    end
+  end
+
+  defp validate_trade_route_stop_position(changeset, _route_id, stop) do
+    if Ecto.Changeset.get_field(changeset, :position) == stop.position do
+      changeset
+    else
+      Ecto.Changeset.add_error(changeset, :position, "cannot be reordered after creation")
+    end
+  end
+
+  defp validate_trade_route_leg_refs(changeset, route_id, world_id) do
+    origin_stop_id = Ecto.Changeset.get_field(changeset, :origin_stop_id)
+    destination_stop_id = Ecto.Changeset.get_field(changeset, :destination_stop_id)
+    water_body_id = Ecto.Changeset.get_field(changeset, :water_body_id)
+
+    changeset
+    |> validate_route_stop_ref(:origin_stop_id, origin_stop_id, route_id)
+    |> validate_route_stop_ref(:destination_stop_id, destination_stop_id, route_id)
+    |> validate_world_ref(
+      :water_body_id,
+      water_body_id,
+      &water_body_in_world?(&1, world_id)
+    )
+    |> validate_leg_stop_order(origin_stop_id, destination_stop_id, route_id)
+    |> validate_trade_route_leg_mode(route_id, water_body_id)
+    |> validate_trade_route_leg_seasonality(route_id)
+  end
+
+  defp validate_route_stop_ref(changeset, _field, nil, _route_id) do
+    changeset
+  end
+
+  defp validate_route_stop_ref(changeset, field, stop_id, route_id) do
+    if trade_route_stop_in_route?(stop_id, route_id) do
+      changeset
+    else
+      Ecto.Changeset.add_error(changeset, field, "must belong to this route")
+    end
+  end
+
+  defp validate_leg_stop_order(changeset, nil, _destination_id, _route_id) do
+    changeset
+  end
+
+  defp validate_leg_stop_order(changeset, _origin_id, nil, _route_id) do
+    changeset
+  end
+
+  defp validate_leg_stop_order(changeset, origin_id, destination_id, route_id) do
+    positions =
+      TradeRouteStop
+      |> where(
+        [stop],
+        stop.trade_route_id == ^route_id and stop.id in ^[origin_id, destination_id]
+      )
+      |> select([stop], {stop.id, stop.position})
+      |> Repo.all()
+      |> Map.new()
+
+    if Map.get(positions, origin_id, 0) + 1 == Map.get(positions, destination_id, 0) do
+      changeset
+    else
+      Ecto.Changeset.add_error(
+        changeset,
+        :destination_stop_id,
+        "must immediately follow the origin stop"
+      )
+    end
+  end
+
+  defp validate_trade_route_leg_position(changeset, route_id, nil) do
+    origin_stop_id = Ecto.Changeset.get_field(changeset, :origin_stop_id)
+
+    origin_position =
+      TradeRouteStop
+      |> where([stop], stop.id == ^origin_stop_id and stop.trade_route_id == ^route_id)
+      |> select([stop], stop.position)
+      |> Repo.one()
+
+    expected_position =
+      TradeRouteLeg
+      |> where([leg], leg.trade_route_id == ^route_id)
+      |> Repo.aggregate(:max, :position)
+      |> case do
+        nil -> 1
+        position -> position + 1
+      end
+
+    position = Ecto.Changeset.get_field(changeset, :position)
+
+    if position == expected_position and position == origin_position do
+      changeset
+    else
+      Ecto.Changeset.add_error(
+        changeset,
+        :position,
+        "must continue from the final completed leg"
+      )
+    end
+  end
+
+  defp validate_trade_route_leg_position(changeset, _route_id, leg) do
+    unchanged? =
+      Ecto.Changeset.get_field(changeset, :position) == leg.position and
+        Ecto.Changeset.get_field(changeset, :origin_stop_id) == leg.origin_stop_id and
+        Ecto.Changeset.get_field(changeset, :destination_stop_id) == leg.destination_stop_id
+
+    if unchanged? do
+      changeset
+    else
+      Ecto.Changeset.add_error(changeset, :position, "route endpoints cannot be reordered")
+    end
+  end
+
+  defp validate_trade_route_leg_mode(changeset, route_id, water_body_id) do
+    route = Repo.get!(TradeRoute, route_id)
+    mode = Ecto.Changeset.get_field(changeset, :transport_mode)
+
+    changeset =
+      if route.transport_mode != :mixed and mode != route.transport_mode do
+        Ecto.Changeset.add_error(changeset, :transport_mode, "must match the route transport")
+      else
+        changeset
+      end
+
+    cond do
+      mode in [:sea, :river] and is_nil(water_body_id) ->
+        Ecto.Changeset.add_error(changeset, :water_body_id, "is required for water transport")
+
+      mode in [:road, :trail, :caravan] and water_body_id ->
+        Ecto.Changeset.add_error(
+          changeset,
+          :water_body_id,
+          "must be empty for overland transport"
+        )
+
+      true ->
+        changeset
+    end
+  end
+
+  defp validate_trade_route_leg_seasonality(changeset, route_id) do
+    route = Repo.get!(TradeRoute, route_id)
+    seasonality = Ecto.Changeset.get_field(changeset, :seasonality)
+
+    if route.seasonality && seasonality != route.seasonality do
+      Ecto.Changeset.add_error(changeset, :seasonality, "must match the route season")
+    else
+      changeset
+    end
+  end
+
+  defp lock_world_waters(world_id) do
+    WaterBody
+    |> where([water], water.world_id == ^world_id)
+    |> order_by([water], asc: water.id)
+    |> lock("FOR UPDATE")
+    |> Repo.all()
+  end
+
+  defp lock_world_water_connections(world_id) do
+    water_ids =
+      WaterBody
+      |> where([water], water.world_id == ^world_id)
+      |> select([water], water.id)
+
+    WaterBodyConnection
+    |> where([connection], connection.origin_water_body_id in subquery(water_ids))
+    |> order_by([connection], asc: connection.id)
+    |> lock("FOR UPDATE")
+    |> Repo.all()
+  end
+
+  defp lock_trade_route(route_id) do
+    TradeRoute
+    |> where([route], route.id == ^route_id)
+    |> lock("FOR UPDATE")
+    |> Repo.one!()
+  end
+
+  defp water_body_ancestor?(water_body_id, sought_ancestor_id) do
+    cond do
+      water_body_id == sought_ancestor_id ->
+        true
+
+      true ->
+        case Repo.get(WaterBody, water_body_id) do
+          %WaterBody{parent_water_body_id: nil} ->
+            false
+
+          %WaterBody{parent_water_body_id: parent_id} ->
+            water_body_ancestor?(parent_id, sought_ancestor_id)
+
+          nil ->
+            false
+        end
+    end
+  end
+
+  defp refresh_world_water_paths!(%World{id: world_id} = world) do
+    refresh_world_water_paths_by_id!(world_id)
+    world
+  end
+
+  defp refresh_world_water_paths!(%WaterBody{world_id: world_id} = water_body) do
+    refresh_world_water_paths_by_id!(world_id)
+    water_body
+  end
+
+  defp refresh_world_water_paths!(%WaterBodyConnection{} = connection) do
+    world_id =
+      WaterBody
+      |> where([water], water.id == ^connection.origin_water_body_id)
+      |> select([water], water.world_id)
+      |> Repo.one!()
+
+    refresh_world_water_paths_by_id!(world_id)
+    connection
+  end
+
+  defp refresh_world_water_paths_by_id!(world_id) do
+    TradeRouteLeg
+    |> join(:inner, [leg], route in assoc(leg, :trade_route))
+    |> where(
+      [leg, route],
+      route.world_id == ^world_id and
+        (leg.transport_mode in [:sea, :river] or not is_nil(leg.water_body_id))
+    )
+    |> order_by([leg], asc: leg.trade_route_id, asc: leg.position)
+    |> Repo.all()
+    |> Enum.each(fn leg ->
+      lock_trade_route(leg.trade_route_id)
+      sync_trade_route_leg_water_path!(leg)
+    end)
+  end
+
+  defp refresh_route_water_paths!(route_id) do
+    TradeRouteLeg
+    |> where([leg], leg.trade_route_id == ^route_id)
+    |> order_by([leg], asc: leg.position)
+    |> Repo.all()
+    |> Enum.each(&sync_trade_route_leg_water_path!/1)
+  end
+
+  defp sync_trade_route_leg_water_path!(%TradeRouteLeg{} = leg) do
+    leg =
+      Repo.preload(
+        leg,
+        [
+          :trade_route,
+          :water_body,
+          water_traversals: :water_body,
+          origin_stop: [location: :water_body],
+          destination_stop: [location: :water_body]
+        ],
+        force: true
+      )
+
+    case water_path_for_leg(leg) do
+      {:ok, path} ->
+        TradeRouteLegWater
+        |> where([traversal], traversal.trade_route_leg_id == ^leg.id)
+        |> Repo.delete_all()
+
+        path
+        |> Enum.with_index(1)
+        |> Enum.each(fn {water, position} ->
+          %TradeRouteLegWater{
+            trade_route_leg_id: leg.id,
+            water_body_id: water.id,
+            position: position
+          }
+          |> Repo.insert!()
+        end)
+
+        Repo.preload(leg, [water_traversals: :water_body], force: true)
+
+      {:error, message} ->
+        leg
+        |> TradeRouteLeg.changeset(%{})
+        |> Ecto.Changeset.add_error(:water_body_id, message)
+        |> Repo.rollback()
+    end
+  end
+
+  defp water_path_for_leg(%TradeRouteLeg{transport_mode: mode, water_body_id: nil})
+       when mode in [:road, :trail, :caravan, :mixed] do
+    {:ok, []}
+  end
+
+  defp water_path_for_leg(%TradeRouteLeg{} = leg) do
+    origin_water_id = leg.origin_stop.location.water_body_id
+    destination_water_id = leg.destination_stop.location.water_body_id
+
+    cond do
+      is_nil(leg.water_body_id) ->
+        {:error, "is required for this waterborne leg"}
+
+      is_nil(origin_water_id) or is_nil(destination_water_id) ->
+        {:error, "requires water-linked origin and destination stops"}
+
+      true ->
+        path =
+          navigable_water_path(
+            origin_water_id,
+            destination_water_id,
+            leg.water_body_id,
+            leg.trade_route.world_id,
+            leg.transport_mode,
+            leg.seasonality
+          )
+
+        if path do
+          {:ok, path}
+        else
+          {:error, "is not on a navigable path between the stops"}
+        end
+    end
+  end
+
+  defp navigable_water_path(
+         origin_id,
+         destination_id,
+         waypoint_id,
+         world_id,
+         mode,
+         seasonality
+       ) do
+    waters =
+      WaterBody
+      |> where([water], water.world_id == ^world_id and water.navigability != :none)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    connections =
+      WaterBodyConnection
+      |> join(:inner, [connection], origin in assoc(connection, :origin_water_body))
+      |> where(
+        [connection, origin],
+        origin.world_id == ^world_id and connection.navigability != :none
+      )
+      |> Repo.all()
+
+    adjacency = water_adjacency(connections, waters, mode, seasonality)
+
+    with true <- water_mode_compatible?(Map.get(waters, waypoint_id), mode),
+         path_to_waypoint when is_list(path_to_waypoint) <-
+           breadth_first_water_path(origin_id, waypoint_id, adjacency),
+         path_from_waypoint when is_list(path_from_waypoint) <-
+           breadth_first_water_path(waypoint_id, destination_id, adjacency),
+         path_ids = path_to_waypoint ++ Enum.drop(path_from_waypoint, 1),
+         true <- length(path_ids) == MapSet.size(MapSet.new(path_ids)) do
+      Enum.map(path_ids, &Map.fetch!(waters, &1))
+    else
+      _reason -> nil
+    end
+  end
+
+  defp water_adjacency(connections, waters, mode, seasonality) do
+    Enum.reduce(connections, %{}, fn connection, adjacency ->
+      if connection_season_compatible?(connection.seasonality, seasonality) do
+        adjacency =
+          maybe_add_water_edge(
+            adjacency,
+            connection.origin_water_body_id,
+            connection.destination_water_body_id,
+            waters,
+            mode
+          )
+
+        if connection.navigation_directionality == :two_way do
+          maybe_add_water_edge(
+            adjacency,
+            connection.destination_water_body_id,
+            connection.origin_water_body_id,
+            waters,
+            mode
+          )
+        else
+          adjacency
+        end
+      else
+        adjacency
+      end
+    end)
+  end
+
+  defp maybe_add_water_edge(adjacency, origin_id, destination_id, waters, mode) do
+    if water_mode_compatible?(Map.get(waters, origin_id), mode) and
+         water_mode_compatible?(Map.get(waters, destination_id), mode) do
+      Map.update(adjacency, origin_id, [destination_id], &[destination_id | &1])
+    else
+      adjacency
+    end
+  end
+
+  defp water_mode_compatible?(nil, _mode) do
+    false
+  end
+
+  defp water_mode_compatible?(%WaterBody{}, :mixed) do
+    true
+  end
+
+  defp water_mode_compatible?(%WaterBody{kind: kind}, :sea) do
+    kind in [:ocean, :sea, :shelf_sea, :gulf, :bay, :strait, :sound, :fjord, :estuary, :channel]
+  end
+
+  defp water_mode_compatible?(%WaterBody{kind: kind}, :river) do
+    kind in [:river, :estuary, :lake, :channel]
+  end
+
+  defp water_mode_compatible?(_water, _mode) do
+    false
+  end
+
+  defp connection_season_compatible?(nil, _leg_seasonality) do
+    true
+  end
+
+  defp connection_season_compatible?(:year_round, _leg_seasonality) do
+    true
+  end
+
+  defp connection_season_compatible?(_connection_seasonality, nil) do
+    true
+  end
+
+  defp connection_season_compatible?(seasonality, seasonality) do
+    true
+  end
+
+  defp connection_season_compatible?(_connection_seasonality, _leg_seasonality) do
+    false
+  end
+
+  defp breadth_first_water_path(origin_id, destination_id, _adjacency)
+       when origin_id == destination_id do
+    [origin_id]
+  end
+
+  defp breadth_first_water_path(origin_id, destination_id, adjacency) do
+    queue = :queue.from_list([{origin_id, [origin_id]}])
+    visit_water_path(queue, MapSet.new([origin_id]), destination_id, adjacency)
+  end
+
+  defp visit_water_path(queue, visited, destination_id, adjacency) do
+    case :queue.out(queue) do
+      {:empty, _queue} ->
+        nil
+
+      {{:value, {water_id, reversed_path}}, remaining_queue} ->
+        neighbors = Map.get(adjacency, water_id, []) |> Enum.sort()
+
+        case Enum.find(neighbors, &(&1 == destination_id)) do
+          nil ->
+            {next_queue, next_visited} =
+              Enum.reduce(neighbors, {remaining_queue, visited}, fn neighbor, {queued, seen} ->
+                if MapSet.member?(seen, neighbor) do
+                  {queued, seen}
+                else
+                  {
+                    :queue.in({neighbor, [neighbor | reversed_path]}, queued),
+                    MapSet.put(seen, neighbor)
+                  }
+                end
+              end)
+
+            visit_water_path(next_queue, next_visited, destination_id, adjacency)
+
+          destination ->
+            Enum.reverse([destination | reversed_path])
+        end
+    end
+  end
+
+  defp validate_route_topology!(route_id, subject) do
+    route = Repo.get!(TradeRoute, route_id)
+
+    stops =
+      TradeRouteStop
+      |> where([stop], stop.trade_route_id == ^route_id)
+      |> order_by([stop], asc: stop.position)
+      |> Repo.all()
+      |> Repo.preload(location: :hold)
+
+    legs =
+      TradeRouteLeg
+      |> where([leg], leg.trade_route_id == ^route_id)
+      |> order_by([leg], asc: leg.position)
+      |> Repo.all()
+
+    error = route_topology_error(route, stops, legs)
+
+    if error do
+      subject
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.add_error(:base, error)
+      |> Repo.rollback()
+    else
+      :ok
+    end
+  end
+
+  defp route_topology_error(route, stops, legs) do
+    stop_positions = Enum.map(stops, & &1.position)
+    leg_positions = Enum.map(legs, & &1.position)
+    complete? = length(stops) >= 2 and length(legs) == length(stops) - 1
+
+    cond do
+      stop_positions != expected_positions(length(stops)) ->
+        "itinerary stop positions must be contiguous"
+
+      leg_positions != expected_positions(length(legs)) ->
+        "route leg positions must be contiguous"
+
+      length(legs) > max(length(stops) - 1, 0) ->
+        "route has more legs than adjacent stop pairs"
+
+      Enum.any?(legs, &leg_misses_adjacent_stops?(&1, stops)) ->
+        "every leg must join its adjacent itinerary stops"
+
+      complete? and hd(stops).location.hold_id != route.origin_hold_id ->
+        "first stop must belong to the route origin hold"
+
+      complete? and List.last(stops).location.hold_id != route.destination_hold_id ->
+        "last stop must belong to the route destination hold"
+
+      (complete? and route.distance_km) && route_distance_mismatch?(route, legs) ->
+        "route distance must equal the sum of its legs"
+
+      true ->
+        nil
+    end
+  end
+
+  defp leg_misses_adjacent_stops?(leg, stops) do
+    origin = Enum.at(stops, leg.position - 1)
+    destination = Enum.at(stops, leg.position)
+
+    is_nil(origin) or is_nil(destination) or leg.origin_stop_id != origin.id or
+      leg.destination_stop_id != destination.id
+  end
+
+  defp expected_positions(0) do
+    []
+  end
+
+  defp expected_positions(count) do
+    Enum.to_list(1..count)
+  end
+
+  defp route_distance_mismatch?(route, legs) do
+    total = Enum.reduce(legs, Decimal.new(0), &Decimal.add(&1.distance_km, &2))
+    not Decimal.equal?(total, route.distance_km)
+  end
+
+  defp validate_trade_route_stop_deletion(stop) do
+    max_position =
+      TradeRouteStop
+      |> where([candidate], candidate.trade_route_id == ^stop.trade_route_id)
+      |> Repo.aggregate(:max, :position)
+
+    referenced? =
+      TradeRouteLeg
+      |> where(
+        [leg],
+        leg.origin_stop_id == ^stop.id or leg.destination_stop_id == ^stop.id
+      )
+      |> Repo.exists?()
+
+    changeset = Ecto.Changeset.change(stop)
+
+    cond do
+      stop.position != max_position ->
+        Ecto.Changeset.add_error(changeset, :position, "only the final stop can be removed")
+
+      referenced? ->
+        Ecto.Changeset.add_error(changeset, :position, "remove the final route leg first")
+
+      true ->
+        changeset
+    end
+  end
+
+  defp validate_trade_route_leg_deletion(leg) do
+    max_position =
+      TradeRouteLeg
+      |> where([candidate], candidate.trade_route_id == ^leg.trade_route_id)
+      |> Repo.aggregate(:max, :position)
+
+    if leg.position == max_position do
+      Ecto.Changeset.change(leg)
+    else
+      leg
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.add_error(:position, "only the final leg can be removed")
+    end
+  end
+
+  defp maybe_search_water_bodies(query, search) when search in [nil, ""] do
+    query
+  end
+
+  defp maybe_search_water_bodies(query, search) do
+    term = "%#{String.trim(search)}%"
+
+    where(
+      query,
+      [water],
+      ilike(water.name, ^term) or ilike(water.description, ^term) or
+        ilike(water.prevailing_conditions, ^term) or ilike(water.hazards, ^term)
+    )
+  end
+
+  defp maybe_search_commercial_ventures(query, search) when search in [nil, ""] do
+    query
+  end
+
+  defp maybe_search_commercial_ventures(query, search) do
+    term = "%#{String.trim(search)}%"
+
+    where(
+      query,
+      [venture],
+      ilike(venture.name, ^term) or ilike(venture.purpose, ^term) or
+        ilike(venture.description, ^term)
+    )
+  end
+
+  defp maybe_search_hold_economic_profiles(query, search) when search in [nil, ""] do
+    query
+  end
+
+  defp maybe_search_hold_economic_profiles(query, search) do
+    term = "%#{String.trim(search)}%"
+
+    where(
+      query,
+      [profile, hold, province, _continent],
+      ilike(hold.name, ^term) or ilike(province.name, ^term) or
+        ilike(profile.assessment_label, ^term)
+    )
+  end
+
+  defp maybe_search_commodity_balances(query, search) when search in [nil, ""] do
+    query
+  end
+
+  defp maybe_search_commodity_balances(query, search) do
+    term = "%#{String.trim(search)}%"
+
+    where(
+      query,
+      [balance, hold, province, _continent],
+      ilike(hold.name, ^term) or ilike(province.name, ^term) or
+        ilike(balance.commodity, ^term) or ilike(balance.category, ^term)
+    )
+  end
+
+  defp maybe_search_tax_assessments(query, search) when search in [nil, ""] do
+    query
+  end
+
+  defp maybe_search_tax_assessments(query, search) do
+    term = "%#{String.trim(search)}%"
+
+    where(
+      query,
+      [assessment, policy],
+      ilike(policy.name, ^term) or ilike(assessment.assessment_period_label, ^term)
+    )
   end
 
   defp ref_id(nil), do: nil
@@ -3672,17 +5416,98 @@ defmodule AncientStones.Worlds do
     Guild |> where([guild], guild.id == ^id and guild.world_id == ^world_id) |> Repo.exists?()
   end
 
+  defp household_in_world?(id, world_id) do
+    Household
+    |> where([household], household.id == ^id and household.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
+  defp character_in_world?(id, world_id) do
+    Character
+    |> where([character], character.id == ^id and character.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
   defp trade_route_in_world?(id, world_id) do
     TradeRoute
     |> where([route], route.id == ^id and route.world_id == ^world_id)
     |> Repo.exists?()
   end
 
+  defp water_body_in_world?(id, world_id) do
+    WaterBody
+    |> where([water], water.id == ^id and water.world_id == ^world_id)
+    |> Repo.exists?()
+  end
+
+  defp trade_route_stop_in_route?(id, route_id) do
+    TradeRouteStop
+    |> where([stop], stop.id == ^id and stop.trade_route_id == ^route_id)
+    |> Repo.exists?()
+  end
+
+  defp province_and_water_share_world?(%Province{id: province_id}, water_body_id) do
+    WaterBody
+    |> join(:inner, [water], continent in Continent, on: continent.world_id == water.world_id)
+    |> join(:inner, [_water, continent], province in Province,
+      on: province.continent_id == continent.id
+    )
+    |> where(
+      [water, _continent, province],
+      water.id == ^water_body_id and province.id == ^province_id
+    )
+    |> Repo.exists?()
+  end
+
+  defp province_water_link_in_use?(link) do
+    Location
+    |> join(:inner, [location], hold in assoc(location, :hold))
+    |> where(
+      [location, hold],
+      hold.province_id == ^link.province_id and location.water_body_id == ^link.water_body_id
+    )
+    |> Repo.exists?()
+  end
+
+  defp lock_province_water_link(link_id) do
+    ProvinceWaterBody
+    |> where([link], link.id == ^link_id)
+    |> lock("FOR UPDATE")
+    |> Repo.one!()
+  end
+
+  defp lock_location_province_water_link(location_id, water_body_id) do
+    province_id =
+      Location
+      |> join(:inner, [location], hold in assoc(location, :hold))
+      |> where([location, _hold], location.id == ^location_id)
+      |> select([_location, hold], hold.province_id)
+      |> Repo.one()
+
+    ProvinceWaterBody
+    |> where(
+      [link],
+      link.province_id == ^province_id and link.water_body_id == ^water_body_id
+    )
+    |> lock("FOR UPDATE")
+    |> Repo.one()
+    |> then(&(not is_nil(&1)))
+  end
+
   defp household_preloads do
     [
       home_location: [:hold],
       memberships: [:character],
-      landholdings: [:hold, :location]
+      landholdings: [:hold, :location],
+      venture_memberships: [:commercial_venture]
+    ]
+  end
+
+  defp commercial_venture_preloads do
+    [
+      home_location: [:hold],
+      memberships: [:household, :character],
+      trade_route_links: [:trade_route]
     ]
   end
 

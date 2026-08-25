@@ -5,6 +5,7 @@ defmodule AncientStones.Worlds.Household do
   alias AncientStones.Worlds.HouseholdMembership
   alias AncientStones.Worlds.Landholding
   alias AncientStones.Worlds.Location
+  alias AncientStones.Worlds.VentureMembership
   alias AncientStones.Worlds.World
 
   @household_types [
@@ -34,6 +35,7 @@ defmodule AncientStones.Worlds.Household do
     has_many :memberships, HouseholdMembership
     has_many :members, through: [:memberships, :character]
     has_many :landholdings, Landholding
+    has_many :venture_memberships, VentureMembership
 
     timestamps(type: :utc_datetime)
   end

@@ -54,6 +54,7 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
     |> Repo.all()
     |> Repo.preload([
       :location_type,
+      :water_body,
       hold: [province: :continent],
       character_locations: [character: [character_occupations: :occupation]]
     ])
@@ -380,6 +381,7 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
       province: entity_name(location.hold.province),
       continent: entity_name(location.hold.province.continent),
       visibility: location.visibility,
+      water_body: entity_name(location.water_body),
       map_x: location.map_x,
       map_y: location.map_y,
       characters:

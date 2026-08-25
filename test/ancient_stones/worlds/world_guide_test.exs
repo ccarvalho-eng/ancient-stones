@@ -121,6 +121,229 @@ defmodule AncientStones.Worlds.WorldGuideTest do
     assert byte_size(pdf) > 1_000
   end
 
+  test "exports aggregate capacity, resilience, coverage, and tax assessments" do
+    {:ok, world} = Worlds.create_world(%{name: "Audrun"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tyrven"})
+    {:ok, currency} = Worlds.put_continent_currency(continent, %{name: "Coin"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Frostgard"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Gronvale"})
+    {:ok, coast} = Worlds.create_hold(province, %{name: "Hrafnvik"})
+
+    {:ok, _profile} =
+      Worlds.create_hold_economic_profile(hold, %{
+        population_estimate: 24_000,
+        household_estimate: 4_900,
+        urban_population_estimate: 3_200,
+        staple_reserve_months: "3.5",
+        assessment_label: "Late harvest estimate",
+        confidence: :medium
+      })
+
+    {:ok, _balance} =
+      Worlds.create_commodity_balance(hold, %{
+        commodity: "Rye equivalent",
+        category: "staple food",
+        unit: "tonne",
+        annual_output: 5_100,
+        annual_local_need: 4_600,
+        stored_reserve: 900,
+        bad_year_output_percentage: 62,
+        storage_loss_percentage: 8
+      })
+
+    {:ok, route} =
+      Worlds.create_trade_route(
+        world,
+        %{name: "North Road", transport_mode: :road},
+        %{origin_hold: hold, destination_hold: coast}
+      )
+
+    {:ok, _flow} =
+      Worlds.create_trade_flow(
+        route,
+        %{
+          commodity: "Rye",
+          quantity: 12,
+          unit: "cart-load",
+          declared_value: 240,
+          coverage_scope: :representative_consignment,
+          quantity_basis: "Ordinary fair-week convoy"
+        },
+        %{currency: currency}
+      )
+
+    {:ok, _commerce} =
+      Worlds.create_hold_commerce_entry(hold, %{
+        name: "Market dues",
+        kind: "income",
+        amount: 320,
+        accounting_scope: :treasury_revenue,
+        coverage_scope: :estimated_total
+      })
+
+    {:ok, policy} =
+      Worlds.create_tax_policy(
+        world,
+        %{name: "Harvest Levy", tax_type: :land_levy, rate_basis: :percentage, rate: 6},
+        %{hold: hold, currency: currency}
+      )
+
+    {:ok, _assessment} =
+      Worlds.create_tax_assessment(
+        policy,
+        %{
+          assessment_period_label: "Common year 312",
+          cash_yield: 8_400,
+          in_kind_value: 11_600,
+          customary_labor_days: 2_900
+        },
+        %{currency: currency}
+      )
+
+    guide = WorldGuide.load!(world.id)
+    manual = WorldManual.build(guide)
+    economy = Enum.find(manual.chapters, &(&1.id == "economy"))
+    atlas = Enum.find(manual.chapters, &(&1.id == "atlas"))
+
+    assert [%{population_estimate: 24_000}] = guide.economic_profiles
+    assert [%{name: "Rye equivalent"}] = guide.commodity_balances
+    assert [%{name: "Harvest Levy"}] = guide.tax_assessments
+    assert inspect(economy) =~ "Ordinary fair-week convoy"
+    assert inspect(economy) =~ "Common year 312"
+    assert inspect(atlas) =~ "Staple reserve months"
+    assert inspect(atlas) =~ "Treasury revenue"
+
+    epub = WorldGuideEpub.render(guide)
+    assert {:ok, files} = :zip.unzip(epub, [:memory])
+
+    assert {~c"EPUB/economy.xhtml", economy_xhtml} =
+             List.keyfind(files, ~c"EPUB/economy.xhtml", 0)
+
+    assert economy_xhtml =~ "Rye equivalent"
+    assert economy_xhtml =~ "Common year 312"
+
+    pdf = WorldGuidePdf.render(guide)
+    assert pdf =~ "%PDF-"
+    assert byte_size(pdf) > 1_000
+  end
+
+  test "exports named waters and ordered route itineraries" do
+    {:ok, world} = Worlds.create_world(%{name: "Audrun"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tyrven"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Eirholm"})
+    {:ok, origin_hold} = Worlds.create_hold(province, %{name: "Eirsund"})
+    {:ok, destination_hold} = Worlds.create_hold(province, %{name: "Vardborg"})
+    {:ok, location_type} = Worlds.create_location_type(world, %{name: "Landing"})
+
+    {:ok, origin} =
+      Worlds.create_location(origin_hold, location_type, %{name: "Great Flash Weir"})
+
+    {:ok, destination} =
+      Worlds.create_location(destination_hold, location_type, %{name: "Varda Quay"})
+
+    {:ok, river} =
+      Worlds.create_water_body(world, %{
+        name: "Eirwater",
+        kind: :river,
+        salinity: :fresh,
+        navigability: :shallow_draft,
+        freeze_pattern: :seasonal,
+        status: :seasonal,
+        prevailing_conditions: "Spring freshets give way to steady summer reaches.",
+        hazards: "Flash weirs, shoals, and autumn fog."
+      })
+
+    {:ok, estuary} =
+      Worlds.create_water_body(world, %{
+        name: "Varda Estuary",
+        kind: :estuary,
+        salinity: :brackish,
+        navigability: :coastal,
+        freeze_pattern: :rare,
+        status: :active
+      })
+
+    {:ok, _connection} =
+      Worlds.create_water_body_connection(
+        world,
+        %{
+          connection_type: :flows_into,
+          directionality: :one_way,
+          navigability: :shallow_draft,
+          seasonality: :spring_to_autumn,
+          distance_km: 180
+        },
+        %{origin_water_body: river, destination_water_body: estuary}
+      )
+
+    {:ok, _province_link} =
+      Worlds.create_province_water_body(province, river, %{relationship: :contains})
+
+    {:ok, _province_link} =
+      Worlds.create_province_water_body(province, estuary, %{relationship: :contains})
+
+    {:ok, _origin} = Worlds.set_location_water_body(world, origin, river)
+    {:ok, _destination} = Worlds.set_location_water_body(world, destination, estuary)
+
+    {:ok, route} =
+      Worlds.create_trade_route(
+        world,
+        %{name: "Eirwater Passage", transport_mode: :river, distance_km: 180},
+        %{origin_hold: origin_hold, destination_hold: destination_hold}
+      )
+
+    {:ok, origin_stop} =
+      Worlds.create_trade_route_stop(route, origin, %{
+        position: 1,
+        handling_notes: "Tow above the weir"
+      })
+
+    {:ok, destination_stop} =
+      Worlds.create_trade_route_stop(route, destination, %{position: 2})
+
+    {:ok, _leg} =
+      Worlds.create_trade_route_leg(
+        route,
+        %{
+          position: 1,
+          transport_mode: :river,
+          distance_km: 180,
+          typical_travel_days: 5,
+          seasonality: :spring_to_autumn,
+          risk: :moderate
+        },
+        %{origin_stop: origin_stop, destination_stop: destination_stop, water_body: river}
+      )
+
+    guide = WorldGuide.load!(world.id)
+    manual = WorldManual.build(guide)
+    atlas = Enum.find(manual.chapters, &(&1.id == "atlas"))
+    economy = Enum.find(manual.chapters, &(&1.id == "economy"))
+
+    assert [%{name: "Eirwater"}, %{name: "Varda Estuary"}] = guide.water_bodies
+    assert [%{name: "Eirwater to Varda Estuary"}] = guide.water_connections
+    assert inspect(atlas) =~ "Spring freshets"
+    assert inspect(atlas) =~ "Flash weirs"
+    assert inspect(economy) =~ "Great Flash Weir"
+    assert inspect(economy) =~ "5 days"
+    assert inspect(economy) =~ "Eirwater to Varda Estuary"
+
+    epub = WorldGuideEpub.render(guide)
+    assert {:ok, files} = :zip.unzip(epub, [:memory])
+    assert {~c"EPUB/atlas.xhtml", atlas_xhtml} = List.keyfind(files, ~c"EPUB/atlas.xhtml", 0)
+
+    assert {~c"EPUB/economy.xhtml", economy_xhtml} =
+             List.keyfind(files, ~c"EPUB/economy.xhtml", 0)
+
+    assert atlas_xhtml =~ "Eirwater"
+    assert economy_xhtml =~ "Great Flash Weir"
+    assert economy_xhtml =~ "Eirwater to Varda Estuary"
+
+    pdf = WorldGuidePdf.render(guide)
+    assert pdf =~ "%PDF-"
+    assert byte_size(pdf) > 1_000
+  end
+
   test "renders a navigable EPUB with continent chapters" do
     guide = %{
       world: %{
@@ -370,5 +593,63 @@ defmodule AncientStones.Worlds.WorldGuideTest do
     pdf = WorldGuidePdf.render(guide)
     assert pdf =~ "%PDF-"
     assert byte_size(pdf) > 1_000
+  end
+
+  test "exports merchant houses and partnerships with members and route work" do
+    {:ok, world} = Worlds.create_world(%{name: "Audrun"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tyrven"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skeldvik"})
+    {:ok, origin_hold} = Worlds.create_hold(province, %{name: "Kaldhavn"})
+    {:ok, destination_hold} = Worlds.create_hold(province, %{name: "Vesthavn"})
+    {:ok, location_type} = Worlds.create_location_type(world, %{name: "Quay"})
+    {:ok, quay} = Worlds.create_location(origin_hold, location_type, %{name: "Raven Quay"})
+    {:ok, character} = Worlds.create_character(world, %{name: "Ragna Torvaldsdottir"})
+
+    {:ok, route} =
+      Worlds.create_trade_route(
+        world,
+        %{name: "Western Sea Lane", transport_mode: :sea},
+        %{origin_hold: origin_hold, destination_hold: destination_hold}
+      )
+
+    {:ok, venture} =
+      Worlds.create_commercial_venture(
+        world,
+        %{
+          name: "Raven Quay Partnership",
+          venture_type: :felag,
+          purpose: "Fit out and operate one seasonal cargo boat",
+          capital_basis: "Hull shares, sailcloth, and working silver",
+          formation_label: "Spring compact"
+        },
+        %{home_location: quay}
+      )
+
+    {:ok, _membership} =
+      Worlds.create_venture_membership(
+        venture,
+        %{
+          role: "sailing partner",
+          contribution: "Navigation and one-sixth of the hull",
+          share_percentage: 40
+        },
+        %{character: character}
+      )
+
+    {:ok, _route_link} =
+      Worlds.create_venture_trade_route(venture, route, %{
+        role: :carrier,
+        description: "Operates spring and autumn sailings."
+      })
+
+    guide = WorldGuide.load!(world.id)
+    manual = WorldManual.build(guide)
+    economy = Enum.find(manual.chapters, &(&1.id == "economy"))
+
+    assert [%{name: "Raven Quay Partnership"} = venture_card] = guide.commercial_ventures
+    assert venture_card.detail =~ "Partnership (felag)"
+    assert inspect(economy) =~ "Ragna Torvaldsdottir"
+    assert inspect(economy) =~ "Western Sea Lane"
+    assert inspect(economy) =~ "Hull shares, sailcloth, and working silver"
   end
 end

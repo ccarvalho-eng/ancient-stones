@@ -6,6 +6,7 @@ defmodule AncientStones.Worlds.TradeFlow do
   alias AncientStones.Worlds.TradeRoute
 
   @frequencies [:daily, :weekly, :monthly, :seasonal, :annual]
+  @coverage_scopes [:representative_consignment, :minimum_recorded, :estimated_total]
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -16,6 +17,8 @@ defmodule AncientStones.Worlds.TradeFlow do
     field :unit, :string
     field :declared_value, :decimal
     field :frequency, Ecto.Enum, values: @frequencies, default: :annual
+    field :coverage_scope, Ecto.Enum, values: @coverage_scopes
+    field :quantity_basis, :string
     field :description, :string
     belongs_to :trade_route, TradeRoute
     belongs_to :currency, ContinentCurrency
@@ -31,6 +34,8 @@ defmodule AncientStones.Worlds.TradeFlow do
       :unit,
       :declared_value,
       :frequency,
+      :coverage_scope,
+      :quantity_basis,
       :description
     ])
     |> put_refs(refs)
@@ -56,6 +61,17 @@ defmodule AncientStones.Worlds.TradeFlow do
   def frequency_options do
     Enum.map(@frequencies, fn frequency ->
       {frequency |> Atom.to_string() |> String.capitalize(), frequency}
+    end)
+  end
+
+  def coverage_scope_options do
+    options(@coverage_scopes)
+  end
+
+  defp options(values) do
+    Enum.map(values, fn value ->
+      label = value |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()
+      {label, value}
     end)
   end
 

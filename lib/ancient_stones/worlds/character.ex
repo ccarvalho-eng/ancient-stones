@@ -18,6 +18,7 @@ defmodule AncientStones.Worlds.Character do
   alias AncientStones.Worlds.Race
   alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.CharacterRelationship
+  alias AncientStones.Worlds.VentureMembership
   alias AncientStones.Worlds.World
 
   @primary_key {:id, :binary_id, autogenerate: true}
@@ -110,6 +111,7 @@ defmodule AncientStones.Worlds.Character do
     has_many(:political_offices, PoliticalOffice)
     has_many(:household_memberships, HouseholdMembership)
     has_many(:households, through: [:household_memberships, :household])
+    has_many(:venture_memberships, VentureMembership)
     has_many(:relationships_as_a, CharacterRelationship, foreign_key: :character_a_id)
     has_many(:relationships_as_b, CharacterRelationship, foreign_key: :character_b_id)
     has_many(:source_lore_connections, LoreConnection, foreign_key: :source_character_id)
