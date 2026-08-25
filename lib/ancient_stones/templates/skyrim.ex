@@ -3,15 +3,43 @@ defmodule AncientStones.Templates.Skyrim do
   Skyrim-inspired starter geography for the Nordic world-building template.
   """
 
+  @snapshot_path Path.expand("../../../priv/templates/skyrim_snapshot.json", __DIR__)
+  @external_resource @snapshot_path
+  @snapshot_json File.read!(@snapshot_path)
+  @snapshot_keys ~w(
+    accounting_scope amount annual_local_need annual_output arable_hectares_estimate area_km2
+    assessment_label assessment_period_label assessments axial_tilt_degrees bad_year_output_percentage
+    calendars capital capital_basis cash_yield category character character_role characters children
+    climate climate_zone collecting_office commerce_entries commercial_ventures commodity
+    commodity_balances confidence connection_type continent continents contribution coverage_scope
+    currency customary_labor_days day_length_hours days days_per_week declared_value description
+    destination_hold destination_location destination_stop_position destination_water_body direction
+    directionality distance_km east_longitude economic_profile effective_from effective_to
+    elevation_profile end_label era exemption_percentage exemptions flows formation_label
+    freeze_pattern frequency gender geology guild handling_notes hazards health hold holds home_location
+    household household_estimate household_type households in_kind_value is_primary kind landholdings
+    legs life_stage location location_types locations magicka major_watersheds map_projection map_x map_y mean_radius_km
+    memberships moisture_regime months name navigability navigation_directionality north_latitude
+    ocean_currents office orbital_period_days origin_hold origin_location origin_stop_position
+    origin_water_body parent pasture_hectares_estimate percentage perihelion_day political_office
+    political_offices politics population_estimate position prevailing_conditions prevailing_winds
+    primary_star_name primary_use province province_links provinces purpose quantity quantity_basis race
+    rate rate_basis relationship revenue_shares risk role salinity scope seasonality share_percentage
+    size_hectares social_status south_latitude stamina staple_reserve_months status stops
+    storage_loss_percentage stored_reserve target tax_policies tax_type tectonic_setting tenure_type
+    terrain title trade_route trade_routes transport_mode type typical_travel_days unit
+    urban_population_estimate value_basis value_per_unit venture_type visibility water_bodies water_body
+    water_body_connections watershed wealth_band weekday_names west_longitude world year_start_angle
+  )a
+
   def data do
+    snapshot = snapshot()
+
     %{
       name: "Nirn",
       description:
         "The mortal world where myth, empire, wilderness, and old magic shape the lives of its peoples.",
       galaxy: "Mundus",
-      primary_star_name: "Magnus",
-      orbital_period_days: 365,
-      axial_tilt_degrees: "23.5",
       galaxies: galaxies(),
       timelines: timelines(),
       civilizations: civilizations(),
@@ -19,7 +47,7 @@ defmodule AncientStones.Templates.Skyrim do
       creatures: creatures(),
       gods: gods(),
       guilds: guilds(),
-      characters: characters(),
+      characters: merge_named(characters(), snapshot.characters),
       documents: documents(),
       occupations: occupations(),
       lore_connections: lore_connections(),
@@ -28,11 +56,35 @@ defmodule AncientStones.Templates.Skyrim do
       items: items(),
       skill_trees: skill_trees(),
       skills: skills(),
-      political_offices: political_offices(),
+      political_offices: snapshot.political_offices || political_offices(),
       races: races(),
-      location_types: location_types(),
-      continents: continents()
+      location_types: snapshot.location_types || location_types(),
+      continents: merge_named(continents(), snapshot.continents),
+      water_bodies: snapshot.water_bodies,
+      water_body_connections: snapshot.water_body_connections,
+      trade_routes: snapshot.trade_routes,
+      tax_policies: snapshot.tax_policies,
+      households: snapshot.households,
+      commercial_ventures: snapshot.commercial_ventures
     }
+    |> Map.merge(snapshot.world)
+  end
+
+  defp snapshot do
+    _ = @snapshot_keys
+    Jason.decode!(@snapshot_json, keys: :atoms!)
+  end
+
+  defp merge_named(base_records, snapshot_records) do
+    base_by_name = Map.new(base_records, &{&1.name, &1})
+    snapshot_by_name = Map.new(snapshot_records, &{&1.name, &1})
+
+    base_by_name
+    |> Map.merge(snapshot_by_name, fn _name, base_record, snapshot_record ->
+      Map.merge(base_record, snapshot_record)
+    end)
+    |> Map.values()
+    |> Enum.sort_by(& &1.name)
   end
 
   defp galaxies do

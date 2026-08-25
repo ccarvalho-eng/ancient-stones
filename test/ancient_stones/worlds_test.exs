@@ -159,7 +159,20 @@ defmodule AncientStones.WorldsTest do
              "Winterhold"
            ]
 
-    assert location_count(province) == 121
+    all_provinces = Enum.flat_map(dashboard.continents, & &1.provinces)
+    all_holds = Enum.flat_map(all_provinces, & &1.holds)
+    all_locations = Enum.flat_map(all_holds, & &1.locations)
+
+    assert length(all_provinces) == 28
+    assert length(all_holds) == 94
+    assert length(all_locations) == 248
+    assert Enum.all?(all_provinces, &(&1.holds != []))
+    assert location_count(province) == 163
+    assert Enum.count(all_provinces, & &1.capital_hold_id) == 6
+    assert Enum.count(all_locations, & &1.water_body_id) == 16
+
+    assert province_named(continent_named(dashboard, "Atmora"), "Frozen Heartland")
+           |> hold_named("Long Winter Interior")
 
     eastmarch = hold_named(province, "Eastmarch")
     falkreath = hold_named(province, "Falkreath")
@@ -184,6 +197,7 @@ defmodule AncientStones.WorldsTest do
 
     assert Enum.any?(dashboard.guilds, &(&1.name == "Companions"))
     assert Enum.any?(dashboard.guilds, &(&1.name == "Thieves Guild"))
+    assert Enum.sum(Enum.map(dashboard.guilds, &length(&1.guild_memberships))) == 13
     assert Enum.any?(dashboard.gods, &(&1.name == "Sithis"))
     assert Enum.any?(dashboard.characters, &(&1.name == "Ulfric Stormcloak"))
     assert Enum.any?(dashboard.characters, &(&1.name == "Torygg" && &1.status == "dead"))
@@ -191,12 +205,15 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(dashboard.creature_types, &(&1.name == "Dragon"))
     assert Enum.any?(dashboard.creatures, &(&1.name == "Frost Troll"))
     assert dashboard.galaxy.name == "Mundus"
-    assert dashboard.primary_star_name == "Magnus"
-    assert dashboard.orbital_period_days == 365
-    assert Decimal.equal?(dashboard.axial_tilt_degrees, Decimal.new("23.5"))
+    assert is_nil(dashboard.primary_star_name)
+    assert is_nil(dashboard.orbital_period_days)
+    assert is_nil(dashboard.axial_tilt_degrees)
     assert Enum.any?(dashboard.civilizations, &(&1.name == "Dwemer"))
+    assert length(dashboard.characters) == 50
     assert Enum.any?(dashboard.documents, &(&1.title == "The Book of the Dragonborn"))
     assert Enum.any?(dashboard.political_offices, &(&1.office == "High King"))
+    assert length(dashboard.political_offices) == 34
+    assert length(dashboard.location_types) == 59
     assert Enum.any?(dashboard.lore_connections, &(&1.name == "Black-Briar Patronage"))
     assert Enum.any?(dashboard.timelines, &(&1.name == "Tamrielic Timeline"))
     assert Enum.map(dashboard.skills, & &1.name) |> Enum.sort() == skyrim_skill_names()
@@ -214,6 +231,41 @@ defmodule AncientStones.WorldsTest do
     assert Enum.any?(dashboard.items, &(&1.name == "Sweet Roll" && &1.category == "food"))
     assert Enum.any?(dashboard.effects, &(&1.name == "Restore Health"))
     assert dashboard.items |> Enum.filter(&(&1.category == "ingredient")) |> length() == 91
+
+    assert length(Worlds.list_hold_economic_profiles(world)) == 9
+    assert length(Worlds.list_commodity_balances(world)) == 27
+    assert length(Worlds.list_water_bodies(world)) == 12
+    assert length(Worlds.list_water_body_connections(world)) == 11
+    assert length(Worlds.list_province_water_bodies(world)) == 12
+
+    routes = Worlds.list_trade_routes(world)
+    assert length(routes) == 8
+    assert length(Worlds.list_trade_flows(world)) == 16
+    assert Enum.sum(Enum.map(routes, &length(Worlds.list_trade_route_stops(&1)))) == 22
+    assert Enum.sum(Enum.map(routes, &length(Worlds.list_trade_route_legs(&1)))) == 14
+
+    assert routes
+           |> Enum.flat_map(&Worlds.list_trade_route_legs/1)
+           |> Enum.flat_map(& &1.water_traversals)
+           |> length() == 2
+
+    tax_policies = Worlds.list_tax_policies(world)
+    assert length(tax_policies) == 7
+    assert length(Worlds.list_tax_assessments(world)) == 7
+    assert length(Worlds.list_tax_exemptions(world)) == 2
+
+    assert Enum.sum(Enum.map(tax_policies, &length(Worlds.list_tax_revenue_shares(&1)))) ==
+             14
+
+    households = Worlds.list_households(world)
+    assert length(households) == 6
+    assert Enum.sum(Enum.map(households, &length(&1.memberships))) == 6
+    assert length(Worlds.list_landholdings(world)) == 6
+
+    ventures = Worlds.list_commercial_ventures(world)
+    assert length(ventures) == 5
+    assert Enum.sum(Enum.map(ventures, &length(&1.memberships))) == 7
+    assert Enum.sum(Enum.map(ventures, &length(&1.trade_route_links))) == 6
 
     blue_mountain_flower = Enum.find(dashboard.items, &(&1.name == "Blue Mountain Flower"))
 
@@ -325,9 +377,9 @@ defmodule AncientStones.WorldsTest do
       |> Enum.find(&(&1.name == "Tamrielic Calendar"))
 
     assert calendar.days_per_week == 7
-    assert Decimal.equal?(calendar.year_start_angle, Decimal.new("270.0"))
-    assert calendar.perihelion_day == 1
-    assert calendar.months |> Enum.map(& &1.days) |> Enum.sum() == dashboard.orbital_period_days
+    assert is_nil(calendar.year_start_angle)
+    assert is_nil(calendar.perihelion_day)
+    assert calendar.months |> Enum.map(& &1.days) |> Enum.sum() == 365
     assert Enum.any?(calendar.months, &(&1.name == "Frostfall" && &1.position == 10))
 
     smithing = Enum.find(dashboard.skills, &(&1.name == "Smithing"))
@@ -579,12 +631,12 @@ defmodule AncientStones.WorldsTest do
   end
 
   test "deletes a province with nested holds and locations" do
-    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
-    dashboard = Worlds.get_world_dashboard!(world.id)
-    continent = continent_named(dashboard, "Tamriel")
-    province = province_named(continent, "Skyrim")
-    whiterun = Enum.find(province.holds, &(&1.name == "Whiterun"))
-    riverwood = Enum.find(whiterun.locations, &(&1.name == "Riverwood"))
+    {:ok, world} = Worlds.create_world(%{name: "Northern Realm"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, whiterun} = Worlds.create_hold(province, %{name: "Whiterun"})
+    {:ok, town} = Worlds.create_location_type(world, %{name: "Town"})
+    {:ok, riverwood} = Worlds.create_location(whiterun, town, %{name: "Riverwood"})
 
     assert {:ok, _province} = Worlds.delete_province(province)
 
@@ -595,13 +647,15 @@ defmodule AncientStones.WorldsTest do
   end
 
   test "deletes a location and clears it as capital" do
-    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
-    dashboard = Worlds.get_world_dashboard!(world.id)
-    continent = continent_named(dashboard, "Tamriel")
-    province = province_named(continent, "Skyrim")
-    whiterun = Enum.find(province.holds, &(&1.name == "Whiterun"))
+    {:ok, world} = Worlds.create_world(%{name: "Northern Realm"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, whiterun} = Worlds.create_hold(province, %{name: "Whiterun"})
+    {:ok, city} = Worlds.create_location_type(world, %{name: "City"})
+    {:ok, capital} = Worlds.create_location(whiterun, city, %{name: "Whiterun"})
+    {:ok, _whiterun} = Worlds.set_hold_capital(whiterun, capital)
 
-    assert {:ok, _location} = Worlds.delete_location(whiterun.capital_location)
+    assert {:ok, _location} = Worlds.delete_location(capital)
 
     dashboard = Worlds.get_world_dashboard!(world.id)
     continent = continent_named(dashboard, "Tamriel")

@@ -63,7 +63,7 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     {:ok, view, _html} = live(conn, ~p"/worlds")
 
     assert has_element?(view, "#galaxies", "Northern Realm")
-    assert has_element?(view, "#galaxies", "9 holds")
+    assert has_element?(view, "#galaxies", "94 holds")
     assert has_element?(view, "#worlds", "Blank Realm")
     assert has_element?(view, "#worlds", "0 holds")
   end

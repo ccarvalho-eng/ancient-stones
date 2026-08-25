@@ -2244,10 +2244,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   end
 
   test "deletes a hold from the geography tree", %{conn: conn} do
-    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
-    dashboard = Worlds.get_world_dashboard!(world.id)
-    province = skyrim_province(dashboard)
-    whiterun = Enum.find(province.holds, &(&1.name == "Whiterun"))
+    %{world: world, hold: whiterun} = geography_ui_fixture()
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
 
@@ -2596,11 +2593,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   end
 
   test "deletes a selected location from the locations column", %{conn: conn} do
-    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
-    dashboard = Worlds.get_world_dashboard!(world.id)
-    province = skyrim_province(dashboard)
-    whiterun = Enum.find(province.holds, &(&1.name == "Whiterun"))
-    riverwood = Enum.find(whiterun.locations, &(&1.name == "Riverwood"))
+    %{world: world, hold: whiterun, location: riverwood} = geography_ui_fixture()
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?hold_id=#{whiterun.id}")
 
@@ -2627,9 +2620,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   end
 
   test "deletes a continent and nested geography from the tree", %{conn: conn} do
-    {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
-    dashboard = Worlds.get_world_dashboard!(world.id)
-    continent = Enum.find(dashboard.continents, &(&1.name == "Tamriel"))
+    %{world: world, continent: continent} = geography_ui_fixture()
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard")
 
@@ -2644,6 +2635,24 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   defp create_world! do
     {:ok, world} = Worlds.create_world(%{name: "Eldoria"})
     world
+  end
+
+  defp geography_ui_fixture do
+    {:ok, world} = Worlds.create_world(%{name: "Northern Realm"})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Skyrim"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Whiterun"})
+    {:ok, location_type} = Worlds.create_location_type(world, %{name: "Town"})
+    {:ok, location} = Worlds.create_location(hold, location_type, %{name: "Riverwood"})
+
+    %{
+      world: world,
+      continent: continent,
+      province: province,
+      hold: hold,
+      location: location,
+      location_type: location_type
+    }
   end
 
   defp society_ui_fixture(world_name \\ "Audrun") do

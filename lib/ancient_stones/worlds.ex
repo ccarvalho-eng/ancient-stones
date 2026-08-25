@@ -3598,6 +3598,10 @@ defmodule AncientStones.Worlds do
 
     build_template_continents!(world, continents, type_by_name)
 
+    water_by_name = build_template_waters!(world, template_data)
+    build_template_location_water_links!(world, template_data, water_by_name)
+    route_by_name = build_template_trade_routes!(world, template_data, water_by_name)
+
     character_by_name =
       build_template_characters!(
         world,
@@ -3611,6 +3615,19 @@ defmodule AncientStones.Worlds do
       world,
       Map.get(template_data, :political_offices, []),
       character_by_name
+    )
+
+    household_by_name =
+      build_template_households!(world, template_data, character_by_name)
+
+    build_template_tax_policies!(world, template_data, guild_by_name, route_by_name)
+
+    build_template_commercial_ventures!(
+      world,
+      template_data,
+      character_by_name,
+      household_by_name,
+      route_by_name
     )
 
     build_template_character_occupations!(
@@ -3688,6 +3705,10 @@ defmodule AncientStones.Worlds do
 
     build_template_continents!(world, continents, %{})
 
+    water_by_name = build_template_waters!(world, template_data)
+    build_template_location_water_links!(world, template_data, water_by_name)
+    route_by_name = build_template_trade_routes!(world, template_data, water_by_name)
+
     character_by_name =
       build_template_characters!(
         world,
@@ -3701,6 +3722,19 @@ defmodule AncientStones.Worlds do
       world,
       Map.get(template_data, :political_offices, []),
       character_by_name
+    )
+
+    household_by_name =
+      build_template_households!(world, template_data, character_by_name)
+
+    build_template_tax_policies!(world, template_data, guild_by_name, route_by_name)
+
+    build_template_commercial_ventures!(
+      world,
+      template_data,
+      character_by_name,
+      household_by_name,
+      route_by_name
     )
 
     build_template_character_occupations!(
@@ -4270,36 +4304,64 @@ defmodule AncientStones.Worlds do
         |> create_province(province_data)
         |> unwrap_transaction!()
 
-      build_template_holds!(province, Map.get(province_data, :holds, []), type_by_name)
+      hold_by_name =
+        build_template_holds!(province, Map.get(province_data, :holds, []), type_by_name)
+
+      if capital_name = province_data[:capital] do
+        hold_by_name
+        |> Map.fetch!(capital_name)
+        |> update_hold(province, %{}, province_capital: true)
+        |> unwrap_transaction!()
+      end
     end
   end
 
   defp build_template_holds!(province, holds, type_by_name) do
-    for hold_data <- holds do
+    Enum.reduce(holds, %{}, fn hold_data, hold_by_name ->
       hold =
         province
         |> create_hold(hold_data)
         |> unwrap_transaction!()
 
       build_template_hold_commerce_entries!(hold, Map.get(hold_data, :commerce_entries, []))
+      build_template_hold_economy!(hold, hold_data)
 
       location_by_name =
         build_template_locations!(hold, Map.get(hold_data, :locations, []), type_by_name)
 
-      if capital_name = hold_data[:capital] do
-        capital = Map.fetch!(location_by_name, capital_name)
+      hold =
+        if capital_name = hold_data[:capital] do
+          capital = Map.fetch!(location_by_name, capital_name)
 
-        hold
-        |> set_hold_capital(capital)
-        |> unwrap_transaction!()
-      end
-    end
+          hold
+          |> set_hold_capital(capital)
+          |> unwrap_transaction!()
+        else
+          hold
+        end
+
+      Map.put(hold_by_name, hold.name, hold)
+    end)
   end
 
   defp build_template_hold_commerce_entries!(hold, commerce_entries) do
     for commerce_data <- commerce_entries do
       hold
       |> create_hold_commerce_entry(commerce_data)
+      |> unwrap_transaction!()
+    end
+  end
+
+  defp build_template_hold_economy!(hold, hold_data) do
+    if profile_data = hold_data[:economic_profile] do
+      hold
+      |> create_hold_economic_profile(profile_data)
+      |> unwrap_transaction!()
+    end
+
+    for balance_data <- Map.get(hold_data, :commodity_balances, []) do
+      hold
+      |> create_commodity_balance(balance_data)
       |> unwrap_transaction!()
     end
   end
@@ -4333,6 +4395,321 @@ defmodule AncientStones.Worlds do
     |> Enum.reduce(acc, fn child_data, child_acc ->
       create_template_location!(location, child_data, type_by_name, child_acc)
     end)
+  end
+
+  defp build_template_waters!(world, template_data) do
+    water_data = Map.get(template_data, :water_bodies, [])
+    water_by_name = build_template_water_bodies!(world, water_data)
+    province_by_name = provinces_by_name(world)
+
+    for water <- water_data,
+        link_data <- Map.get(water, :province_links, []) do
+      province = Map.fetch!(province_by_name, link_data.province)
+      water_body = Map.fetch!(water_by_name, water.name)
+
+      province
+      |> create_province_water_body(water_body, link_data)
+      |> unwrap_transaction!()
+    end
+
+    for connection_data <- Map.get(template_data, :water_body_connections, []) do
+      refs = %{
+        origin_water_body: Map.fetch!(water_by_name, connection_data.origin_water_body),
+        destination_water_body: Map.fetch!(water_by_name, connection_data.destination_water_body)
+      }
+
+      world
+      |> create_water_body_connection(connection_data, refs)
+      |> unwrap_transaction!()
+    end
+
+    water_by_name
+  end
+
+  defp build_template_water_bodies!(world, water_data) do
+    data_by_name = Map.new(water_data, &{&1.name, &1})
+
+    Enum.reduce(water_data, %{}, fn data, water_by_name ->
+      {_water, water_by_name} =
+        ensure_template_water_body!(world, data.name, data_by_name, water_by_name)
+
+      water_by_name
+    end)
+  end
+
+  defp ensure_template_water_body!(world, name, data_by_name, water_by_name) do
+    case Map.fetch(water_by_name, name) do
+      {:ok, water} ->
+        {water, water_by_name}
+
+      :error ->
+        data = Map.fetch!(data_by_name, name)
+
+        {parent, water_by_name} =
+          case data[:parent] do
+            nil ->
+              {nil, water_by_name}
+
+            parent_name ->
+              ensure_template_water_body!(world, parent_name, data_by_name, water_by_name)
+          end
+
+        water =
+          world
+          |> create_water_body(data, %{parent_water_body: parent})
+          |> unwrap_transaction!()
+
+        {water, Map.put(water_by_name, water.name, water)}
+    end
+  end
+
+  defp build_template_location_water_links!(world, template_data, water_by_name) do
+    location_by_name = locations_by_name(world)
+
+    template_data
+    |> template_location_data()
+    |> Enum.each(fn location_data ->
+      if water_name = location_data[:water_body] do
+        location = Map.fetch!(location_by_name, location_data.name)
+        water_body = Map.fetch!(water_by_name, water_name)
+
+        world
+        |> set_location_water_body(location, water_body)
+        |> unwrap_transaction!()
+      end
+    end)
+  end
+
+  defp template_location_data(template_data) do
+    template_data
+    |> Map.get(:continents, [])
+    |> Enum.flat_map(&Map.get(&1, :provinces, []))
+    |> Enum.flat_map(&Map.get(&1, :holds, []))
+    |> Enum.flat_map(&flatten_template_locations(Map.get(&1, :locations, [])))
+  end
+
+  defp flatten_template_locations(locations) do
+    Enum.flat_map(locations, fn location ->
+      [location | flatten_template_locations(Map.get(location, :children, []))]
+    end)
+  end
+
+  defp build_template_trade_routes!(world, template_data, water_by_name) do
+    hold_by_name = holds_by_name(world)
+    location_by_name = locations_by_name(world)
+    currency_by_name = continent_currencies_by_name(world)
+
+    Enum.reduce(Map.get(template_data, :trade_routes, []), %{}, fn route_data, route_by_name ->
+      refs = %{
+        origin_hold: Map.get(hold_by_name, route_data[:origin_hold]),
+        destination_hold: Map.get(hold_by_name, route_data[:destination_hold]),
+        origin_location: Map.get(location_by_name, route_data[:origin_location]),
+        destination_location: Map.get(location_by_name, route_data[:destination_location])
+      }
+
+      route =
+        world
+        |> create_trade_route(route_data, refs)
+        |> unwrap_transaction!()
+
+      stop_by_position =
+        Enum.reduce(Map.get(route_data, :stops, []), %{}, fn stop_data, acc ->
+          location = Map.fetch!(location_by_name, stop_data.location)
+
+          stop =
+            route
+            |> create_trade_route_stop(location, stop_data)
+            |> unwrap_transaction!()
+
+          Map.put(acc, stop.position, stop)
+        end)
+
+      for leg_data <- Map.get(route_data, :legs, []) do
+        refs = %{
+          origin_stop: Map.fetch!(stop_by_position, leg_data.origin_stop_position),
+          destination_stop: Map.fetch!(stop_by_position, leg_data.destination_stop_position),
+          water_body: Map.get(water_by_name, leg_data[:water_body])
+        }
+
+        route
+        |> create_trade_route_leg(leg_data, refs)
+        |> unwrap_transaction!()
+      end
+
+      for flow_data <- Map.get(route_data, :flows, []) do
+        refs = %{currency: Map.get(currency_by_name, flow_data[:currency])}
+
+        route
+        |> create_trade_flow(flow_data, refs)
+        |> unwrap_transaction!()
+      end
+
+      Map.put(route_by_name, route.name, route)
+    end)
+  end
+
+  defp build_template_households!(world, template_data, character_by_name) do
+    hold_by_name = holds_by_name(world)
+    location_by_name = locations_by_name(world)
+
+    Enum.reduce(Map.get(template_data, :households, []), %{}, fn household_data,
+                                                                 household_by_name ->
+      household =
+        world
+        |> create_household(household_data,
+          home_location: Map.get(location_by_name, household_data[:home_location])
+        )
+        |> unwrap_transaction!()
+
+      for membership_data <- Map.get(household_data, :memberships, []) do
+        character = Map.fetch!(character_by_name, membership_data.character)
+
+        household
+        |> create_household_membership(character, membership_data)
+        |> unwrap_transaction!()
+      end
+
+      for holding_data <- Map.get(household_data, :landholdings, []) do
+        refs = [
+          hold: Map.get(hold_by_name, holding_data[:hold]),
+          location: Map.get(location_by_name, holding_data[:location])
+        ]
+
+        household
+        |> create_landholding(holding_data, refs)
+        |> unwrap_transaction!()
+      end
+
+      Map.put(household_by_name, household.name, household)
+    end)
+  end
+
+  defp build_template_tax_policies!(world, template_data, guild_by_name, route_by_name) do
+    continent_by_name = continents_by_name(world)
+    province_by_name = provinces_by_name(world)
+    hold_by_name = holds_by_name(world)
+    currency_by_name = continent_currencies_by_name(world)
+    office_by_ref = political_offices_by_template_ref(world)
+
+    for policy_data <- Map.get(template_data, :tax_policies, []) do
+      refs = %{
+        continent: Map.get(continent_by_name, policy_data[:continent]),
+        province: Map.get(province_by_name, policy_data[:province]),
+        hold: Map.get(hold_by_name, policy_data[:hold]),
+        collecting_office:
+          Map.get(office_by_ref, political_office_template_ref(policy_data[:collecting_office])),
+        currency: Map.get(currency_by_name, policy_data[:currency])
+      }
+
+      policy =
+        world
+        |> create_tax_policy(policy_data, refs)
+        |> unwrap_transaction!()
+
+      for assessment_data <- Map.get(policy_data, :assessments, []) do
+        refs = %{currency: Map.get(currency_by_name, assessment_data[:currency])}
+
+        policy
+        |> create_tax_assessment(assessment_data, refs)
+        |> unwrap_transaction!()
+      end
+
+      for exemption_data <- Map.get(policy_data, :exemptions, []) do
+        refs = %{
+          guild: Map.get(guild_by_name, exemption_data[:guild]),
+          trade_route: Map.get(route_by_name, exemption_data[:trade_route]),
+          continent: Map.get(continent_by_name, exemption_data[:continent]),
+          province: Map.get(province_by_name, exemption_data[:province]),
+          hold: Map.get(hold_by_name, exemption_data[:hold])
+        }
+
+        policy
+        |> create_tax_exemption(exemption_data, refs)
+        |> unwrap_transaction!()
+      end
+
+      for share_data <- Map.get(policy_data, :revenue_shares, []) do
+        office_ref = political_office_template_ref(share_data.political_office)
+        office = Map.fetch!(office_by_ref, office_ref)
+
+        policy
+        |> create_tax_revenue_share(share_data, %{political_office: office})
+        |> unwrap_transaction!()
+      end
+    end
+  end
+
+  defp build_template_commercial_ventures!(
+         world,
+         template_data,
+         character_by_name,
+         household_by_name,
+         route_by_name
+       ) do
+    location_by_name = locations_by_name(world)
+
+    for venture_data <- Map.get(template_data, :commercial_ventures, []) do
+      venture =
+        world
+        |> create_commercial_venture(venture_data, %{
+          home_location: Map.get(location_by_name, venture_data[:home_location])
+        })
+        |> unwrap_transaction!()
+
+      for membership_data <- Map.get(venture_data, :memberships, []) do
+        refs = %{
+          household: Map.get(household_by_name, membership_data[:household]),
+          character: Map.get(character_by_name, membership_data[:character])
+        }
+
+        venture
+        |> create_venture_membership(membership_data, refs)
+        |> unwrap_transaction!()
+      end
+
+      for route_data <- Map.get(venture_data, :trade_routes, []) do
+        route = Map.fetch!(route_by_name, route_data.trade_route)
+
+        venture
+        |> create_venture_trade_route(route, route_data)
+        |> unwrap_transaction!()
+      end
+    end
+  end
+
+  defp continent_currencies_by_name(%World{id: world_id}) do
+    ContinentCurrency
+    |> join(:inner, [currency], continent in assoc(currency, :continent))
+    |> where([_currency, continent], continent.world_id == ^world_id)
+    |> Repo.all()
+    |> Map.new(&{&1.name, &1})
+  end
+
+  defp political_offices_by_template_ref(%World{id: world_id}) do
+    PoliticalOffice
+    |> where([office], office.world_id == ^world_id)
+    |> Repo.all()
+    |> Repo.preload([:continent, :province, :hold])
+    |> Map.new(&{political_office_template_ref(&1), &1})
+  end
+
+  defp political_office_template_ref(nil) do
+    nil
+  end
+
+  defp political_office_template_ref(%PoliticalOffice{} = office) do
+    target =
+      case office.scope do
+        "continent" -> office.continent.name
+        "province" -> office.province.name
+        "hold" -> office.hold.name
+      end
+
+    {office.scope, target, office.office}
+  end
+
+  defp political_office_template_ref(office_data) do
+    {office_data.scope, office_data.target, office_data.office}
   end
 
   defp route_ref_fields do
