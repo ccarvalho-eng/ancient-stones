@@ -4,7 +4,9 @@ defmodule AncientStones.Worlds.Hold do
 
   alias AncientStones.Maps.MapItem
   alias AncientStones.Worlds.Geography
+  alias AncientStones.Worlds.CommodityBalance
   alias AncientStones.Worlds.HoldCommerceEntry
+  alias AncientStones.Worlds.HoldEconomicProfile
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.Landholding
   alias AncientStones.Worlds.PoliticalOffice
@@ -31,6 +33,8 @@ defmodule AncientStones.Worlds.Hold do
     has_many(:locations, Location)
     has_many(:landholdings, Landholding)
     has_many(:commerce_entries, HoldCommerceEntry)
+    has_one(:economic_profile, HoldEconomicProfile)
+    has_many(:commodity_balances, CommodityBalance)
     has_many(:political_offices, PoliticalOffice)
     has_many(:map_items, MapItem)
 

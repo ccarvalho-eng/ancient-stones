@@ -7,10 +7,16 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   alias AncientStones.Worlds
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CharacterRole
+  alias AncientStones.Worlds.CommodityBalance
+  alias AncientStones.Worlds.CommercialVenture
   alias AncientStones.Worlds.GuildMembership
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.Hold
+  alias AncientStones.Worlds.HoldEconomicProfile
   alias AncientStones.Worlds.Province
+  alias AncientStones.Worlds.TaxAssessment
+  alias AncientStones.Worlds.VentureMembership
+  alias AncientStones.Worlds.VentureTradeRoute
 
   def mount(_params, _session, socket) do
     {:ok,
@@ -211,6 +217,47 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end
   end
 
+  def handle_event("save_trade_route_stop", %{"trade_route_stop" => params}, socket) do
+    with %{} = route <- socket.assigns.selected_trade_route,
+         {:ok, location} <- economy_record(socket.assigns.locations, params["location_id"]) do
+      save_economy_record(socket, socket.assigns.selected_trade_route_stop, fn
+        nil -> Worlds.create_trade_route_stop(route, location, params)
+        stop -> Worlds.update_trade_route_stop(stop, params, %{location: location})
+      end)
+    else
+      _reason ->
+        {:noreply, put_flash(socket, :error, "Select a route and a location from this world")}
+    end
+  end
+
+  def handle_event("save_trade_route_leg", %{"trade_route_leg" => params}, socket) do
+    with %{} = route <- socket.assigns.selected_trade_route,
+         {:ok, origin_stop} <-
+           economy_record(socket.assigns.trade_route_stops, params["origin_stop_id"]),
+         {:ok, destination_stop} <-
+           economy_record(socket.assigns.trade_route_stops, params["destination_stop_id"]),
+         {:ok, water_body} <-
+           optional_economy_record(socket.assigns.water_bodies, params["water_body_id"]) do
+      refs = %{
+        origin_stop: origin_stop,
+        destination_stop: destination_stop,
+        water_body: water_body
+      }
+
+      save_economy_record(socket, socket.assigns.selected_trade_route_leg, fn
+        nil -> Worlds.create_trade_route_leg(route, params, refs)
+        leg -> Worlds.update_trade_route_leg(leg, params, refs)
+      end)
+    else
+      _reason ->
+        {:noreply, put_flash(socket, :error, "Invalid route leg references")}
+    end
+  end
+
+  def handle_event("delete_route_topology_record", %{"kind" => kind, "id" => id}, socket) do
+    delete_and_reload(socket, fn -> delete_route_topology_record(socket, kind, id) end)
+  end
+
   def handle_event("save_tax_policy", %{"tax_policy" => params}, socket) do
     with {:ok, jurisdiction_refs} <- economy_jurisdiction_refs(socket, params["jurisdiction"]),
          {:ok, office} <-
@@ -258,8 +305,164 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end
   end
 
+  def handle_event("save_hold_economic_profile", %{"hold_economic_profile" => params}, socket) do
+    with {:ok, hold} <- economy_record(socket.assigns.holds, params["hold_id"]) do
+      save_economy_record(socket, socket.assigns.selected_hold_economic_profile, fn
+        nil -> Worlds.create_hold_economic_profile(hold, params)
+        profile -> Worlds.update_hold_economic_profile(profile, params)
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Select a hold from this world")}
+    end
+  end
+
+  def handle_event("save_commodity_balance", %{"commodity_balance" => params}, socket) do
+    with {:ok, hold} <- economy_record(socket.assigns.holds, params["hold_id"]) do
+      save_economy_record(socket, socket.assigns.selected_commodity_balance, fn
+        nil -> Worlds.create_commodity_balance(hold, params)
+        balance -> Worlds.update_commodity_balance(balance, params)
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Select a hold from this world")}
+    end
+  end
+
+  def handle_event("save_tax_assessment", %{"tax_assessment" => params}, socket) do
+    with {:ok, policy} <- economy_record(socket.assigns.tax_policies, params["tax_policy_id"]),
+         {:ok, currency} <- economy_record(socket.assigns.currencies, params["currency_id"]) do
+      save_economy_record(socket, socket.assigns.selected_tax_assessment, fn
+        nil -> Worlds.create_tax_assessment(policy, params, %{currency: currency})
+        assessment -> Worlds.update_tax_assessment(assessment, params, %{currency: currency})
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Invalid assessment references")}
+    end
+  end
+
+  def handle_event("save_commercial_venture", %{"commercial_venture" => params}, socket) do
+    with {:ok, home_location} <-
+           optional_economy_record(socket.assigns.locations, params["home_location_id"]) do
+      save_economy_record(socket, socket.assigns.selected_commercial_venture, fn
+        nil ->
+          Worlds.create_commercial_venture(
+            socket.assigns.world,
+            params,
+            %{home_location: home_location}
+          )
+
+        venture ->
+          Worlds.update_commercial_venture(venture, params, %{home_location: home_location})
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Select a home location from this world")}
+    end
+  end
+
+  def handle_event("save_venture_membership", %{"venture_membership" => params}, socket) do
+    with %{} = venture <- socket.assigns.selected_commercial_venture,
+         {:ok, member_refs} <- venture_member_refs(socket, params) do
+      save_economy_record(socket, socket.assigns.selected_venture_membership, fn
+        nil -> Worlds.create_venture_membership(venture, params, member_refs)
+        membership -> Worlds.update_venture_membership(membership, params, member_refs)
+      end)
+    else
+      _reason ->
+        {:noreply, put_flash(socket, :error, "Select one character or household from this world")}
+    end
+  end
+
+  def handle_event("save_venture_trade_route", %{"venture_trade_route" => params}, socket) do
+    with %{} = venture <- socket.assigns.selected_commercial_venture,
+         {:ok, route} <- economy_record(socket.assigns.trade_routes, params["trade_route_id"]) do
+      save_economy_record(socket, socket.assigns.selected_venture_trade_route, fn
+        nil -> Worlds.create_venture_trade_route(venture, route, params)
+        link -> Worlds.update_venture_trade_route(link, route, params)
+      end)
+    else
+      _reason ->
+        {:noreply, put_flash(socket, :error, "Select a venture and route from this world")}
+    end
+  end
+
   def handle_event("delete_economy_record", %{"kind" => kind, "id" => id}, socket) do
     delete_and_reload(socket, fn -> delete_economy_record(socket, kind, id) end)
+  end
+
+  def handle_event("save_water_body", %{"water_body" => params}, socket) do
+    with {:ok, parent_water_body} <-
+           optional_economy_record(
+             socket.assigns.water_bodies,
+             params["parent_water_body_id"]
+           ) do
+      save_economy_record(socket, socket.assigns.selected_water_body, fn
+        nil ->
+          Worlds.create_water_body(socket.assigns.world, params,
+            parent_water_body: parent_water_body
+          )
+
+        water_body ->
+          Worlds.update_water_body(water_body, params, parent_water_body: parent_water_body)
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Invalid parent water body")}
+    end
+  end
+
+  def handle_event(
+        "save_water_body_connection",
+        %{"water_body_connection" => params},
+        socket
+      ) do
+    with {:ok, origin} <-
+           economy_record(socket.assigns.water_bodies, params["origin_water_body_id"]),
+         {:ok, destination} <-
+           economy_record(socket.assigns.water_bodies, params["destination_water_body_id"]) do
+      refs = %{origin_water_body: origin, destination_water_body: destination}
+
+      save_economy_record(socket, socket.assigns.selected_water_body_connection, fn
+        nil -> Worlds.create_water_body_connection(socket.assigns.world, params, refs)
+        connection -> Worlds.update_water_body_connection(connection, params, refs)
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Invalid water connection endpoints")}
+    end
+  end
+
+  def handle_event("save_province_water_body", %{"province_water_body" => params}, socket) do
+    with {:ok, province} <- economy_record(socket.assigns.provinces, params["province_id"]),
+         {:ok, water_body} <-
+           economy_record(socket.assigns.water_bodies, params["water_body_id"]) do
+      save_economy_record(socket, socket.assigns.selected_province_water_body, fn
+        nil -> Worlds.create_province_water_body(province, water_body, params)
+        link -> Worlds.update_province_water_body(link, province, water_body, params)
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Invalid province or water body")}
+    end
+  end
+
+  def handle_event("set_location_water_body", %{"location_water_body" => params}, socket) do
+    with {:ok, location} <- economy_record(socket.assigns.locations, params["location_id"]),
+         {:ok, water_body} <-
+           optional_economy_record(socket.assigns.water_bodies, params["water_body_id"]) do
+      update_and_reload(socket, fn ->
+        Worlds.set_location_water_body(socket.assigns.world, location, water_body)
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Invalid location or water body")}
+    end
+  end
+
+  def handle_event("delete_water_record", %{"kind" => kind, "id" => id}, socket) do
+    delete_and_reload(socket, fn -> delete_water_record(socket, kind, id) end)
   end
 
   def handle_event("save_household", %{"household" => params}, socket) do
@@ -1079,7 +1282,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   def handle_event("search_dashboard", %{"search" => %{"query" => query}}, socket) do
-    if socket.assigns.section == "society" do
+    if socket.assigns.section in ["society", "economy", "waters"] do
       {:noreply,
        socket
        |> assign(:search_query, query)
@@ -1408,22 +1611,59 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     political_offices = world.political_offices
     currencies = continents |> Enum.map(& &1.currency) |> Enum.reject(&is_nil/1)
 
-    {trade_routes, trade_flows, tax_policies, tax_exemptions} =
+    {trade_routes, trade_flows, tax_policies, tax_exemptions, hold_economic_profiles,
+     commodity_balances, tax_assessments, commercial_ventures} =
       if section == "economy" do
         {
           Worlds.list_trade_routes(world),
           Worlds.list_trade_flows(world),
           Worlds.list_tax_policies(world),
-          Worlds.list_tax_exemptions(world)
+          Worlds.list_tax_exemptions(world),
+          Worlds.list_hold_economic_profiles(world, search_query),
+          Worlds.list_commodity_balances(world, search_query),
+          Worlds.list_tax_assessments(world, search_query),
+          Worlds.list_commercial_ventures(world, search_query)
         }
       else
-        {[], [], [], []}
+        {[], [], [], [], [], [], [], []}
       end
 
     selected_trade_route = select_record(trade_routes, params["trade_route_id"])
     selected_trade_flow = select_record(trade_flows, params["trade_flow_id"])
     selected_tax_policy = select_record(tax_policies, params["tax_policy_id"])
     selected_tax_exemption = select_record(tax_exemptions, params["tax_exemption_id"])
+
+    selected_hold_economic_profile =
+      select_record(hold_economic_profiles, params["hold_economic_profile_id"])
+
+    selected_commodity_balance =
+      select_record(commodity_balances, params["commodity_balance_id"])
+
+    selected_tax_assessment =
+      select_record(tax_assessments, params["tax_assessment_id"])
+
+    selected_commercial_venture =
+      select_record(commercial_ventures, params["commercial_venture_id"])
+
+    venture_memberships =
+      if selected_commercial_venture do
+        Worlds.list_venture_memberships(selected_commercial_venture)
+      else
+        []
+      end
+
+    venture_trade_routes =
+      if selected_commercial_venture do
+        Worlds.list_venture_trade_routes(selected_commercial_venture)
+      else
+        []
+      end
+
+    selected_venture_membership =
+      select_record(venture_memberships, params["venture_membership_id"])
+
+    selected_venture_trade_route =
+      select_record(venture_trade_routes, params["venture_trade_route_id"])
 
     tax_revenue_shares =
       if selected_tax_policy, do: Worlds.list_tax_revenue_shares(selected_tax_policy), else: []
@@ -1437,18 +1677,90 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         flow: selected_trade_flow,
         policy: selected_tax_policy,
         exemption: selected_tax_exemption,
-        share: selected_tax_revenue_share
+        share: selected_tax_revenue_share,
+        profile: selected_hold_economic_profile,
+        balance: selected_commodity_balance,
+        assessment: selected_tax_assessment,
+        venture: selected_commercial_venture
       )
 
-    {households, character_relationships, landholdings} =
+    water_bodies =
+      if section in ["waters", "economy"] do
+        Worlds.list_water_bodies(world, if(section == "waters", do: search_query))
+      else
+        []
+      end
+
+    {water_body_connections, province_water_bodies} =
+      if section == "waters" do
+        {
+          Worlds.list_water_body_connections(world),
+          Worlds.list_province_water_bodies(world)
+        }
+      else
+        {[], []}
+      end
+
+    selected_water_body = select_record(water_bodies, params["water_body_id"])
+
+    selected_water_body_connection =
+      select_record(water_body_connections, params["water_body_connection_id"])
+
+    selected_province_water_body =
+      select_record(province_water_bodies, params["province_water_body_id"])
+
+    water_locations =
+      if section == "waters" do
+        Enum.filter(locations, & &1.water_body_id)
+      else
+        []
+      end
+
+    selected_water_location = select_record(water_locations, params["water_location_id"])
+
+    water_mode =
+      water_mode(params,
+        body: selected_water_body,
+        connection: selected_water_body_connection,
+        province: selected_province_water_body,
+        location: selected_water_location
+      )
+
+    trade_route_stops =
+      if section == "economy" and selected_trade_route do
+        Worlds.list_trade_route_stops(selected_trade_route)
+      else
+        []
+      end
+
+    trade_route_legs =
+      if section == "economy" and selected_trade_route do
+        Worlds.list_trade_route_legs(selected_trade_route)
+      else
+        []
+      end
+
+    selected_trade_route_stop =
+      select_record(trade_route_stops, params["trade_route_stop_id"])
+
+    selected_trade_route_leg =
+      select_record(trade_route_legs, params["trade_route_leg_id"])
+
+    households =
+      if section in ["society", "economy"] do
+        Worlds.list_households(world, if(section == "society", do: search_query, else: ""))
+      else
+        []
+      end
+
+    {character_relationships, landholdings} =
       if section == "society" do
         {
-          Worlds.list_households(world, search_query),
           Worlds.list_character_relationships(world, search_query),
           Worlds.list_landholdings(world, search_query)
         }
       else
-        {[], [], []}
+        {[], []}
       end
 
     selected_household = select_record(households, params["household_id"])
@@ -1665,12 +1977,36 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:tax_policies, tax_policies)
     |> assign(:tax_exemptions, tax_exemptions)
     |> assign(:tax_revenue_shares, tax_revenue_shares)
+    |> assign(:hold_economic_profiles, hold_economic_profiles)
+    |> assign(:commodity_balances, commodity_balances)
+    |> assign(:tax_assessments, tax_assessments)
+    |> assign(:commercial_ventures, commercial_ventures)
+    |> assign(:venture_memberships, venture_memberships)
+    |> assign(:venture_trade_routes, venture_trade_routes)
     |> assign(:selected_trade_route, selected_trade_route)
     |> assign(:selected_trade_flow, selected_trade_flow)
     |> assign(:selected_tax_policy, selected_tax_policy)
     |> assign(:selected_tax_exemption, selected_tax_exemption)
     |> assign(:selected_tax_revenue_share, selected_tax_revenue_share)
+    |> assign(:selected_hold_economic_profile, selected_hold_economic_profile)
+    |> assign(:selected_commodity_balance, selected_commodity_balance)
+    |> assign(:selected_tax_assessment, selected_tax_assessment)
+    |> assign(:selected_commercial_venture, selected_commercial_venture)
+    |> assign(:selected_venture_membership, selected_venture_membership)
+    |> assign(:selected_venture_trade_route, selected_venture_trade_route)
     |> assign(:economy_mode, economy_mode)
+    |> assign(:water_bodies, water_bodies)
+    |> assign(:water_body_connections, water_body_connections)
+    |> assign(:province_water_bodies, province_water_bodies)
+    |> assign(:selected_water_body, selected_water_body)
+    |> assign(:selected_water_body_connection, selected_water_body_connection)
+    |> assign(:selected_province_water_body, selected_province_water_body)
+    |> assign(:selected_water_location, selected_water_location)
+    |> assign(:water_mode, water_mode)
+    |> assign(:trade_route_stops, trade_route_stops)
+    |> assign(:trade_route_legs, trade_route_legs)
+    |> assign(:selected_trade_route_stop, selected_trade_route_stop)
+    |> assign(:selected_trade_route_leg, selected_trade_route_leg)
     |> assign(:selected_household, selected_household)
     |> assign(:selected_household_membership, selected_household_membership)
     |> assign(:selected_character_relationship, selected_character_relationship)
@@ -1682,9 +2018,35 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> stream(:society_households, households, reset: true)
     |> stream(:society_relationships, character_relationships, reset: true)
     |> stream(:society_landholdings, landholdings, reset: true)
+    |> stream(:economic_profiles, hold_economic_profiles, reset: true)
+    |> stream(:commodity_balances, commodity_balances, reset: true)
+    |> stream(:tax_assessments, tax_assessments, reset: true)
+    |> stream(:commercial_ventures, commercial_ventures, reset: true)
+    |> stream(:venture_memberships, venture_memberships, reset: true)
+    |> stream(:venture_trade_routes, venture_trade_routes, reset: true)
+    |> stream(:water_bodies, water_bodies, reset: true)
+    |> stream(:water_body_connections, water_body_connections, reset: true)
+    |> stream(:province_water_bodies, province_water_bodies, reset: true)
+    |> stream(:water_locations, water_locations, reset: true)
+    |> stream(:trade_route_stops, trade_route_stops, reset: true)
+    |> stream(:trade_route_legs, trade_route_legs, reset: true)
+    |> assign(:economic_profile_count, length(hold_economic_profiles))
+    |> assign(:commodity_balance_count, length(commodity_balances))
+    |> assign(:tax_assessment_count, length(tax_assessments))
+    |> assign(:commercial_venture_count, length(commercial_ventures))
+    |> assign(:venture_membership_count, length(venture_memberships))
+    |> assign(:venture_trade_route_count, length(venture_trade_routes))
+    |> assign(:water_body_count, length(water_bodies))
+    |> assign(:water_body_connection_count, length(water_body_connections))
+    |> assign(:province_water_body_count, length(province_water_bodies))
+    |> assign(:water_location_count, length(water_locations))
+    |> assign(:trade_route_stop_count, length(trade_route_stops))
+    |> assign(:trade_route_leg_count, length(trade_route_legs))
     |> assign(:economy_hold_options, option_list(holds))
     |> assign(:trade_route_options, option_list(trade_routes))
     |> assign(:economy_currency_options, option_list(currencies))
+    |> assign(:water_body_options, option_list(water_bodies))
+    |> assign(:trade_route_stop_options, option_list(trade_route_stops, & &1.location.name))
     |> assign(:economy_office_options, political_office_options(political_offices))
     |> assign(:jurisdiction_options, economy_jurisdiction_options(continents, provinces, holds))
     |> assign(
@@ -1749,7 +2111,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       data_form(:commerce, %{
         "kind" => "income",
         "currency" => commerce_currency(selected_hold_commerce_entries, selected_path.continent),
-        "frequency" => "monthly"
+        "frequency" => "monthly",
+        "coverage_scope" => "named_establishment"
       })
     )
     |> assign(
@@ -1776,6 +2139,95 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
           selected_tax_revenue_share,
           selected_tax_policy,
           political_offices
+        )
+      )
+    )
+    |> assign(
+      :hold_economic_profile_form,
+      data_form(
+        :hold_economic_profile,
+        hold_economic_profile_form_attrs(selected_hold_economic_profile, holds)
+      )
+    )
+    |> assign(
+      :commodity_balance_form,
+      data_form(
+        :commodity_balance,
+        commodity_balance_form_attrs(selected_commodity_balance, holds)
+      )
+    )
+    |> assign(
+      :tax_assessment_form,
+      data_form(
+        :tax_assessment,
+        tax_assessment_form_attrs(selected_tax_assessment, tax_policies, currencies)
+      )
+    )
+    |> assign(
+      :commercial_venture_form,
+      data_form(
+        :commercial_venture,
+        commercial_venture_form_attrs(selected_commercial_venture, locations)
+      )
+    )
+    |> assign(
+      :venture_membership_form,
+      data_form(
+        :venture_membership,
+        venture_membership_form_attrs(
+          selected_venture_membership,
+          characters,
+          households
+        )
+      )
+    )
+    |> assign(
+      :venture_trade_route_form,
+      data_form(
+        :venture_trade_route,
+        venture_trade_route_form_attrs(selected_venture_trade_route, trade_routes)
+      )
+    )
+    |> assign(
+      :water_body_form,
+      data_form(:water_body, water_body_form_attrs(selected_water_body))
+    )
+    |> assign(
+      :water_body_connection_form,
+      data_form(
+        :water_body_connection,
+        water_body_connection_form_attrs(selected_water_body_connection, water_bodies)
+      )
+    )
+    |> assign(
+      :province_water_body_form,
+      data_form(
+        :province_water_body,
+        province_water_body_form_attrs(selected_province_water_body, provinces, water_bodies)
+      )
+    )
+    |> assign(
+      :location_water_body_form,
+      data_form(
+        :location_water_body,
+        location_water_body_form_attrs(selected_water_location, locations, water_bodies)
+      )
+    )
+    |> assign(
+      :trade_route_stop_form,
+      data_form(
+        :trade_route_stop,
+        trade_route_stop_form_attrs(selected_trade_route_stop, locations, trade_route_stops)
+      )
+    )
+    |> assign(
+      :trade_route_leg_form,
+      data_form(
+        :trade_route_leg,
+        trade_route_leg_form_attrs(
+          selected_trade_route_leg,
+          trade_route_stops,
+          trade_route_legs
         )
       )
     )
@@ -2290,6 +2742,21 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "tax_policy_id" => selected_record_id(socket.assigns[:selected_tax_policy]),
       "tax_exemption_id" => selected_record_id(socket.assigns[:selected_tax_exemption]),
       "tax_revenue_share_id" => selected_record_id(socket.assigns[:selected_tax_revenue_share]),
+      "hold_economic_profile_id" =>
+        selected_record_id(socket.assigns[:selected_hold_economic_profile]),
+      "commodity_balance_id" => selected_record_id(socket.assigns[:selected_commodity_balance]),
+      "tax_assessment_id" => selected_record_id(socket.assigns[:selected_tax_assessment]),
+      "commercial_venture_id" => selected_record_id(socket.assigns[:selected_commercial_venture]),
+      "venture_membership_id" => selected_record_id(socket.assigns[:selected_venture_membership]),
+      "venture_trade_route_id" =>
+        selected_record_id(socket.assigns[:selected_venture_trade_route]),
+      "water_body_id" => selected_record_id(socket.assigns[:selected_water_body]),
+      "water_body_connection_id" =>
+        selected_record_id(socket.assigns[:selected_water_body_connection]),
+      "province_water_body_id" =>
+        selected_record_id(socket.assigns[:selected_province_water_body]),
+      "trade_route_stop_id" => selected_record_id(socket.assigns[:selected_trade_route_stop]),
+      "trade_route_leg_id" => selected_record_id(socket.assigns[:selected_trade_route_leg]),
       "household_id" => selected_record_id(socket.assigns[:selected_household]),
       "membership_id" => selected_record_id(socket.assigns[:selected_household_membership]),
       "relationship_id" => selected_record_id(socket.assigns[:selected_character_relationship]),
@@ -2300,6 +2767,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp reload_mode(%{assigns: %{section: "society"}} = socket) do
     to_string(socket.assigns[:society_mode])
+  end
+
+  defp reload_mode(%{assigns: %{section: "waters"}} = socket) do
+    to_string(socket.assigns[:water_mode])
   end
 
   defp reload_mode(socket) do
@@ -4242,7 +4713,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp normalize_section(section)
-       when section in ~w(bestiary calendar characters civilizations connections documents economy geography gods guilds items map maps races skills society spells timeline) do
+       when section in ~w(bestiary calendar characters civilizations connections documents economy geography gods guilds items map maps races skills society spells timeline waters) do
     section
   end
 
@@ -4304,6 +4775,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp section_label("economy") do
     "Economy"
+  end
+
+  defp section_label("waters") do
+    "Waters"
   end
 
   defp section_label("society") do
@@ -5321,6 +5796,22 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp economy_typed_value(_value), do: {:error, :invalid_reference}
 
+  defp venture_member_refs(socket, %{"member_ref" => "character:" <> member_id}) do
+    with {:ok, character} <- economy_record(socket.assigns.characters, member_id) do
+      {:ok, %{character: character, household: nil}}
+    end
+  end
+
+  defp venture_member_refs(socket, %{"member_ref" => "household:" <> member_id}) do
+    with {:ok, household} <- economy_record(socket.assigns.households, member_id) do
+      {:ok, %{character: nil, household: household}}
+    end
+  end
+
+  defp venture_member_refs(_socket, _params) do
+    {:error, :invalid_reference}
+  end
+
   defp delete_economy_record(socket, "trade_route", id),
     do: delete_selected(socket.assigns.trade_routes, id, &Worlds.delete_trade_route/1)
 
@@ -5336,7 +5827,87 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   defp delete_economy_record(socket, "tax_revenue_share", id),
     do: delete_selected(socket.assigns.tax_revenue_shares, id, &Worlds.delete_tax_revenue_share/1)
 
+  defp delete_economy_record(socket, "hold_economic_profile", id) do
+    delete_selected(
+      socket.assigns.hold_economic_profiles,
+      id,
+      &Worlds.delete_hold_economic_profile/1
+    )
+  end
+
+  defp delete_economy_record(socket, "commodity_balance", id) do
+    delete_selected(socket.assigns.commodity_balances, id, &Worlds.delete_commodity_balance/1)
+  end
+
+  defp delete_economy_record(socket, "tax_assessment", id) do
+    delete_selected(socket.assigns.tax_assessments, id, &Worlds.delete_tax_assessment/1)
+  end
+
+  defp delete_economy_record(socket, "commercial_venture", id) do
+    delete_selected(
+      socket.assigns.commercial_ventures,
+      id,
+      &Worlds.delete_commercial_venture/1
+    )
+  end
+
+  defp delete_economy_record(socket, "venture_membership", id) do
+    delete_selected(
+      socket.assigns.venture_memberships,
+      id,
+      &Worlds.delete_venture_membership/1
+    )
+  end
+
+  defp delete_economy_record(socket, "venture_trade_route", id) do
+    delete_selected(
+      socket.assigns.venture_trade_routes,
+      id,
+      &Worlds.delete_venture_trade_route/1
+    )
+  end
+
   defp delete_economy_record(_socket, _kind, _id), do: {:error, :not_found}
+
+  defp delete_water_record(socket, "water_body", id) do
+    delete_selected(socket.assigns.water_bodies, id, &Worlds.delete_water_body/1)
+  end
+
+  defp delete_water_record(socket, "water_body_connection", id) do
+    delete_selected(
+      socket.assigns.water_body_connections,
+      id,
+      &Worlds.delete_water_body_connection/1
+    )
+  end
+
+  defp delete_water_record(socket, "province_water_body", id) do
+    delete_selected(
+      socket.assigns.province_water_bodies,
+      id,
+      &Worlds.delete_province_water_body/1
+    )
+  end
+
+  defp delete_water_record(_socket, _kind, _id) do
+    {:error, :not_found}
+  end
+
+  defp delete_route_topology_record(socket, "trade_route_stop", id) do
+    delete_selected(
+      socket.assigns.trade_route_stops,
+      id,
+      &Worlds.delete_trade_route_stop/1
+    )
+  end
+
+  defp delete_route_topology_record(socket, "trade_route_leg", id) do
+    delete_selected(socket.assigns.trade_route_legs, id, &Worlds.delete_trade_route_leg/1)
+  end
+
+  defp delete_route_topology_record(_socket, _kind, _id) do
+    {:error, :not_found}
+  end
 
   defp delete_selected(records, id, callback) do
     with {:ok, record} <- economy_record(records, id), do: callback.(record)
@@ -5346,10 +5917,21 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     requested = params["mode"]
     selected = Enum.find_value(selected_records, fn {mode, record} -> if record, do: mode end)
 
-    if requested in ~w(route flow policy exemption share) do
+    if requested in ~w(route flow policy exemption share profile balance assessment venture) do
       String.to_existing_atom(requested)
     else
       selected || :route
+    end
+  end
+
+  defp water_mode(params, selected_records) do
+    requested = params["mode"]
+    selected = Enum.find_value(selected_records, fn {mode, record} -> if record, do: mode end)
+
+    if requested in ~w(body connection province location) do
+      String.to_existing_atom(requested)
+    else
+      selected || :body
     end
   end
 
@@ -5392,11 +5974,142 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> string_keys()
   end
 
+  defp water_body_form_attrs(nil) do
+    %{
+      "kind" => "sea",
+      "salinity" => "saline",
+      "navigability" => "coastal",
+      "freeze_pattern" => "rare",
+      "status" => "active"
+    }
+  end
+
+  defp water_body_form_attrs(water_body) do
+    water_body
+    |> Map.from_struct()
+    |> Map.take([
+      :name,
+      :parent_water_body_id,
+      :kind,
+      :salinity,
+      :navigability,
+      :freeze_pattern,
+      :prevailing_conditions,
+      :hazards,
+      :status,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp water_body_connection_form_attrs(nil, water_bodies) do
+    %{
+      "origin_water_body_id" => first_id(water_bodies),
+      "destination_water_body_id" => selected_record_id(Enum.at(water_bodies, 1)),
+      "connection_type" => "opens_to",
+      "directionality" => "two_way",
+      "navigation_directionality" => "two_way",
+      "navigability" => "coastal",
+      "seasonality" => "year_round"
+    }
+  end
+
+  defp water_body_connection_form_attrs(connection, _water_bodies) do
+    connection
+    |> Map.from_struct()
+    |> Map.take([
+      :origin_water_body_id,
+      :destination_water_body_id,
+      :connection_type,
+      :directionality,
+      :navigation_directionality,
+      :navigability,
+      :seasonality,
+      :distance_km,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp province_water_body_form_attrs(nil, provinces, water_bodies) do
+    %{
+      "province_id" => first_id(provinces),
+      "water_body_id" => first_id(water_bodies),
+      "relationship" => "coast"
+    }
+  end
+
+  defp province_water_body_form_attrs(link, _provinces, _water_bodies) do
+    link
+    |> Map.from_struct()
+    |> Map.take([:province_id, :water_body_id, :relationship, :description])
+    |> string_keys()
+  end
+
+  defp location_water_body_form_attrs(nil, locations, water_bodies) do
+    %{
+      "location_id" => first_id(locations),
+      "water_body_id" => first_id(water_bodies)
+    }
+  end
+
+  defp location_water_body_form_attrs(location, _locations, _water_bodies) do
+    %{
+      "location_id" => location.id,
+      "water_body_id" => location.water_body_id
+    }
+  end
+
+  defp trade_route_stop_form_attrs(nil, locations, stops) do
+    %{
+      "location_id" => first_id(locations),
+      "position" => length(stops) + 1
+    }
+  end
+
+  defp trade_route_stop_form_attrs(stop, _locations, _stops) do
+    stop
+    |> Map.from_struct()
+    |> Map.take([:location_id, :position, :handling_notes, :description])
+    |> string_keys()
+  end
+
+  defp trade_route_leg_form_attrs(nil, stops, legs) do
+    %{
+      "origin_stop_id" => first_id(stops),
+      "destination_stop_id" => selected_record_id(Enum.at(stops, 1)),
+      "position" => length(legs) + 1,
+      "transport_mode" => "road",
+      "seasonality" => "year_round",
+      "risk" => "moderate"
+    }
+  end
+
+  defp trade_route_leg_form_attrs(leg, _stops, _legs) do
+    leg
+    |> Map.from_struct()
+    |> Map.take([
+      :origin_stop_id,
+      :destination_stop_id,
+      :water_body_id,
+      :position,
+      :transport_mode,
+      :distance_km,
+      :typical_travel_days,
+      :seasonality,
+      :risk,
+      :handling_notes,
+      :description
+    ])
+    |> string_keys()
+  end
+
   defp trade_flow_form_attrs(nil, routes, currencies) do
     %{
       "trade_route_id" => first_id(routes),
       "currency_id" => first_id(currencies),
-      "frequency" => "annual"
+      "frequency" => "annual",
+      "coverage_scope" => "representative_consignment"
     }
   end
 
@@ -5410,8 +6123,160 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :unit,
       :declared_value,
       :frequency,
+      :coverage_scope,
+      :quantity_basis,
       :description
     ])
+    |> string_keys()
+  end
+
+  defp hold_economic_profile_form_attrs(nil, holds) do
+    %{
+      "hold_id" => first_id(holds),
+      "urban_population_estimate" => 0,
+      "confidence" => "medium"
+    }
+  end
+
+  defp hold_economic_profile_form_attrs(%HoldEconomicProfile{} = profile, _holds) do
+    profile
+    |> Map.from_struct()
+    |> Map.take([
+      :hold_id,
+      :population_estimate,
+      :household_estimate,
+      :urban_population_estimate,
+      :arable_hectares_estimate,
+      :pasture_hectares_estimate,
+      :staple_reserve_months,
+      :assessment_label,
+      :confidence,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp commodity_balance_form_attrs(nil, holds) do
+    %{
+      "hold_id" => first_id(holds),
+      "stored_reserve" => 0,
+      "storage_loss_percentage" => 0,
+      "status" => "active"
+    }
+  end
+
+  defp commodity_balance_form_attrs(%CommodityBalance{} = balance, _holds) do
+    balance
+    |> Map.from_struct()
+    |> Map.take([
+      :hold_id,
+      :commodity,
+      :category,
+      :unit,
+      :annual_output,
+      :annual_local_need,
+      :stored_reserve,
+      :bad_year_output_percentage,
+      :storage_loss_percentage,
+      :status,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp tax_assessment_form_attrs(nil, policies, currencies) do
+    %{
+      "tax_policy_id" => first_id(policies),
+      "currency_id" => first_id(currencies),
+      "cash_yield" => 0,
+      "in_kind_value" => 0,
+      "customary_labor_days" => 0,
+      "confidence" => "medium"
+    }
+  end
+
+  defp tax_assessment_form_attrs(%TaxAssessment{} = assessment, _policies, _currencies) do
+    assessment
+    |> Map.from_struct()
+    |> Map.take([
+      :tax_policy_id,
+      :currency_id,
+      :assessment_period_label,
+      :cash_yield,
+      :in_kind_value,
+      :customary_labor_days,
+      :confidence,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp commercial_venture_form_attrs(nil, locations) do
+    %{
+      "home_location_id" => first_id(locations),
+      "venture_type" => "felag",
+      "status" => "active"
+    }
+  end
+
+  defp commercial_venture_form_attrs(%CommercialVenture{} = venture, _locations) do
+    venture
+    |> Map.from_struct()
+    |> Map.take([
+      :name,
+      :home_location_id,
+      :venture_type,
+      :status,
+      :purpose,
+      :capital_basis,
+      :formation_label,
+      :end_label,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp venture_membership_form_attrs(nil, characters, households) do
+    if characters == [] do
+      %{
+        "member_ref" => typed_id("household", List.first(households)),
+        "status" => "active"
+      }
+    else
+      %{
+        "member_ref" => typed_id("character", List.first(characters)),
+        "status" => "active"
+      }
+    end
+  end
+
+  defp venture_membership_form_attrs(
+         %VentureMembership{} = membership,
+         _characters,
+         _households
+       ) do
+    member_ref =
+      if membership.character_id do
+        "character:#{membership.character_id}"
+      else
+        "household:#{membership.household_id}"
+      end
+
+    membership
+    |> Map.from_struct()
+    |> Map.take([:role, :contribution, :share_percentage, :status, :description])
+    |> string_keys()
+    |> Map.put("member_ref", member_ref)
+  end
+
+  defp venture_trade_route_form_attrs(nil, trade_routes) do
+    %{"trade_route_id" => first_id(trade_routes), "role" => "carrier"}
+  end
+
+  defp venture_trade_route_form_attrs(%VentureTradeRoute{} = link, _trade_routes) do
+    link
+    |> Map.from_struct()
+    |> Map.take([:trade_route_id, :role, :description])
     |> string_keys()
   end
 

@@ -93,6 +93,11 @@
                     label="Economy"
                   />
                   <.section_menu_link
+                    patch={~p"/worlds/#{@world}/dashboard?section=waters"}
+                    selected={@section == "waters"}
+                    label="Waters"
+                  />
+                  <.section_menu_link
                     patch={~p"/worlds/#{@world}/dashboard?section=society"}
                     selected={@section == "society"}
                     label="Society"
@@ -829,6 +834,79 @@
                       icon={visibility_icon(@selected_hold.visibility)}
                     />
                   </div>
+
+                  <section
+                    id="hold-economic-capacity"
+                    class="rounded-md border border-zinc-200 bg-zinc-50 p-3"
+                  >
+                    <div class="flex items-start justify-between gap-3">
+                      <div>
+                        <p class="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                          Economic capacity
+                        </p>
+                        <p class="mt-1 text-xs leading-5 text-zinc-500">
+                          Aggregate estimates. Named households are notable records, not a census.
+                        </p>
+                      </div>
+                      <.link
+                        patch={~p"/worlds/#{@world}/dashboard?section=economy&mode=profile"}
+                        class="stone-button rounded border px-2 py-1 text-xs font-semibold transition"
+                      >Manage</.link>
+                    </div>
+                    <%= if @selected_hold.economic_profile do %>
+                      <dl class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                        <.detail
+                          label="Population"
+                          value={
+                            display_value(@selected_hold.economic_profile.population_estimate)
+                          }
+                        />
+                        <.detail
+                          label="Households"
+                          value={
+                            display_value(@selected_hold.economic_profile.household_estimate)
+                          }
+                        />
+                        <.detail
+                          label="Urban population"
+                          value={
+                            display_value(
+                              @selected_hold.economic_profile.urban_population_estimate
+                            )
+                          }
+                        />
+                        <.detail
+                          label="Staple reserve"
+                          value={
+                            "#{display_value(@selected_hold.economic_profile.staple_reserve_months)} months"
+                          }
+                        />
+                      </dl>
+                    <% else %>
+                      <p class="mt-3 text-sm text-zinc-500">
+                        No aggregate estimate has been recorded.
+                      </p>
+                    <% end %>
+                    <div
+                      :if={@selected_hold.commodity_balances != []}
+                      id="hold-staple-balances"
+                      class="mt-3 divide-y divide-zinc-200 border-t border-zinc-200"
+                    >
+                      <article
+                        :for={balance <- @selected_hold.commodity_balances}
+                        class="flex flex-wrap items-baseline justify-between gap-2 py-2 text-xs"
+                      >
+                        <span class="font-semibold text-zinc-800">{balance.commodity}</span>
+                        <span class="text-zinc-500">
+                          {display_value(
+                            AncientStones.Worlds.CommodityBalance.ordinary_balance(balance)
+                          )} {balance.unit} ordinary balance / {display_value(
+                            balance.stored_reserve
+                          )} {balance.unit} stored
+                        </span>
+                      </article>
+                    </div>
+                  </section>
                 </div>
 
                 <div
@@ -897,7 +975,9 @@
                         <p class="text-xs text-zinc-500">
                           {Geography.label(entry.kind)} / {display_value(entry.category)} / {display_value(
                             entry.amount
-                          )} {display_value(entry.currency)}
+                          )} {display_value(entry.currency)} / {Geography.label(
+                            entry.accounting_scope
+                          )} / {Geography.label(entry.coverage_scope)}
                         </p>
                       </div>
                       <button
@@ -924,6 +1004,10 @@
 
                   <div class="grid gap-3 text-sm sm:grid-cols-2">
                     <.detail label="Type" value={@selected_location.location_type.name} />
+                    <.detail
+                      label="Water body"
+                      value={record_name(@selected_location.water_body)}
+                    />
                     <.detail label="Hold" value={@selected_hold.name} />
                     <.detail label="Region" value={selected_path(@selected_path)} />
                     <.detail
@@ -1423,6 +1507,20 @@
                   <.input field={@commerce_form[:amount]} type="number" label="Amount" />
                   <.input field={@commerce_form[:currency]} type="text" label="Currency" />
                   <.input field={@commerce_form[:frequency]} type="text" label="Frequency" />
+                  <.input
+                    field={@commerce_form[:accounting_scope]}
+                    type="select"
+                    label="Accounting scope"
+                    prompt="Not specified"
+                    options={AncientStones.Worlds.HoldCommerceEntry.accounting_scope_options()}
+                  />
+                  <.input
+                    field={@commerce_form[:coverage_scope]}
+                    type="select"
+                    label="Coverage"
+                    prompt="Not specified"
+                    options={AncientStones.Worlds.HoldCommerceEntry.coverage_scope_options()}
+                  />
                   <.input
                     field={@commerce_form[:description]}
                     type="textarea"
@@ -4791,6 +4889,39 @@
                     </section>
 
                     <div
+                      :if={@selected_character.venture_memberships != []}
+                      id="character-venture-memberships"
+                      class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                      <h4 class="mb-2 font-display text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                        Commercial partnerships
+                      </h4>
+                      <div class="space-y-2">
+                        <article
+                          :for={membership <- @selected_character.venture_memberships}
+                          id={"character-venture-membership-#{membership.id}"}
+                          class="flex items-start justify-between gap-3 rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-950"
+                        >
+                          <div>
+                            <.link
+                              patch={
+                                ~p"/worlds/#{@world}/dashboard?section=economy&mode=venture&commercial_venture_id=#{membership.commercial_venture.id}"
+                              }
+                              class="font-semibold text-zinc-900 hover:underline dark:text-zinc-100"
+                            >{membership.commercial_venture.name}</.link>
+                            <p
+                              :if={membership.contribution not in [nil, ""]}
+                              class="mt-1 text-zinc-500"
+                            >
+                              {membership.contribution}
+                            </p>
+                          </div>
+                          <span class="text-zinc-500">{membership.role}</span>
+                        </article>
+                      </div>
+                    </div>
+
+                    <div
                       :if={@selected_character.guild_memberships != []}
                       id="character-guild-memberships"
                       class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900"
@@ -6513,6 +6644,30 @@
                 </div>
               </aside>
             </div>
+          <% @section == "waters" -> %>
+            <AncientStonesWeb.WorldLive.WaterComponents.waters_dashboard
+              world={@world}
+              mode={@water_mode}
+              water_bodies={@streams.water_bodies}
+              connections={@streams.water_body_connections}
+              province_links={@streams.province_water_bodies}
+              water_locations={@streams.water_locations}
+              water_body_count={@water_body_count}
+              connection_count={@water_body_connection_count}
+              province_link_count={@province_water_body_count}
+              water_location_count={@water_location_count}
+              selected_water_body={@selected_water_body}
+              selected_connection={@selected_water_body_connection}
+              selected_province_link={@selected_province_water_body}
+              selected_water_location={@selected_water_location}
+              water_body_form={@water_body_form}
+              connection_form={@water_body_connection_form}
+              province_link_form={@province_water_body_form}
+              location_link_form={@location_water_body_form}
+              water_body_options={@water_body_options}
+              province_options={@province_options}
+              location_options={@all_location_options}
+            />
           <% @section == "economy" -> %>
             <AncientStonesWeb.WorldLive.EconomyComponents.economy_dashboard
               world={@world}
@@ -6522,22 +6677,59 @@
               tax_policies={@tax_policies}
               tax_exemptions={@tax_exemptions}
               tax_revenue_shares={@tax_revenue_shares}
+              economic_profiles={@streams.economic_profiles}
+              commodity_balances={@streams.commodity_balances}
+              tax_assessments={@streams.tax_assessments}
+              commercial_ventures={@streams.commercial_ventures}
+              venture_memberships={@streams.venture_memberships}
+              venture_trade_routes={@streams.venture_trade_routes}
+              economic_profile_count={@economic_profile_count}
+              commodity_balance_count={@commodity_balance_count}
+              tax_assessment_count={@tax_assessment_count}
+              commercial_venture_count={@commercial_venture_count}
+              venture_membership_count={@venture_membership_count}
+              venture_trade_route_count={@venture_trade_route_count}
               selected_trade_route={@selected_trade_route}
               selected_trade_flow={@selected_trade_flow}
               selected_tax_policy={@selected_tax_policy}
               selected_tax_exemption={@selected_tax_exemption}
               selected_tax_revenue_share={@selected_tax_revenue_share}
+              selected_hold_economic_profile={@selected_hold_economic_profile}
+              selected_commodity_balance={@selected_commodity_balance}
+              selected_tax_assessment={@selected_tax_assessment}
+              selected_commercial_venture={@selected_commercial_venture}
+              selected_venture_membership={@selected_venture_membership}
+              selected_venture_trade_route={@selected_venture_trade_route}
               trade_route_form={@trade_route_form}
               trade_flow_form={@trade_flow_form}
               tax_policy_form={@tax_policy_form}
               tax_exemption_form={@tax_exemption_form}
               tax_revenue_share_form={@tax_revenue_share_form}
+              hold_economic_profile_form={@hold_economic_profile_form}
+              commodity_balance_form={@commodity_balance_form}
+              tax_assessment_form={@tax_assessment_form}
+              commercial_venture_form={@commercial_venture_form}
+              venture_membership_form={@venture_membership_form}
+              venture_trade_route_form={@venture_trade_route_form}
+              route_stops={@streams.trade_route_stops}
+              route_legs={@streams.trade_route_legs}
+              route_stop_count={@trade_route_stop_count}
+              route_leg_count={@trade_route_leg_count}
+              selected_trade_route_stop={@selected_trade_route_stop}
+              selected_trade_route_leg={@selected_trade_route_leg}
+              trade_route_stop_form={@trade_route_stop_form}
+              trade_route_leg_form={@trade_route_leg_form}
               hold_options={@economy_hold_options}
               trade_route_options={@trade_route_options}
               currency_options={@economy_currency_options}
               office_options={@economy_office_options}
               jurisdiction_options={@jurisdiction_options}
               beneficiary_options={@beneficiary_options}
+              location_options={@all_location_options}
+              water_body_options={@water_body_options}
+              trade_route_stop_options={@trade_route_stop_options}
+              character_options={@character_options}
+              household_options={@household_options}
             />
           <% @section == "society" -> %>
             <AncientStonesWeb.WorldLive.SocietyComponents.society_dashboard

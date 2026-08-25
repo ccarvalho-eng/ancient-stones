@@ -8,6 +8,7 @@ defmodule AncientStones.Worlds.TaxPolicy do
   alias AncientStones.Worlds.PoliticalOffice
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.TaxExemption
+  alias AncientStones.Worlds.TaxAssessment
   alias AncientStones.Worlds.TaxRevenueShare
   alias AncientStones.Worlds.World
 
@@ -46,6 +47,7 @@ defmodule AncientStones.Worlds.TaxPolicy do
     belongs_to :collecting_office, PoliticalOffice
     belongs_to :currency, ContinentCurrency
     has_many :tax_exemptions, TaxExemption
+    has_many :tax_assessments, TaxAssessment
     has_many :revenue_shares, TaxRevenueShare
     timestamps(type: :utc_datetime)
   end

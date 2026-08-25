@@ -7,6 +7,7 @@ defmodule AncientStones.Worlds.Province do
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.PoliticalOffice
+  alias AncientStones.Worlds.ProvinceWaterBody
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
@@ -28,6 +29,7 @@ defmodule AncientStones.Worlds.Province do
     belongs_to(:capital_hold, Hold)
     has_many(:holds, Hold)
     has_many(:political_offices, PoliticalOffice)
+    has_many(:water_body_links, ProvinceWaterBody)
     has_many(:map_items, MapItem)
 
     timestamps(type: :utc_datetime)

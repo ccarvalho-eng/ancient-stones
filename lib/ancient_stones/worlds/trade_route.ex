@@ -6,6 +6,9 @@ defmodule AncientStones.Worlds.TradeRoute do
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.TaxExemption
   alias AncientStones.Worlds.TradeFlow
+  alias AncientStones.Worlds.TradeRouteLeg
+  alias AncientStones.Worlds.TradeRouteStop
+  alias AncientStones.Worlds.VentureTradeRoute
   alias AncientStones.Worlds.World
 
   @transport_modes [:caravan, :river, :sea, :road, :trail, :mixed]
@@ -38,7 +41,10 @@ defmodule AncientStones.Worlds.TradeRoute do
     belongs_to :origin_location, Location
     belongs_to :destination_location, Location
     has_many :trade_flows, TradeFlow
+    has_many :stops, TradeRouteStop
+    has_many :legs, TradeRouteLeg
     has_many :tax_exemptions, TaxExemption
+    has_many :venture_links, VentureTradeRoute
     timestamps(type: :utc_datetime)
   end
 
