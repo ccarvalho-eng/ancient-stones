@@ -5,11 +5,13 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
   alias AncientStones.Repo
   alias AncientStones.Worlds.Calendar
   alias AncientStones.Worlds.Character
+  alias AncientStones.Worlds.CharacterRelationship
   alias AncientStones.Worlds.Civilization
   alias AncientStones.Worlds.Creature
   alias AncientStones.Worlds.Document
   alias AncientStones.Worlds.God
   alias AncientStones.Worlds.Guild
+  alias AncientStones.Worlds.Household
   alias AncientStones.Worlds.Item
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LoreConnection
@@ -23,6 +25,8 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
     %{
       locations: locations(world_id),
       characters: characters(world_id),
+      households: households(world_id),
+      character_relationships: character_relationships(world_id),
       guilds: guilds(world_id),
       civilizations: civilizations(world_id),
       races: races(world_id),
@@ -71,6 +75,46 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
       inventory_items: [:item, :inventory_category]
     ])
     |> Enum.map(&character_card/1)
+  end
+
+  defp households(world_id) do
+    Household
+    |> world_records(world_id)
+    |> Repo.preload([
+      :home_location,
+      memberships: :character,
+      landholdings: [:hold, :location]
+    ])
+    |> Enum.map(&household_card/1)
+  end
+
+  defp character_relationships(world_id) do
+    CharacterRelationship
+    |> where([relationship], relationship.world_id == ^world_id)
+    |> order_by([relationship],
+      asc: relationship.relationship_type,
+      asc: relationship.inserted_at
+    )
+    |> Repo.all()
+    |> Repo.preload([:character_a, :character_b])
+    |> Enum.map(fn relationship ->
+      %{
+        name:
+          join_values([
+            entity_name(relationship.character_a),
+            entity_name(relationship.character_b)
+          ]),
+        relationship_type: relationship.relationship_type,
+        status: relationship.status,
+        character_a: entity_name(relationship.character_a),
+        character_b: entity_name(relationship.character_b),
+        character_a_role: relationship.character_a_role,
+        character_b_role: relationship.character_b_role,
+        start_date_label: relationship.start_date_label,
+        end_date_label: relationship.end_date_label,
+        description: relationship.description
+      }
+    end)
   end
 
   defp guilds(world_id) do
@@ -360,6 +404,9 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
       role: character.role || entity_name(character.character_role),
       politics: character.politics,
       status: character.status,
+      social_status: character.social_status,
+      life_stage: character.life_stage,
+      wealth_band: character.wealth_band,
       race: entity_name(character.race),
       home_location: entity_name(character.home_location),
       locations:
@@ -405,6 +452,48 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
           )
         end)
     })
+  end
+
+  defp household_card(household) do
+    %{
+      name: household.name,
+      description: household.description,
+      household_type: household.household_type,
+      status: household.status,
+      home_location: entity_name(household.home_location),
+      memberships:
+        household.memberships
+        |> Enum.sort_by(fn membership ->
+          {not membership.is_primary, entity_name(membership.character) || ""}
+        end)
+        |> Enum.map(fn membership ->
+          record(
+            entity_name(membership.character),
+            join_values([
+              membership.role,
+              membership.status,
+              if(membership.is_primary, do: "primary home", else: nil)
+            ]),
+            membership.description
+          )
+        end),
+      landholdings:
+        household.landholdings
+        |> Enum.sort_by(& &1.name)
+        |> Enum.map(fn holding ->
+          record(
+            holding.name,
+            join_values([
+              holding.tenure_type,
+              holding.primary_use,
+              holding.status,
+              entity_name(holding.location) || entity_name(holding.hold),
+              measure(holding.size_hectares, "hectares")
+            ]),
+            holding.description
+          )
+        end)
+    }
   end
 
   defp guild_card(guild) do
