@@ -93,6 +93,11 @@
                     label="Economy"
                   />
                   <.section_menu_link
+                    patch={~p"/worlds/#{@world}/dashboard?section=society"}
+                    selected={@section == "society"}
+                    label="Society"
+                  />
+                  <.section_menu_link
                     patch={~p"/worlds/#{@world}/dashboard?section=characters"}
                     selected={@section == "characters"}
                     label="Characters"
@@ -4669,6 +4674,18 @@
                         label="Status"
                         value={character_status_label(@selected_character.status)}
                       />
+                      <.detail
+                        label="Social standing"
+                        value={society_value(@selected_character.social_status)}
+                      />
+                      <.detail
+                        label="Life stage"
+                        value={society_value(@selected_character.life_stage)}
+                      />
+                      <.detail
+                        label="Material means"
+                        value={society_value(@selected_character.wealth_band)}
+                      />
                       <.detail label="Race" value={record_name(@selected_character.race)} />
                       <.detail
                         label="Primary Guild"
@@ -4679,6 +4696,99 @@
                         value={record_name(@selected_character.home_location)}
                       />
                     </div>
+
+                    <section
+                      id="character-society"
+                      class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-zinc-700 dark:bg-zinc-900"
+                    >
+                      <div class="flex items-center justify-between gap-3">
+                        <div>
+                          <h4 class="font-display text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            Household and kindred
+                          </h4>
+                          <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                            Residence, dependency, kinship, fosterage, and tenure
+                          </p>
+                        </div>
+                        <.link
+                          patch={~p"/worlds/#{@world}/dashboard?section=society"}
+                          class="rounded border border-zinc-300 px-2 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-white dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                        >
+                          Open Society
+                        </.link>
+                      </div>
+
+                      <div id="character-households" class="mt-3 space-y-2">
+                        <p
+                          :if={@selected_character_society.memberships == []}
+                          class="text-sm text-zinc-500"
+                        >
+                          No household membership recorded.
+                        </p>
+                        <article
+                          :for={membership <- @selected_character_society.memberships}
+                          id={"character-household-membership-#{membership.id}"}
+                          class="rounded border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950"
+                        >
+                          <div class="flex items-baseline justify-between gap-3">
+                            <strong class="text-sm text-zinc-900 dark:text-zinc-100">
+                              {membership.household.name}
+                            </strong>
+                            <span class="text-xs text-zinc-500">
+                              {society_value(membership.role)}
+                              <span :if={membership.is_primary}> · primary home</span>
+                            </span>
+                          </div>
+                          <p class="mt-1 text-xs text-zinc-500">
+                            {record_name(membership.household.home_location)}
+                          </p>
+                        </article>
+                      </div>
+
+                      <div
+                        :if={@selected_character_society.relationships != []}
+                        id="character-relationships"
+                        class="mt-4 border-t border-zinc-200 pt-3 dark:border-zinc-700"
+                      >
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                          Personal ties
+                        </p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                          <span
+                            :for={relationship <- @selected_character_society.relationships}
+                            id={"character-relationship-#{relationship.id}"}
+                            class="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300"
+                          >
+                            <strong>{relationship_other_name(relationship, @selected_character)}</strong>
+                            · {society_value(relationship.relationship_type)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        :if={@selected_character_society.landholdings != []}
+                        id="character-landholdings"
+                        class="mt-4 border-t border-zinc-200 pt-3 dark:border-zinc-700"
+                      >
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                          Household tenure and use rights
+                        </p>
+                        <div class="mt-2 space-y-1.5">
+                          <div
+                            :for={holding <- @selected_character_society.landholdings}
+                            id={"character-landholding-#{holding.id}"}
+                            class="flex items-baseline justify-between gap-3 text-sm"
+                          >
+                            <span class="font-medium text-zinc-800 dark:text-zinc-200">
+                              {holding.name}
+                            </span>
+                            <span class="text-xs text-zinc-500">
+                              {society_value(holding.tenure_type)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
 
                     <div
                       :if={@selected_character.guild_memberships != []}
@@ -4868,6 +4978,27 @@
                         type="select"
                         label="Status"
                         options={Character.status_options()}
+                      />
+                      <.input
+                        field={@character_form[:social_status]}
+                        type="select"
+                        label="Social standing"
+                        prompt="Not recorded"
+                        options={Character.social_status_options()}
+                      />
+                      <.input
+                        field={@character_form[:life_stage]}
+                        type="select"
+                        label="Life stage"
+                        prompt="Not recorded"
+                        options={Character.life_stage_options()}
+                      />
+                      <.input
+                        field={@character_form[:wealth_band]}
+                        type="select"
+                        label="Material means"
+                        prompt="Not recorded"
+                        options={Character.wealth_band_options()}
                       />
                       <.input
                         field={@character_form[:race_id]}
@@ -6407,6 +6538,27 @@
               office_options={@economy_office_options}
               jurisdiction_options={@jurisdiction_options}
               beneficiary_options={@beneficiary_options}
+            />
+          <% @section == "society" -> %>
+            <AncientStonesWeb.WorldLive.SocietyComponents.society_dashboard
+              world={@world}
+              mode={@society_mode}
+              households={@streams.society_households}
+              relationships={@streams.society_relationships}
+              landholdings={@streams.society_landholdings}
+              selected_household={@selected_household}
+              selected_household_membership={@selected_household_membership}
+              selected_relationship={@selected_character_relationship}
+              selected_landholding={@selected_landholding}
+              household_form={@household_form}
+              household_membership_form={@household_membership_form}
+              relationship_form={@character_relationship_form}
+              landholding_form={@landholding_form}
+              character_options={@character_options}
+              household_member_options={@household_member_options}
+              household_options={@household_options}
+              location_options={@all_location_options}
+              geographic_scope_options={@landholding_scope_options}
             />
           <% @section == "calendar" -> %>
             <div

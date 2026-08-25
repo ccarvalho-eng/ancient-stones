@@ -262,6 +262,114 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     delete_and_reload(socket, fn -> delete_economy_record(socket, kind, id) end)
   end
 
+  def handle_event("save_household", %{"household" => params}, socket) do
+    with {:ok, home_location} <-
+           optional_economy_record(socket.assigns.locations, params["home_location_id"]),
+         {:ok, head_character} <-
+           optional_economy_record(socket.assigns.characters, params["head_character_id"]) do
+      save_society_record(socket, socket.assigns.selected_household, fn
+        nil ->
+          Worlds.create_household(socket.assigns.world, params,
+            home_location: home_location,
+            head_character: head_character
+          )
+
+        household ->
+          Worlds.update_household(household, params, home_location: home_location)
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Invalid household references")}
+    end
+  end
+
+  def handle_event(
+        "save_household_membership",
+        %{"household_membership" => params},
+        socket
+      ) do
+    case {socket.assigns.selected_household, socket.assigns.selected_household_membership} do
+      {%{} = household, nil} ->
+        with {:ok, character} <-
+               economy_record(socket.assigns.characters, params["character_id"]) do
+          create_and_reload(socket, fn ->
+            Worlds.create_household_membership(household, character, params)
+          end)
+        else
+          {:error, _reason} ->
+            {:noreply, put_flash(socket, :error, "Select a person from this world")}
+        end
+
+      {%{}, membership} ->
+        update_and_reload(socket, fn ->
+          Worlds.update_household_membership(membership, params)
+        end)
+
+      _selection ->
+        {:noreply, put_flash(socket, :error, "Select a household first")}
+    end
+  end
+
+  def handle_event("delete_household_membership", %{"id" => id}, socket) do
+    membership =
+      socket.assigns.selected_household
+      |> case do
+        nil -> nil
+        household -> select_record(household.memberships, id)
+      end
+
+    delete_and_reload(socket, fn ->
+      case membership do
+        nil -> {:error, :not_found}
+        membership -> Worlds.delete_household_membership(membership)
+      end
+    end)
+  end
+
+  def handle_event(
+        "save_character_relationship",
+        %{"character_relationship" => params},
+        socket
+      ) do
+    with {:ok, character_a} <-
+           economy_record(socket.assigns.characters, params["character_a_id"]),
+         {:ok, character_b} <-
+           economy_record(socket.assigns.characters, params["character_b_id"]) do
+      save_society_record(socket, socket.assigns.selected_character_relationship, fn
+        nil ->
+          Worlds.create_character_relationship(
+            socket.assigns.world,
+            character_a,
+            character_b,
+            params
+          )
+
+        relationship ->
+          Worlds.update_character_relationship(relationship, character_a, character_b, params)
+      end)
+    else
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Select two people from this world")}
+    end
+  end
+
+  def handle_event("save_landholding", %{"landholding" => params}, socket) do
+    with %{} = household <- Worlds.get_household(socket.assigns.world, params["household_id"]),
+         {:ok, scope_refs} <- landholding_scope_refs(socket, params["geographic_scope"]) do
+      save_society_record(socket, socket.assigns.selected_landholding, fn
+        nil -> Worlds.create_landholding(household, params, scope_refs)
+        holding -> Worlds.update_landholding(holding, params, scope_refs)
+      end)
+    else
+      _reason ->
+        {:noreply, put_flash(socket, :error, "Invalid household or geographic scope")}
+    end
+  end
+
+  def handle_event("delete_society_record", %{"kind" => kind, "id" => id}, socket) do
+    delete_and_reload(socket, fn -> delete_society_record(socket, kind, id) end)
+  end
+
   def handle_event("delete_continent", %{"id" => id}, socket) do
     delete_and_reload(socket, fn ->
       with {:ok, continent} <- get_continent_in_world(socket, id) do
@@ -971,7 +1079,14 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   def handle_event("search_dashboard", %{"search" => %{"query" => query}}, socket) do
-    {:noreply, assign_filtered_dashboard_records(socket, query)}
+    if socket.assigns.section == "society" do
+      {:noreply,
+       socket
+       |> assign(:search_query, query)
+       |> assign_dashboard(socket.assigns.world.id, reload_params(socket))}
+    else
+      {:noreply, assign_filtered_dashboard_records(socket, query)}
+    end
   end
 
   def handle_event("create_map", %{"map" => attrs}, socket) do
@@ -1325,6 +1440,39 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
         share: selected_tax_revenue_share
       )
 
+    {households, character_relationships, landholdings} =
+      if section == "society" do
+        {
+          Worlds.list_households(world, search_query),
+          Worlds.list_character_relationships(world, search_query),
+          Worlds.list_landholdings(world, search_query)
+        }
+      else
+        {[], [], []}
+      end
+
+    selected_household = select_record(households, params["household_id"])
+
+    selected_household_membership =
+      if selected_household do
+        select_record(selected_household.memberships, params["membership_id"])
+      end
+
+    available_household_members =
+      household_membership_candidates(characters, selected_household)
+
+    selected_character_relationship =
+      select_record(character_relationships, params["relationship_id"])
+
+    selected_landholding = select_record(landholdings, params["landholding_id"])
+
+    society_mode =
+      society_mode(params,
+        household: selected_household,
+        relationship: selected_character_relationship,
+        holding: selected_landholding
+      )
+
     races = sorted(world.races)
     lore_connections = sorted_lore_connections(world.lore_connections)
     skills = sorted(world.skills)
@@ -1340,6 +1488,13 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
     selected_character =
       select_record(characters, params["character_id"]) || first_record(characters)
+
+    selected_character_society =
+      if section == "characters" and selected_character do
+        Worlds.get_character_society(world, selected_character)
+      else
+        %{memberships: [], relationships: [], landholdings: []}
+      end
 
     selected_character_inventory_categories =
       character_inventory_categories(selected_character)
@@ -1436,6 +1591,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:characters, characters)
     |> assign(:character_roles, character_roles)
     |> assign(:selected_character, selected_character)
+    |> assign(:selected_character_society, selected_character_society)
     |> assign(:selected_character_inventory_categories, selected_character_inventory_categories)
     |> assign(:selected_character_inventory_items, selected_character_inventory_items)
     |> assign(:civilizations, civilizations)
@@ -1515,6 +1671,17 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:selected_tax_exemption, selected_tax_exemption)
     |> assign(:selected_tax_revenue_share, selected_tax_revenue_share)
     |> assign(:economy_mode, economy_mode)
+    |> assign(:selected_household, selected_household)
+    |> assign(:selected_household_membership, selected_household_membership)
+    |> assign(:selected_character_relationship, selected_character_relationship)
+    |> assign(:selected_landholding, selected_landholding)
+    |> assign(:society_mode, society_mode)
+    |> assign(:household_options, option_list(households))
+    |> assign(:household_member_options, option_list(available_household_members))
+    |> assign(:landholding_scope_options, landholding_scope_options(holds, locations))
+    |> stream(:society_households, households, reset: true)
+    |> stream(:society_relationships, character_relationships, reset: true)
+    |> stream(:society_landholdings, landholdings, reset: true)
     |> assign(:economy_hold_options, option_list(holds))
     |> assign(:trade_route_options, option_list(trade_routes))
     |> assign(:economy_currency_options, option_list(currencies))
@@ -1610,6 +1777,37 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
           selected_tax_policy,
           political_offices
         )
+      )
+    )
+    |> assign(
+      :household_form,
+      data_form(
+        :household,
+        household_form_attrs(selected_household, locations, characters)
+      )
+    )
+    |> assign(
+      :household_membership_form,
+      data_form(
+        :household_membership,
+        household_membership_form_attrs(
+          selected_household_membership,
+          available_household_members
+        )
+      )
+    )
+    |> assign(
+      :character_relationship_form,
+      data_form(
+        :character_relationship,
+        character_relationship_form_attrs(selected_character_relationship, characters)
+      )
+    )
+    |> assign(
+      :landholding_form,
+      data_form(
+        :landholding,
+        landholding_form_attrs(selected_landholding, households, holds, locations)
       )
     )
     |> assign(
@@ -2092,8 +2290,20 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "tax_policy_id" => selected_record_id(socket.assigns[:selected_tax_policy]),
       "tax_exemption_id" => selected_record_id(socket.assigns[:selected_tax_exemption]),
       "tax_revenue_share_id" => selected_record_id(socket.assigns[:selected_tax_revenue_share]),
-      "mode" => socket.assigns[:economy_mode]
+      "household_id" => selected_record_id(socket.assigns[:selected_household]),
+      "membership_id" => selected_record_id(socket.assigns[:selected_household_membership]),
+      "relationship_id" => selected_record_id(socket.assigns[:selected_character_relationship]),
+      "landholding_id" => selected_record_id(socket.assigns[:selected_landholding]),
+      "mode" => reload_mode(socket)
     }
+  end
+
+  defp reload_mode(%{assigns: %{section: "society"}} = socket) do
+    to_string(socket.assigns[:society_mode])
+  end
+
+  defp reload_mode(socket) do
+    to_string(socket.assigns[:economy_mode])
   end
 
   defp selected_continent_id(socket) do
@@ -3180,6 +3390,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "role" => character.role,
       "politics" => character.politics,
       "status" => character.status || "alive",
+      "social_status" => character.social_status,
+      "life_stage" => character.life_stage,
+      "wealth_band" => character.wealth_band,
       "race_id" => character.race_id,
       "guild_id" => character.guild_id,
       "home_location_id" => character.home_location_id,
@@ -3200,6 +3413,26 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "skill_id"
     ])
     |> Map.put("role", character_role_name(character_role))
+  end
+
+  defp society_value(nil), do: "Not recorded"
+
+  defp society_value(value) do
+    value
+    |> to_string()
+    |> String.replace("_", " ")
+    |> String.capitalize()
+  end
+
+  defp relationship_other_name(
+         %{character_a_id: character_id, character_b: character_b},
+         %{id: character_id}
+       ) do
+    character_b.name
+  end
+
+  defp relationship_other_name(%{character_a: character_a}, _character) do
+    character_a.name
   end
 
   defp province_capital_hold?(%{capital_hold_id: hold_id}, %{id: hold_id}) do
@@ -4009,7 +4242,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   defp normalize_section(section)
-       when section in ~w(bestiary calendar characters civilizations connections documents economy geography gods guilds items map maps races skills spells timeline) do
+       when section in ~w(bestiary calendar characters civilizations connections documents economy geography gods guilds items map maps races skills society spells timeline) do
     section
   end
 
@@ -4071,6 +4304,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp section_label("economy") do
     "Economy"
+  end
+
+  defp section_label("society") do
+    "Society"
   end
 
   defp section_label("calendar") do
@@ -4967,6 +5204,68 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     end
   end
 
+  defp save_society_record(socket, selected, callback) do
+    save_economy_record(socket, selected, callback)
+  end
+
+  defp society_mode(params, selected_records) do
+    requested = params["mode"]
+    selected = Enum.find_value(selected_records, fn {mode, record} -> if record, do: mode end)
+
+    if requested in ~w(household relationship holding) do
+      String.to_existing_atom(requested)
+    else
+      selected || :household
+    end
+  end
+
+  defp landholding_scope_options(holds, locations) do
+    typed_options("Hold", "hold", holds) ++ typed_options("Location", "location", locations)
+  end
+
+  defp landholding_scope_refs(socket, value) when is_binary(value) do
+    case String.split(value, ":", parts: 2) do
+      ["hold", id] when id != "" ->
+        with {:ok, hold} <- economy_record(socket.assigns.holds, id) do
+          {:ok, [hold: hold, location: nil]}
+        end
+
+      ["location", id] when id != "" ->
+        with {:ok, location} <- economy_record(socket.assigns.locations, id) do
+          {:ok, [hold: nil, location: location]}
+        end
+
+      _other ->
+        {:error, :invalid_scope}
+    end
+  end
+
+  defp landholding_scope_refs(_socket, _value), do: {:error, :invalid_scope}
+
+  defp delete_society_record(socket, "household", id) do
+    with {:ok, household} <- selected_society_record(socket.assigns.selected_household, id) do
+      Worlds.delete_household(household)
+    end
+  end
+
+  defp delete_society_record(socket, "relationship", id) do
+    with {:ok, relationship} <-
+           selected_society_record(socket.assigns.selected_character_relationship, id) do
+      Worlds.delete_character_relationship(relationship)
+    end
+  end
+
+  defp delete_society_record(socket, "landholding", id) do
+    with {:ok, holding} <- selected_society_record(socket.assigns.selected_landholding, id) do
+      Worlds.delete_landholding(holding)
+    end
+  end
+
+  defp delete_society_record(_socket, _kind, _id), do: {:error, :not_found}
+
+  defp selected_society_record(%{id: id} = record, id), do: {:ok, record}
+  defp selected_society_record(_record, _id), do: {:error, :not_found}
+
   defp economy_record(records, id) do
     case select_record(records, id) do
       nil -> {:error, :not_found}
@@ -5148,6 +5447,106 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> string_keys()
     |> Map.put("jurisdiction", policy_jurisdiction(policy))
   end
+
+  defp household_form_attrs(nil, _locations, _characters) do
+    %{
+      "household_type" => "farmstead",
+      "status" => "active",
+      "home_location_id" => nil,
+      "head_character_id" => nil
+    }
+  end
+
+  defp household_form_attrs(household, _locations, _characters) do
+    household
+    |> Map.from_struct()
+    |> Map.take([:name, :household_type, :status, :home_location_id, :description])
+    |> string_keys()
+  end
+
+  defp household_membership_form_attrs(nil, characters) do
+    %{
+      "character_id" => first_id(characters),
+      "role" => "dependent",
+      "status" => "active",
+      "is_primary" => "false"
+    }
+  end
+
+  defp household_membership_form_attrs(membership, _characters) do
+    membership
+    |> Map.from_struct()
+    |> Map.take([:character_id, :role, :status, :is_primary, :description])
+    |> string_keys()
+  end
+
+  defp household_membership_candidates(characters, nil) do
+    characters
+  end
+
+  defp household_membership_candidates(characters, household) do
+    member_ids = MapSet.new(household.memberships, & &1.character_id)
+    Enum.reject(characters, &MapSet.member?(member_ids, &1.id))
+  end
+
+  defp character_relationship_form_attrs(nil, characters) do
+    %{
+      "character_a_id" => first_id(characters),
+      "character_b_id" => selected_record_id(Enum.at(characters, 1)),
+      "relationship_type" => "parent_child",
+      "status" => "active"
+    }
+  end
+
+  defp character_relationship_form_attrs(relationship, _characters) do
+    relationship
+    |> Map.from_struct()
+    |> Map.take([
+      :character_a_id,
+      :character_b_id,
+      :relationship_type,
+      :character_a_role,
+      :character_b_role,
+      :status,
+      :start_date_label,
+      :end_date_label,
+      :description
+    ])
+    |> string_keys()
+  end
+
+  defp landholding_form_attrs(nil, households, holds, locations) do
+    %{
+      "household_id" => first_id(households),
+      "geographic_scope" => first_landholding_scope(holds, locations),
+      "tenure_type" => "customary",
+      "primary_use" => "mixed",
+      "status" => "active"
+    }
+  end
+
+  defp landholding_form_attrs(holding, _households, _holds, _locations) do
+    holding
+    |> Map.from_struct()
+    |> Map.take([
+      :household_id,
+      :name,
+      :tenure_type,
+      :primary_use,
+      :size_hectares,
+      :status,
+      :description
+    ])
+    |> string_keys()
+    |> Map.put("geographic_scope", landholding_scope(holding))
+  end
+
+  defp first_landholding_scope([hold | _holds], _locations), do: typed_id("hold", hold)
+  defp first_landholding_scope([], [location | _locations]), do: typed_id("location", location)
+  defp first_landholding_scope([], []), do: nil
+
+  defp landholding_scope(%{location_id: id}) when not is_nil(id), do: "location:#{id}"
+  defp landholding_scope(%{hold_id: id}) when not is_nil(id), do: "hold:#{id}"
 
   defp tax_exemption_form_attrs(nil, policies) do
     %{"tax_policy_id" => first_id(policies), "exemption_percentage" => "100"}

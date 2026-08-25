@@ -2258,6 +2258,343 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     refute Repo.get(Hold, whiterun.id)
   end
 
+  test "creates and searches households in the Society dashboard", %{conn: conn} do
+    %{world: world, location: location, first_character: head} = society_ui_fixture()
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=society")
+
+    assert has_element?(view, "#society-dashboard")
+    assert has_element?(view, "#society-households[phx-update='stream']")
+    assert has_element?(view, "#society-household-form")
+
+    view
+    |> form("#society-household-form",
+      household: %{
+        name: "Ragna's household",
+        household_type: "farmstead",
+        status: "active",
+        home_location_id: location.id,
+        head_character_id: head.id,
+        description: "A farm household of kin, dependents, and seasonal laborers."
+      }
+    )
+    |> render_submit()
+
+    [household] = Worlds.list_households(world)
+    assert has_element?(view, "#society_households-#{household.id}", household.name)
+
+    view
+    |> form("#dashboard-search-form", search: %{query: "Ragna"})
+    |> render_change()
+
+    assert has_element?(view, "#society_households-#{household.id}")
+
+    view
+    |> element("#society_households-#{household.id}")
+    |> render_click()
+
+    assert_patch(
+      view,
+      ~p"/worlds/#{world}/dashboard?section=society&mode=household&household_id=#{household.id}"
+    )
+
+    view
+    |> form("#society-household-form",
+      household: %{
+        name: "Ragna's riverside household",
+        household_type: "farmstead",
+        status: "active",
+        home_location_id: location.id,
+        description: "A working farm household near the river crossing."
+      }
+    )
+    |> render_submit()
+
+    assert Worlds.get_household!(world, household.id).name == "Ragna's riverside household"
+
+    view
+    |> element("#delete-society-household-#{household.id}")
+    |> render_click()
+
+    assert Worlds.list_households(world) == []
+  end
+
+  test "adds, edits, and removes household members", %{conn: conn} do
+    %{
+      world: world,
+      first_character: head,
+      second_character: household_member
+    } = society_ui_fixture()
+
+    {:ok, household} =
+      Worlds.create_household(world, %{name: "Ragna's household"}, head_character: head)
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        ~p"/worlds/#{world}/dashboard?section=society&mode=household&household_id=#{household.id}"
+      )
+
+    assert has_element?(view, "#household-membership-form")
+
+    view
+    |> form("#household-membership-form",
+      household_membership: %{
+        character_id: household_member.id,
+        role: "child",
+        status: "active",
+        is_primary: "false",
+        description: "Keeps a sleeping place in the hall."
+      }
+    )
+    |> render_submit()
+
+    membership =
+      household
+      |> Worlds.list_household_memberships()
+      |> Enum.find(&(&1.character_id == household_member.id))
+
+    assert has_element?(view, "#household-membership-#{membership.id}", household_member.name)
+
+    view
+    |> element("#edit-household-membership-#{membership.id}")
+    |> render_click()
+
+    assert_patch(
+      view,
+      ~p"/worlds/#{world}/dashboard?section=society&mode=household&household_id=#{household.id}&membership_id=#{membership.id}"
+    )
+
+    view
+    |> form("#household-membership-form",
+      household_membership: %{
+        role: "other_kin",
+        status: "active",
+        is_primary: "false",
+        description: "A younger kinsman who works the household fields."
+      }
+    )
+    |> render_submit()
+
+    assert Worlds.get_household_membership!(world, membership.id).role == :other_kin
+
+    view
+    |> element("#delete-household-membership-#{membership.id}")
+    |> render_click()
+
+    refute Repo.get(AncientStones.Worlds.HouseholdMembership, membership.id)
+    refute has_element?(view, "#household-membership-#{membership.id}")
+  end
+
+  test "rejects forged Society references from another world", %{conn: conn} do
+    %{world: world, first_character: local_character} = society_ui_fixture()
+
+    %{
+      hold: foreign_hold,
+      location: foreign_location,
+      first_character: foreign_character
+    } = society_ui_fixture("Tyrven")
+
+    {:ok, household} = Worlds.create_household(world, %{name: "Local household"})
+
+    {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=society")
+
+    render_submit(view, "save_household", %{
+      "household" => %{
+        "name" => "Foreign household",
+        "household_type" => "farmstead",
+        "status" => "active",
+        "home_location_id" => foreign_location.id
+      }
+    })
+
+    refute Enum.any?(Worlds.list_households(world), &(&1.name == "Foreign household"))
+
+    render_submit(view, "save_character_relationship", %{
+      "character_relationship" => %{
+        "character_a_id" => local_character.id,
+        "character_b_id" => foreign_character.id,
+        "relationship_type" => "siblings",
+        "status" => "active"
+      }
+    })
+
+    assert Worlds.list_character_relationships(world) == []
+
+    render_submit(view, "save_landholding", %{
+      "landholding" => %{
+        "household_id" => household.id,
+        "name" => "Foreign meadow",
+        "geographic_scope" => "hold:#{foreign_hold.id}",
+        "tenure_type" => "customary",
+        "primary_use" => "pasture",
+        "status" => "active"
+      }
+    })
+
+    assert Worlds.list_landholdings(world) == []
+  end
+
+  test "creates personal ties and tenure records in Society", %{conn: conn} do
+    %{
+      world: world,
+      hold: hold,
+      first_character: parent,
+      second_character: child
+    } = society_ui_fixture()
+
+    {:ok, household} = Worlds.create_household(world, %{name: "Ketil's farm"})
+
+    {:ok, relationship_view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=society&mode=relationship")
+
+    relationship_view
+    |> form("#society-relationship-form",
+      character_relationship: %{
+        character_a_id: parent.id,
+        character_b_id: child.id,
+        relationship_type: "parent_child",
+        character_a_role: "father",
+        character_b_role: "daughter",
+        status: "active"
+      }
+    )
+    |> render_submit()
+
+    [relationship] = Worlds.list_character_relationships(world)
+
+    assert has_element?(
+             relationship_view,
+             "#society_relationships-#{relationship.id}",
+             parent.name
+           )
+
+    relationship_view
+    |> element("#society_relationships-#{relationship.id}")
+    |> render_click()
+
+    relationship_view
+    |> form("#society-relationship-form",
+      character_relationship: %{
+        status: "historical",
+        description: "The tie was recognized before the spring assembly."
+      }
+    )
+    |> render_submit()
+
+    relationship = Worlds.get_character_relationship!(world, relationship.id)
+    assert relationship.status == :historical
+
+    relationship_view
+    |> form("#dashboard-search-form", search: %{query: "spring assembly"})
+    |> render_change()
+
+    assert has_element?(relationship_view, "#society_relationships-#{relationship.id}")
+
+    relationship_view
+    |> element("#delete-society-relationship-#{relationship.id}")
+    |> render_click()
+
+    assert Worlds.list_character_relationships(world) == []
+
+    {:ok, holding_view, _html} =
+      live(conn, ~p"/worlds/#{world}/dashboard?section=society&mode=holding")
+
+    holding_view
+    |> form("#society-landholding-form",
+      landholding: %{
+        household_id: household.id,
+        name: "Common meadow share",
+        geographic_scope: "hold:#{hold.id}",
+        tenure_type: "communal_right",
+        primary_use: "pasture",
+        status: "active"
+      }
+    )
+    |> render_submit()
+
+    [holding] = Worlds.list_landholdings(world)
+    assert has_element?(holding_view, "#society_landholdings-#{holding.id}", holding.name)
+
+    holding_view
+    |> element("#society_landholdings-#{holding.id}")
+    |> render_click()
+
+    holding_view
+    |> form("#society-landholding-form",
+      landholding: %{
+        name: "Upper common meadow share",
+        description: "Grazing opens after the hay fields are cleared."
+      }
+    )
+    |> render_submit()
+
+    holding = Worlds.get_landholding!(world, holding.id)
+    assert holding.name == "Upper common meadow share"
+
+    holding_view
+    |> form("#dashboard-search-form", search: %{query: "hay fields"})
+    |> render_change()
+
+    assert has_element?(holding_view, "#society_landholdings-#{holding.id}")
+
+    holding_view
+    |> element("#delete-society-landholding-#{holding.id}")
+    |> render_click()
+
+    assert Worlds.list_landholdings(world) == []
+  end
+
+  test "shows social standing, households, ties, and tenure on character details", %{conn: conn} do
+    %{
+      world: world,
+      hold: hold,
+      first_character: character,
+      second_character: sibling
+    } = society_ui_fixture()
+
+    {:ok, household} =
+      Worlds.create_household(world, %{name: "Ragna's household"}, head_character: character)
+
+    {:ok, _relationship} =
+      Worlds.create_character_relationship(world, character, sibling, %{
+        relationship_type: :siblings
+      })
+
+    {:ok, _holding} =
+      Worlds.create_landholding(
+        household,
+        %{name: "East field", tenure_type: :allodial, primary_use: :farming},
+        hold: hold
+      )
+
+    {:ok, view, _html} =
+      live(
+        conn,
+        ~p"/worlds/#{world}/dashboard?section=characters&character_id=#{character.id}"
+      )
+
+    view
+    |> form("#character-form",
+      character: %{
+        social_status: "freeholder",
+        life_stage: "adult",
+        wealth_band: "comfortable"
+      }
+    )
+    |> render_submit()
+
+    character = Worlds.get_character!(character.id)
+    assert character.social_status == :freeholder
+    assert character.life_stage == :adult
+    assert character.wealth_band == :comfortable
+
+    assert has_element?(view, "#character-details", "Freeholder")
+    assert has_element?(view, "#character-households", household.name)
+    assert has_element?(view, "#character-relationships", sibling.name)
+    assert has_element?(view, "#character-landholdings", "East field")
+  end
+
   test "deletes a selected location from the locations column", %{conn: conn} do
     {:ok, world} = Worlds.create_world_from_template(:skyrim, %{name: "Northern Realm"})
     dashboard = Worlds.get_world_dashboard!(world.id)
@@ -2307,6 +2644,25 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
   defp create_world! do
     {:ok, world} = Worlds.create_world(%{name: "Eldoria"})
     world
+  end
+
+  defp society_ui_fixture(world_name \\ "Audrun") do
+    {:ok, world} = Worlds.create_world(%{name: world_name})
+    {:ok, continent} = Worlds.create_continent(world, %{name: "Ancient Lands"})
+    {:ok, province} = Worlds.create_province(continent, %{name: "Frostgard"})
+    {:ok, hold} = Worlds.create_hold(province, %{name: "Gronvale"})
+    {:ok, location_type} = Worlds.create_location_type(world, %{name: "Farmstead"})
+    {:ok, location} = Worlds.create_location(hold, location_type, %{name: "River Farm"})
+    {:ok, first_character} = Worlds.create_character(world, %{name: "Ragna Torvaldsdottir"})
+    {:ok, second_character} = Worlds.create_character(world, %{name: "Ingrid Torvaldsdottir"})
+
+    %{
+      world: world,
+      hold: hold,
+      location: location,
+      first_character: first_character,
+      second_character: second_character
+    }
   end
 
   defp skyrim_province(world) do
