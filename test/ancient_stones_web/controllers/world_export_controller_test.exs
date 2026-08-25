@@ -37,9 +37,20 @@ defmodule AncientStonesWeb.WorldExportControllerTest do
   test "shows the export action on the world dashboard", %{conn: conn, world: world} do
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world.id}/dashboard")
 
-    assert has_element?(view, "#world-export-menu")
-    assert has_element?(view, "#world-export-toggle")
-    assert has_element?(view, "#world-pdf-export[href='/worlds/#{world.id}/export.pdf']")
-    assert has_element?(view, "#world-epub-export[href='/worlds/#{world.id}/export.epub']")
+    assert has_element?(view, "#world-export-menu[phx-click-away]")
+    assert has_element?(view, "#geography-dashboard > #world-export-menu")
+    assert has_element?(view, "#world-export-toggle.stone-button")
+
+    assert has_element?(
+             view,
+             "#world-pdf-export.stone-text[href='/worlds/#{world.id}/export.pdf'] .stone-muted"
+           )
+
+    assert has_element?(
+             view,
+             "#world-epub-export.stone-text[href='/worlds/#{world.id}/export.epub'] .stone-muted"
+           )
+
+    assert has_element?(view, "#world-export-menu > .stone-menu")
   end
 end
