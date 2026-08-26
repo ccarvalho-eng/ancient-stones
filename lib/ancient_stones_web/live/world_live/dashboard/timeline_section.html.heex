@@ -1,0 +1,352 @@
+<div
+  id="timeline-dashboard"
+  class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+>
+  <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Timelines</h2>
+        <p class="text-xs text-zinc-500">Historical era systems for this world</p>
+      </div>
+      <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
+        {length(@filtered_timelines)}
+      </span>
+    </div>
+
+    <div id="timeline-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
+      <div
+        :if={@filtered_timelines == []}
+        class="px-4 py-8 text-center text-sm text-zinc-500"
+      >
+        No timelines have been added to this world.
+      </div>
+
+      <div
+        :for={timeline <- @filtered_timelines}
+        class={[
+          "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+          @selected_timeline && @selected_timeline.id == timeline.id &&
+            "bg-zinc-100"
+        ]}
+      >
+        <.link
+          patch={~p"/worlds/#{@world}/dashboard?section=timeline&timeline_id=#{timeline.id}"}
+          class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+        >
+          <div class="truncate text-sm font-semibold text-zinc-800">
+            {timeline.name}
+          </div>
+          <p class="mt-1 text-xs font-medium text-zinc-500">
+            {length(timeline_eras(timeline))} eras / {length(timeline_events(timeline))} events
+          </p>
+        </.link>
+        <button
+          type="button"
+          phx-click="delete_timeline"
+          phx-value-id={timeline.id}
+          data-confirm={"Delete #{timeline.name}?"}
+          class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+          aria-label={"Delete #{timeline.name}"}
+        >
+          <.icon name="hero-trash" class="size-4" />
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <main class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Details</h2>
+        <p class="text-xs text-zinc-500">
+          {if @selected_timeline,
+            do: @selected_timeline.name,
+            else: "No timeline selected"}
+        </p>
+      </div>
+    </div>
+
+    <div class="max-h-[800px] overflow-y-auto p-4">
+      <div
+        :if={is_nil(@selected_timeline)}
+        class="py-8 text-center text-sm text-zinc-500"
+      >
+        Select a timeline to inspect its eras.
+      </div>
+
+      <div :if={@selected_timeline} id="timeline-details" class="space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold text-zinc-800">
+            {@selected_timeline.name}
+          </h3>
+          <p class="mt-1 text-sm leading-6 text-zinc-600">
+            {@selected_timeline.description || "No description yet."}
+          </p>
+        </div>
+
+        <div class="overflow-hidden rounded-md border border-zinc-200 bg-zinc-50">
+          <div class="flex items-center justify-between gap-3 border-b border-zinc-200 bg-white px-3 py-2">
+            <p class="text-[11px] font-semibold uppercase text-zinc-500">
+              Chronology
+            </p>
+            <div
+              id="timeline-chronology-tabs"
+              class="flex overflow-hidden rounded border border-zinc-200 bg-zinc-50 p-0.5"
+            >
+              <button
+                type="button"
+                phx-click="set_timeline_detail_tab"
+                phx-value-tab="eras"
+                class={[
+                  "rounded px-2.5 py-1 text-xs font-medium transition",
+                  @timeline_detail_tab == "eras" &&
+                    "bg-white text-zinc-800 shadow-sm",
+                  @timeline_detail_tab != "eras" &&
+                    "text-zinc-500 hover:bg-white hover:text-zinc-700"
+                ]}
+              >
+                Eras
+              </button>
+              <button
+                type="button"
+                phx-click="set_timeline_detail_tab"
+                phx-value-tab="events"
+                class={[
+                  "rounded px-2.5 py-1 text-xs font-medium transition",
+                  @timeline_detail_tab == "events" &&
+                    "bg-white text-zinc-800 shadow-sm",
+                  @timeline_detail_tab != "events" &&
+                    "text-zinc-500 hover:bg-white hover:text-zinc-700"
+                ]}
+              >
+                Events
+              </button>
+            </div>
+          </div>
+
+          <div
+            :if={@timeline_detail_tab == "eras"}
+            id="timeline-eras-tab"
+            class="px-3 py-2"
+          >
+            <div class="flex flex-col divide-y divide-zinc-100">
+              <div
+                :if={timeline_eras(@selected_timeline) == []}
+                class="py-2 text-sm text-zinc-500"
+              >
+                No eras have been added.
+              </div>
+              <div
+                :for={era <- timeline_eras(@selected_timeline)}
+                class="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 py-2 first:pt-0 last:pb-0"
+              >
+                <div>
+                  <div class="text-sm font-medium text-zinc-800">
+                    {era.position}. {era.name}
+                  </div>
+                  <p class="text-xs text-zinc-500">
+                    {era_years(era)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  phx-click="delete_timeline_era"
+                  phx-value-id={era.id}
+                  data-confirm={"Delete #{era.name}?"}
+                  class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
+                  aria-label={"Delete #{era.name}"}
+                >
+                  <.icon name="hero-trash" class="size-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div
+            :if={@timeline_detail_tab == "events"}
+            id="timeline-events-tab"
+            class="px-3 py-2"
+          >
+            <div class="flex flex-col divide-y divide-zinc-100">
+              <div
+                :if={@selected_timeline_events == []}
+                class="py-2 text-sm text-zinc-500"
+              >
+                No events have been added.
+              </div>
+              <div
+                :for={event <- @selected_timeline_events}
+                class="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 py-2 first:pt-0 last:pb-0"
+              >
+                <div>
+                  <div class="text-sm font-medium text-zinc-800">
+                    {event.name}
+                  </div>
+                  <p class="text-xs text-zinc-500">
+                    {timeline_event_year(event, @selected_timeline)} / {timeline_event_era_name(
+                      event,
+                      @selected_timeline
+                    )}
+                  </p>
+                  <p
+                    :if={event.description}
+                    class="mt-1 text-sm leading-5 text-zinc-600"
+                  >
+                    {event.description}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  phx-click="delete_timeline_event"
+                  phx-value-id={event.id}
+                  data-confirm={"Delete #{event.name}?"}
+                  class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
+                  aria-label={"Delete #{event.name}"}
+                >
+                  <.icon name="hero-trash" class="size-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="rounded-md border border-zinc-200 bg-white px-4 py-3">
+      <h2 class="text-sm font-semibold text-zinc-800">Actions</h2>
+      <p class="mt-1 text-xs text-zinc-500">Create timelines, eras, and events.</p>
+    </div>
+
+    <div id="timeline-action-list" class="max-h-[800px] overflow-y-auto">
+      <.action_section
+        action="timeline"
+        expanded_action={@expanded_action}
+        icon="hero-clock"
+        title="Add Timeline"
+      >
+        <.form
+          for={@timeline_form}
+          id="timeline-form"
+          phx-submit="create_timeline"
+          class="space-y-2"
+        >
+          <.input field={@timeline_form[:name]} type="text" label="Name" required />
+          <.input
+            field={@timeline_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+
+      <.action_section
+        :if={@selected_timeline}
+        action="timeline_era"
+        expanded_action={@expanded_action}
+        icon="hero-book-open"
+        title="Add Era"
+      >
+        <.form
+          for={@timeline_era_form}
+          id="timeline-era-form"
+          phx-submit="create_timeline_era"
+          class="space-y-2"
+        >
+          <.input
+            field={@timeline_era_form[:timeline_id]}
+            type="select"
+            label="Timeline"
+            options={@timeline_options}
+          />
+          <.input
+            field={@timeline_era_form[:name]}
+            type="text"
+            label="Name"
+            required
+          />
+          <.input
+            field={@timeline_era_form[:abbreviation]}
+            type="text"
+            label="Abbreviation"
+          />
+          <.input
+            field={@timeline_era_form[:position]}
+            type="number"
+            label="Position"
+          />
+          <.input
+            field={@timeline_era_form[:starts_at_year]}
+            type="number"
+            label="Starts At Year"
+          />
+          <.input
+            field={@timeline_era_form[:ends_at_year]}
+            type="number"
+            label="Ends At Year"
+          />
+          <.input
+            field={@timeline_era_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+
+      <.action_section
+        :if={@selected_timeline}
+        action="timeline_event"
+        expanded_action={@expanded_action}
+        icon="hero-sparkles"
+        title="Add Event"
+      >
+        <.form
+          for={@timeline_event_form}
+          id="timeline-event-form"
+          phx-submit="create_timeline_event"
+          class="space-y-2"
+        >
+          <.input
+            field={@timeline_event_form[:timeline_id]}
+            type="select"
+            label="Timeline"
+            options={@timeline_options}
+          />
+          <.input
+            field={@timeline_event_form[:timeline_era_id]}
+            type="select"
+            label="Era"
+            options={[{"None", ""} | @selected_timeline_era_options]}
+          />
+          <.input
+            field={@timeline_event_form[:name]}
+            type="text"
+            label="Name"
+            required
+          />
+          <.input field={@timeline_event_form[:year]} type="number" label="Year" />
+          <.input
+            field={@timeline_event_form[:position]}
+            type="number"
+            label="Position"
+          />
+          <.input
+            field={@timeline_event_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+    </div>
+  </aside>
+</div>
