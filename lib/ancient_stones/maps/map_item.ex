@@ -1,4 +1,11 @@
 defmodule AncientStones.Maps.MapItem do
+  @moduledoc """
+  Searchable index data for an object stored inside a map document.
+
+  Indexed items preserve position and drawing metadata while optionally linking
+  one continent, province, hold, or location from the same world.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -12,6 +19,8 @@ defmodule AncientStones.Maps.MapItem do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+
+  @type t :: %__MODULE__{}
 
   schema "map_items" do
     field :item_key, :binary_id
@@ -37,6 +46,13 @@ defmodule AncientStones.Maps.MapItem do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Builds a changeset for an indexed map object.
+
+  The changeset validates layer identifiers and enforces that a linked world
+  entity appears no more than once on a map.
+  """
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(map_item, attrs) do
     map_item
     |> cast(attrs, [

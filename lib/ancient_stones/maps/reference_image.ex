@@ -1,7 +1,24 @@
 defmodule AncientStones.Maps.ReferenceImage do
+  @moduledoc """
+  Validates and stores local reference images used while tracing a map.
+
+  File content, rather than the supplied extension, determines whether an image
+  is an accepted PNG, JPEG, or WebP file. Stored images receive generated names
+  under the application's static upload directory.
+  """
+
   @max_file_size 10_000_000
   @upload_path "uploads/map-references"
 
+  @type store_error :: :too_large | :invalid_file | :invalid_image | File.posix()
+
+  @doc """
+  Copies a validated local image into static reference-image storage.
+
+  Returns the public path for a stored image or an error when the source is too
+  large, is not a regular file, has unsupported content, or cannot be copied.
+  """
+  @spec store(Path.t()) :: {:ok, String.t()} | {:error, store_error()}
   def store(path) when is_binary(path) do
     with {:ok, %{type: :regular, size: size}} when size <= @max_file_size <- File.stat(path),
          {:ok, extension} <- image_extension(path),
