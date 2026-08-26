@@ -1,0 +1,292 @@
+<div
+  id="connections-dashboard"
+  class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+>
+  <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Connections</h2>
+        <p class="text-xs text-zinc-500">
+          Influence, loyalty, patronage, and conflict
+        </p>
+      </div>
+      <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
+        {length(@filtered_lore_connections)}
+      </span>
+    </div>
+
+    <div
+      id="connection-list"
+      class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5"
+    >
+      <div
+        :if={@filtered_lore_connections == []}
+        class="px-4 py-8 text-center text-sm text-zinc-500"
+      >
+        No connections have been added to this world.
+      </div>
+
+      <div
+        :for={
+          {source_kind, source_lore_connections} <-
+            grouped_lore_connections(@filtered_lore_connections)
+        }
+        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
+      >
+        <.folded_group
+          id={folded_group_dom_id("connections", source_kind)}
+          label={source_kind}
+          count={length(source_lore_connections)}
+          open={
+            @search_query != "" ||
+              folded_group_open?(@open_folded_groups, "connections", source_kind)
+          }
+          toggle_key={folded_group_key("connections", source_kind)}
+        >
+          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+            <div
+              :for={lore_connection <- source_lore_connections}
+              id={"connection-#{lore_connection.id}"}
+              class={[
+                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                @selected_lore_connection &&
+                  @selected_lore_connection.id == lore_connection.id &&
+                  "stone-selected"
+              ]}
+            >
+              <.link
+                patch={
+                  ~p"/worlds/#{@world}/dashboard?section=connections&connection_id=#{lore_connection.id}"
+                }
+                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+              >
+                <div class="truncate text-sm font-semibold text-zinc-800">
+                  {lore_connection_name(lore_connection)}
+                </div>
+                <p class="mt-1 truncate text-xs font-medium text-zinc-500">
+                  {lore_connection_endpoint_label(lore_connection, :source)}
+                </p>
+                <p class="mt-1 text-xs font-medium text-zinc-500">
+                  {display_value(lore_connection.connection_type)} / {lore_connection_endpoint_label(
+                    lore_connection,
+                    :target
+                  )}
+                </p>
+              </.link>
+              <button
+                type="button"
+                phx-click="delete_lore_connection"
+                phx-value-id={lore_connection.id}
+                data-confirm={"Delete #{lore_connection_name(lore_connection)}?"}
+                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                aria-label={"Delete #{lore_connection_name(lore_connection)}"}
+              >
+                <.icon name="hero-trash" class="size-4" />
+              </button>
+            </div>
+          </div>
+        </.folded_group>
+      </div>
+    </div>
+  </section>
+
+  <main class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Details</h2>
+        <p class="text-xs text-zinc-500">
+          {if @selected_lore_connection,
+            do: lore_connection_name(@selected_lore_connection),
+            else: "No connection selected"}
+        </p>
+      </div>
+    </div>
+
+    <div class="max-h-[800px] overflow-y-auto p-4">
+      <div
+        :if={is_nil(@selected_lore_connection)}
+        class="py-8 text-center text-sm text-zinc-500"
+      >
+        Select a connection to inspect its source, target, and context.
+      </div>
+
+      <div :if={@selected_lore_connection} id="connection-details" class="space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold text-zinc-800">
+            {lore_connection_name(@selected_lore_connection)}
+          </h3>
+          <p class="mt-1 text-sm leading-6 text-zinc-600">
+            {@selected_lore_connection.description || "No description yet."}
+          </p>
+        </div>
+
+        <div class="grid gap-3 text-sm sm:grid-cols-2">
+          <.detail
+            label="Source"
+            value={lore_connection_endpoint_label(@selected_lore_connection, :source)}
+          />
+          <.detail
+            label="Target"
+            value={lore_connection_endpoint_label(@selected_lore_connection, :target)}
+          />
+          <.detail
+            label="Type"
+            value={display_value(@selected_lore_connection.connection_type)}
+          />
+          <.detail
+            label="Status"
+            value={display_value(@selected_lore_connection.status)}
+          />
+          <.detail
+            label="Started"
+            value={display_value(@selected_lore_connection.started_at)}
+          />
+          <.detail
+            label="Ended"
+            value={display_value(@selected_lore_connection.ended_at)}
+          />
+        </div>
+
+        <div
+          id="connection-type-description"
+          class="stone-panel-muted rounded-md border px-3 py-3"
+        >
+          <p class="stone-muted text-[11px] font-semibold uppercase tracking-wide">
+            Relationship meaning
+          </p>
+          <p class="stone-heading mt-1 text-sm leading-6">
+            {AncientStones.Worlds.LoreConnection.connection_type_description(
+              @selected_lore_connection.connection_type
+            )}
+          </p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="rounded-md border border-zinc-200 bg-white px-4 py-3">
+      <h2 class="text-sm font-semibold text-zinc-800">Actions</h2>
+      <p class="mt-1 text-xs text-zinc-500">Create and edit lore connections.</p>
+    </div>
+
+    <div id="connection-action-list" class="max-h-[800px] overflow-y-auto">
+      <.action_section
+        action="lore_connection"
+        expanded_action={@expanded_action}
+        icon="hero-link"
+        title="Add Connection"
+      >
+        <.form
+          for={@lore_connection_form}
+          id="connection-form"
+          phx-submit="create_lore_connection"
+          class="space-y-2"
+        >
+          <.input field={@lore_connection_form[:name]} type="text" label="Name" />
+          <.input
+            field={@lore_connection_form[:source_entity]}
+            type="select"
+            label="Source"
+            options={@lore_connection_entity_options}
+          />
+          <.input
+            field={@lore_connection_form[:target_entity]}
+            type="select"
+            label="Target"
+            options={@lore_connection_entity_options}
+          />
+          <.input
+            field={@lore_connection_form[:connection_type]}
+            type="select"
+            label="Connection Type"
+            options={AncientStones.Worlds.LoreConnection.connection_type_options()}
+            required
+          />
+          <.input
+            field={@lore_connection_form[:status]}
+            type="select"
+            label="Status"
+            prompt="None"
+            options={AncientStones.Worlds.LoreConnection.status_options()}
+          />
+          <.input
+            field={@lore_connection_form[:started_at]}
+            type="text"
+            label="Started"
+          />
+          <.input field={@lore_connection_form[:ended_at]} type="text" label="Ended" />
+          <.input
+            field={@lore_connection_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+
+      <.action_section
+        :if={@selected_lore_connection}
+        action="lore_connection_edit"
+        expanded_action={@expanded_action}
+        icon="hero-pencil-square"
+        title="Edit Connection"
+      >
+        <.form
+          for={@lore_connection_edit_form}
+          id="connection-edit-form"
+          phx-submit="update_lore_connection"
+          class="space-y-2"
+        >
+          <.input field={@lore_connection_edit_form[:name]} type="text" label="Name" />
+          <.input
+            field={@lore_connection_edit_form[:source_entity]}
+            type="select"
+            label="Source"
+            options={@lore_connection_entity_options}
+          />
+          <.input
+            field={@lore_connection_edit_form[:target_entity]}
+            type="select"
+            label="Target"
+            options={@lore_connection_entity_options}
+          />
+          <.input
+            field={@lore_connection_edit_form[:connection_type]}
+            type="select"
+            label="Connection Type"
+            options={AncientStones.Worlds.LoreConnection.connection_type_options()}
+            required
+          />
+          <.input
+            field={@lore_connection_edit_form[:status]}
+            type="select"
+            label="Status"
+            prompt="None"
+            options={AncientStones.Worlds.LoreConnection.status_options()}
+          />
+          <.input
+            field={@lore_connection_edit_form[:started_at]}
+            type="text"
+            label="Started"
+          />
+          <.input
+            field={@lore_connection_edit_form[:ended_at]}
+            type="text"
+            label="Ended"
+          />
+          <.input
+            field={@lore_connection_edit_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Save
+          </.button>
+        </.form>
+      </.action_section>
+    </div>
+  </aside>
+</div>
