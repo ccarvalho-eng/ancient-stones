@@ -1,6 +1,38 @@
 defmodule AncientStones.WorldExports.WorldManual do
+  @moduledoc """
+  Converts a loaded world guide into renderer-independent manual chapters.
+
+  Both PDF and EPUB exports consume this structure, keeping chapter selection,
+  record hierarchy, and fact formatting consistent across formats.
+  """
+
   alias AncientStones.WorldExports.WorldGuideDetails
 
+  @type fact :: {String.t(), term()}
+  @type record :: %{
+          required(:title) => String.t(),
+          required(:meta) => String.t() | nil,
+          required(:description) => String.t() | nil,
+          required(:facts) => [fact()],
+          required(:children) => [record()],
+          optional(:map_canvas) => map() | nil
+        }
+  @type chapter :: %{
+          required(:id) => String.t(),
+          required(:title) => String.t(),
+          required(:description) => String.t() | nil,
+          required(:facts) => [fact()],
+          required(:records) => [record()]
+        }
+  @type t :: %{
+          required(:title) => String.t(),
+          required(:description) => String.t() | nil,
+          required(:world) => map(),
+          required(:chapters) => [chapter()]
+        }
+
+  @doc "Builds the normalized manual consumed by the PDF and EPUB renderers."
+  @spec build(AncientStones.Worlds.WorldGuide.t()) :: t()
   def build(guide) do
     details = details(guide)
 

@@ -1,4 +1,11 @@
 defmodule AncientStones.WorldExports.WorldGuideDetails do
+  @moduledoc """
+  Loads the detailed records used to supplement a world guide export.
+
+  Associations are resolved into serializable cards so the manual renderers do
+  not depend on unloaded Ecto associations.
+  """
+
   import Ecto.Query
 
   alias AncientStones.Maps.{MapDocument, MapItem}
@@ -22,6 +29,30 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
   alias AncientStones.Worlds.Spell
   alias AncientStones.Worlds.Timeline
 
+  @type t :: %{
+          required(:locations) => [map()],
+          required(:characters) => [map()],
+          required(:households) => [map()],
+          required(:character_relationships) => [map()],
+          required(:guilds) => [map()],
+          required(:civilizations) => [map()],
+          required(:races) => [map()],
+          required(:gods) => [map()],
+          required(:documents) => [map()],
+          required(:connections) => [map()],
+          required(:maps) => [map()],
+          required(:moons) => [map()],
+          required(:skill_trees) => [map()],
+          required(:skills) => [map()],
+          required(:spells) => [map()],
+          required(:items) => [map()],
+          required(:creatures) => [map()],
+          required(:calendars) => [map()],
+          required(:timelines) => [map()]
+        }
+
+  @doc "Loads and serializes the detailed records belonging to a world."
+  @spec load(Ecto.UUID.t()) :: t()
   def load(world_id) do
     %{
       locations: locations(world_id),

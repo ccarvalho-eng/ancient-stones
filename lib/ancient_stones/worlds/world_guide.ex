@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.WorldGuide do
+  @moduledoc """
+  Loads a world as a read-only, export-oriented guide.
+
+  The guide preserves the world's geographic hierarchy and gathers its trade,
+  taxation, water, political, and economic records into serializable maps.
+  """
+
   import Ecto.Query
 
   alias AncientStones.Repo
@@ -25,6 +32,28 @@ defmodule AncientStones.Worlds.WorldGuide do
   alias AncientStones.Worlds.WaterBodyConnection
   alias AncientStones.Worlds.World
 
+  @type t :: %{
+          required(:world) => map(),
+          required(:continents) => [map()],
+          required(:characters) => [map()],
+          required(:guilds) => [map()],
+          required(:trade_routes) => [map()],
+          required(:tax_policies) => [map()],
+          required(:economic_profiles) => [map()],
+          required(:commodity_balances) => [map()],
+          required(:tax_assessments) => [map()],
+          required(:water_bodies) => [map()],
+          required(:water_connections) => [map()],
+          required(:commercial_ventures) => [map()],
+          required(:assemblies) => [map()]
+        }
+
+  @doc """
+  Loads the world and the records needed by the guide exporters.
+
+  Raises `Ecto.NoResultsError` when the world does not exist.
+  """
+  @spec load!(Ecto.UUID.t()) :: t()
   def load!(world_id) do
     world =
       World
