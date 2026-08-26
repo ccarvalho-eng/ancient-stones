@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.Province do
+  @moduledoc """
+  A named administrative and geographic region within a continent.
+
+  Provinces carry regional climate measurements, terrain, geology, and
+  watershed data and group their constituent holds.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -12,6 +19,8 @@ defmodule AncientStones.Worlds.Province do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+
   schema "provinces" do
     field :name, :string
     field :description, :string
@@ -44,6 +53,10 @@ defmodule AncientStones.Worlds.Province do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Builds a province changeset with geographic ranges and seasonal temperature ordering.
+  """
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(province, attrs) do
     province
     |> cast(attrs, [

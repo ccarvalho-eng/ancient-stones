@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.World do
+  @moduledoc """
+  The root schema for a world and its physical planetary properties.
+
+  A world belongs to a galaxy and owns the setting's geographic, social,
+  economic, historical, and map records.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -34,6 +41,8 @@ defmodule AncientStones.Worlds.World do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+
   schema "worlds" do
     field :name, :string
     field :description, :string
@@ -99,6 +108,13 @@ defmodule AncientStones.Worlds.World do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Builds a changeset for a world's descriptive and physical properties.
+
+  Physical measurements are checked against both application validations and
+  database constraints.
+  """
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(world, attrs) do
     world
     |> cast(attrs, [
@@ -150,10 +166,18 @@ defmodule AncientStones.Worlds.World do
     |> foreign_key_constraint(:galaxy_id)
   end
 
+  @doc "Builds a creation changeset that also casts nested moons."
+  @spec creation_changeset(t(), map()) :: Ecto.Changeset.t()
   def creation_changeset(world, attrs) do
     moons_changeset(world, attrs)
   end
 
+  @doc """
+  Builds an update changeset for a world and its nested moons.
+
+  Submitted moon identifiers must already belong to the world.
+  """
+  @spec update_with_moons_changeset(t(), map()) :: Ecto.Changeset.t()
   def update_with_moons_changeset(world, attrs) do
     moons_changeset(world, attrs)
   end

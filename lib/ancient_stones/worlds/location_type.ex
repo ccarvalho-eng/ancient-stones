@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.LocationType do
+  @moduledoc """
+  A world-owned classification for locations.
+
+  Types may be nested to distinguish broad place categories from more specific
+  establishments or geographic features.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -7,6 +14,8 @@ defmodule AncientStones.Worlds.LocationType do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+
   schema "location_types" do
     field :name, :string
     field :description, :string
@@ -18,6 +27,8 @@ defmodule AncientStones.Worlds.LocationType do
     timestamps(type: :utc_datetime)
   end
 
+  @doc "Builds a location-type changeset and enforces sibling-name uniqueness."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(location_type, attrs) do
     location_type
     |> cast(attrs, [:name, :description])

@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.WaterBodyConnection do
+  @moduledoc """
+  A hydrologic and navigational link between two water bodies.
+
+  The schema distinguishes physical flow direction from permitted navigation
+  and validates semantics for rivers, straits, channels, and tidal exchanges.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -21,6 +28,9 @@ defmodule AncientStones.Worlds.WaterBodyConnection do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+  @type option :: {String.t(), atom()}
+
   schema "water_body_connections" do
     field :connection_type, Ecto.Enum, values: @connection_types
     field :directionality, Ecto.Enum, values: @directionalities, default: :one_way
@@ -38,6 +48,13 @@ defmodule AncientStones.Worlds.WaterBodyConnection do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Builds a connection changeset with optional trusted endpoint references.
+
+  Endpoints must differ, hydrologic direction must match the connection type,
+  and navigation direction must match navigability.
+  """
+  @spec changeset(t(), map(), map()) :: Ecto.Changeset.t()
   def changeset(connection, attrs, refs \\ %{}) do
     connection
     |> cast(attrs, [
@@ -82,22 +99,32 @@ defmodule AncientStones.Worlds.WaterBodyConnection do
     )
   end
 
+  @doc "Returns labeled hydrologic connection types."
+  @spec connection_type_options() :: [option()]
   def connection_type_options do
     options(@connection_types)
   end
 
+  @doc "Returns labeled hydrologic directionality options."
+  @spec directionality_options() :: [option()]
   def directionality_options do
     options(@directionalities)
   end
 
+  @doc "Returns labeled vessel-capability options."
+  @spec navigability_options() :: [option()]
   def navigability_options do
     options(@navigabilities)
   end
 
+  @doc "Returns labeled navigation-direction options."
+  @spec navigation_directionality_options() :: [option()]
   def navigation_directionality_options do
     options(@navigation_directionalities)
   end
 
+  @doc "Returns labeled seasonal-access options."
+  @spec seasonality_options() :: [option()]
   def seasonality_options do
     options(@seasonalities)
   end

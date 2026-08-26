@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.Moon do
+  @moduledoc """
+  A natural satellite and its orbital and tidal properties.
+
+  Moon measurements are bounded to physically meaningful positive ranges and
+  names are unique within a world.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -6,6 +13,7 @@ defmodule AncientStones.Worlds.Moon do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
 
   schema "moons" do
     field :name, :string
@@ -23,6 +31,8 @@ defmodule AncientStones.Worlds.Moon do
     timestamps(type: :utc_datetime)
   end
 
+  @doc "Builds a standalone moon changeset that requires a parent world."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(moon, attrs) do
     moon
     |> cast_and_validate(attrs)
@@ -30,6 +40,8 @@ defmodule AncientStones.Worlds.Moon do
     |> foreign_key_constraint(:world_id)
   end
 
+  @doc "Builds a moon changeset for use inside a world's nested form."
+  @spec nested_changeset(t(), map()) :: Ecto.Changeset.t()
   def nested_changeset(moon, attrs) do
     cast_and_validate(moon, attrs)
   end
