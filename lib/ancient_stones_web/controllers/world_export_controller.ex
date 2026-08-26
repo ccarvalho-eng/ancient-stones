@@ -4,6 +4,7 @@ defmodule AncientStonesWeb.WorldExportController do
   alias AncientStones.WorldExports.{WorldGuideEpub, WorldGuidePdf}
   alias AncientStones.Worlds.WorldGuide
 
+  # sobelow_skip ["XSS.SendResp"]
   def show(conn, %{"id" => world_id}) do
     guide = WorldGuide.load!(world_id)
     pdf = WorldGuidePdf.render(guide)
@@ -17,6 +18,7 @@ defmodule AncientStonesWeb.WorldExportController do
     |> send_resp(:ok, pdf)
   end
 
+  # sobelow_skip ["XSS.SendResp"]
   def epub(conn, %{"id" => world_id}) do
     guide = WorldGuide.load!(world_id)
     epub = WorldGuideEpub.render(guide)

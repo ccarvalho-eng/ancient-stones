@@ -3149,18 +3149,10 @@ defmodule AncientStones.Templates.Skyrim do
     end)
   end
 
-  defp occupations_for_role(nil) do
-    []
-  end
-
   defp occupations_for_role(role) do
     role
     |> primary_occupation_for_role()
     |> List.wrap()
-  end
-
-  defp primary_occupation_for_role(nil) do
-    nil
   end
 
   defp primary_occupation_for_role("Vampire Lord") do
@@ -3169,10 +3161,6 @@ defmodule AncientStones.Templates.Skyrim do
 
   defp primary_occupation_for_role(role) do
     role
-  end
-
-  defp character_description(name, nil) do
-    "#{name} is a notable figure in Skyrim."
   end
 
   defp character_description(name, role) do

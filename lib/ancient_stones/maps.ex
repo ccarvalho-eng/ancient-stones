@@ -454,27 +454,31 @@ defmodule AncientStones.Maps do
     with {:ok, parent_id} <- Ecto.UUID.cast(parent_id),
          %MapDocument{} = parent_map <-
            Repo.get_by(MapDocument, id: parent_id, world_id: world_id) do
-      not parent_cycle?(parent_map, map_id, MapSet.new())
+      not parent_cycle?(parent_map, map_id, %{})
     else
       _ -> false
     end
   end
 
-  defp parent_cycle?(_map_document, nil, _visited), do: false
+  defp parent_cycle?(_map_document, nil, _visited) do
+    false
+  end
 
   defp parent_cycle?(%MapDocument{id: id}, map_id, _visited) when id == map_id do
     true
   end
 
-  defp parent_cycle?(%MapDocument{parent_map_id: nil}, _map_id, _visited), do: false
+  defp parent_cycle?(%MapDocument{parent_map_id: nil}, _map_id, _visited) do
+    false
+  end
 
   defp parent_cycle?(%MapDocument{id: id, parent_map_id: parent_id}, map_id, visited) do
-    if MapSet.member?(visited, id) do
+    if Map.has_key?(visited, id) do
       true
     else
       case Repo.get(MapDocument, parent_id) do
         nil -> false
-        parent_map -> parent_cycle?(parent_map, map_id, MapSet.put(visited, id))
+        parent_map -> parent_cycle?(parent_map, map_id, Map.put(visited, id, true))
       end
     end
   end

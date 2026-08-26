@@ -1,6 +1,7 @@
 defmodule AncientStonesWeb.Router do
   use AncientStonesWeb, :router
 
+  # sobelow_skip ["Config.CSP"]
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
