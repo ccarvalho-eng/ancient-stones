@@ -13,7 +13,13 @@ defmodule AncientStones.MixProject do
       aliases: aliases(),
       deps: deps(),
       compilers: [:phoenix_live_view] ++ Mix.compilers(),
-      listeners: [Phoenix.CodeReloader]
+      listeners: [Phoenix.CodeReloader],
+      test_coverage: [summary: [threshold: 82]],
+      dialyzer: [
+        plt_add_apps: [:ex_unit, :mix],
+        plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
+        ignore_warnings: ".dialyzer_ignore.exs"
+      ]
     ]
   end
 
@@ -75,7 +81,13 @@ defmodule AncientStones.MixProject do
       {:jason, "~> 1.2"},
       {:pdf, "~> 0.8.1"},
       {:dns_cluster, "~> 0.2.0"},
-      {:bandit, "~> 1.5"}
+      {:bandit, "~> 1.5"},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:doctor, "~> 0.23.0", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
+      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
+      {:sobelow, "~> 0.15", only: [:dev, :test], runtime: false}
     ]
   end
 
@@ -98,10 +110,19 @@ defmodule AncientStones.MixProject do
         "esbuild ancient_stones --minify",
         "phx.digest"
       ],
-      precommit: [
+      quality: [
         "compile --warnings-as-errors",
-        "deps.unlock --unused",
-        "format",
+        "xref graph --format cycles --label compile-connected --fail-above 0",
+        "deps.unlock --check-unused",
+        "format --check-formatted",
+        "credo --strict --min-priority high",
+        "doctor --raise",
+        "sobelow --exit",
+        "deps.audit",
+        "dialyzer --list-unused-filters"
+      ],
+      precommit: [
+        "quality",
         "test"
       ]
     ]

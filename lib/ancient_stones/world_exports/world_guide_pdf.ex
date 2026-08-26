@@ -261,13 +261,6 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
     section_spacing(result)
   end
 
-  defp fact_table(state, title, rows) do
-    state
-    |> ensure_space(78)
-    |> subheading(title)
-    |> fact_table(nil, rows)
-  end
-
   defp fact_record(state, label, value, _index) do
     value_lines = wrap(normalize(value), max_chars_for_width(@content_width, 10))
     height = 17 + max(length(value_lines), 1) * 14 + 8

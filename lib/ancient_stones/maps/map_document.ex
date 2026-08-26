@@ -113,7 +113,7 @@ defmodule AncientStones.Maps.MapDocument do
   end
 
   defp validate_layer_definitions(nil) do
-    {:ok, MapSet.new(@legacy_layer_ids)}
+    {:ok, @legacy_layer_ids}
   end
 
   defp validate_layer_definitions(layers) when is_list(layers) do
@@ -148,7 +148,7 @@ defmodule AncientStones.Maps.MapDocument do
         {:error, "contains duplicate layer names"}
 
       true ->
-        {:ok, MapSet.new(ids)}
+        {:ok, ids}
     end
   end
 
@@ -193,7 +193,7 @@ defmodule AncientStones.Maps.MapDocument do
   end
 
   defp valid_object_layer?(object, layer_ids) do
-    MapSet.member?(layer_ids, Map.get(object, "mapLayer", "features"))
+    Enum.member?(layer_ids, Map.get(object, "mapLayer", "features"))
   end
 
   defp valid_object_data?(type, %{"path" => path}) when type in ~w(Path path) do
@@ -241,10 +241,12 @@ defmodule AncientStones.Maps.MapDocument do
   end
 
   defp finite_number?(value) when is_float(value) do
-    value == value
+    true
   end
 
-  defp finite_number?(_value), do: false
+  defp finite_number?(_value) do
+    false
+  end
 
   defp object_count(objects) do
     Enum.reduce(objects, 0, fn object, count ->

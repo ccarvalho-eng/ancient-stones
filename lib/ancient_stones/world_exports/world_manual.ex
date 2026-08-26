@@ -805,8 +805,7 @@ defmodule AncientStones.WorldExports.WorldManual do
   defp join_values(values) do
     values
     |> Enum.reject(&blank?/1)
-    |> Enum.map(&humanize/1)
-    |> Enum.join(" / ")
+    |> Enum.map_join(" / ", &humanize/1)
   end
 
   defp humanize(nil) do
