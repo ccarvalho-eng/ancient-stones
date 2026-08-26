@@ -2,6 +2,7 @@ defmodule AncientStonesWeb.WorldLive.New do
   use AncientStonesWeb, :live_view
 
   alias AncientStones.Worlds
+  alias AncientStonesWeb.WorldLive.WorldFormComponents
 
   def mount(_params, _session, socket) do
     form =
@@ -163,6 +164,13 @@ defmodule AncientStonesWeb.WorldLive.New do
                   </div>
                 </details>
 
+                <WorldFormComponents.moon_fields
+                  form={@form}
+                  id_prefix="world-form"
+                  add_event="add_world_moon"
+                  remove_event="remove_world_moon"
+                />
+
                 <.button
                   id="create-world-button"
                   phx-disable-with="Creating..."
@@ -179,6 +187,28 @@ defmodule AncientStonesWeb.WorldLive.New do
       </div>
     </Layouts.app>
     """
+  end
+
+  def handle_event("add_world_moon", _params, socket) do
+    params = WorldFormComponents.append_moon_params(socket.assigns.form.params || %{})
+
+    form =
+      params
+      |> Worlds.change_new_world()
+      |> to_form()
+
+    {:noreply, assign(socket, form: form)}
+  end
+
+  def handle_event("remove_world_moon", %{"index" => index}, socket) do
+    params = WorldFormComponents.remove_moon_params(socket.assigns.form.params || %{}, index)
+
+    form =
+      params
+      |> Worlds.change_new_world()
+      |> to_form()
+
+    {:noreply, assign(socket, form: form)}
   end
 
   def handle_event("validate", %{"world" => world_params}, socket) do

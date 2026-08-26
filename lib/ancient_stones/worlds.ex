@@ -79,6 +79,13 @@ defmodule AncientStones.Worlds do
   alias AncientStones.Worlds.WaterBody
   alias AncientStones.Worlds.WaterBodyConnection
 
+  @earth_gravitational_parameter_km3_s2 398_600.4418
+  @lunar_mass_earths 0.0123000371
+  @seconds_per_day 86_400.0
+  @max_world_mass_earths "99999.99999"
+  @max_moon_mass_lunar "9999.999999"
+  @max_bigint "9223372036854775807"
+
   @doc "Lists worlds alphabetically for the geography workspace."
   def list_worlds do
     World
@@ -246,13 +253,17 @@ defmodule AncientStones.Worlds do
   end
 
   def change_new_world(attrs \\ %{}) do
-    %World{}
-    |> World.changeset(attrs)
+    attrs = prepare_world_creation_attrs(attrs)
+
+    %World{moons: []}
+    |> World.creation_changeset(attrs)
   end
 
   def create_world(attrs) do
-    %World{}
-    |> World.changeset(attrs)
+    attrs = prepare_world_creation_attrs(attrs)
+
+    %World{moons: []}
+    |> World.creation_changeset(attrs)
     |> Repo.insert()
   end
 
@@ -270,8 +281,10 @@ defmodule AncientStones.Worlds do
   end
 
   def create_world(attrs, refs) do
-    %World{}
-    |> World.changeset(attrs)
+    attrs = prepare_world_creation_attrs(attrs)
+
+    %World{moons: []}
+    |> World.creation_changeset(attrs)
     |> put_optional_ref(:galaxy_id, refs[:galaxy])
     |> Repo.insert()
   end
@@ -3711,6 +3724,114 @@ defmodule AncientStones.Worlds do
       attrs[:star_temperature_k] || attrs["star_temperature_k"]
     )
     |> maybe_put_attr(:map_projection, attrs[:map_projection] || attrs["map_projection"])
+    |> maybe_put_attr(:moons, attrs[:moons] || attrs["moons"])
+    |> maybe_put_attr(:moons_sort, attrs[:moons_sort] || attrs["moons_sort"])
+    |> maybe_put_attr(:moons_drop, attrs[:moons_drop] || attrs["moons_drop"])
+  end
+
+  defp prepare_world_creation_attrs(attrs) when is_map(attrs) do
+    with {:ok, planet_mass} <-
+           positive_float(creation_attr_value(attrs, :mass_earths), @max_world_mass_earths) do
+      update_moon_attrs(attrs, fn moon_attrs ->
+        derive_moon_orbital_period(moon_attrs, planet_mass)
+      end)
+    else
+      :error -> attrs
+    end
+  end
+
+  defp update_moon_attrs(attrs, update_fun) do
+    cond do
+      Map.has_key?(attrs, :moons) ->
+        Map.update!(attrs, :moons, &map_moon_attrs(&1, update_fun))
+
+      Map.has_key?(attrs, "moons") ->
+        Map.update!(attrs, "moons", &map_moon_attrs(&1, update_fun))
+
+      true ->
+        attrs
+    end
+  end
+
+  defp map_moon_attrs(moons, update_fun) when is_list(moons) do
+    Enum.map(moons, update_fun)
+  end
+
+  defp map_moon_attrs(moons, update_fun) when is_map(moons) do
+    Map.new(moons, fn {key, moon_attrs} -> {key, update_fun.(moon_attrs)} end)
+  end
+
+  defp map_moon_attrs(moons, _update_fun) do
+    moons
+  end
+
+  defp derive_moon_orbital_period(moon_attrs, planet_mass) when is_map(moon_attrs) do
+    period = creation_attr_value(moon_attrs, :orbital_period_days)
+
+    if period in [nil, ""] do
+      with {:ok, semi_major_axis} <-
+             positive_float(
+               creation_attr_value(moon_attrs, :semi_major_axis_km),
+               @max_bigint
+             ),
+           {:ok, moon_mass} <-
+             non_negative_float(
+               creation_attr_value(moon_attrs, :mass_lunar),
+               @max_moon_mass_lunar
+             ) do
+        total_mass_earths = planet_mass + moon_mass * @lunar_mass_earths
+        gravitational_parameter = @earth_gravitational_parameter_km3_s2 * total_mass_earths
+
+        orbital_period_days =
+          2.0 * :math.pi() * :math.sqrt(semi_major_axis ** 3 / gravitational_parameter) /
+            @seconds_per_day
+
+        put_attr(moon_attrs, :orbital_period_days, Decimal.from_float(orbital_period_days))
+      else
+        :error -> moon_attrs
+      end
+    else
+      moon_attrs
+    end
+  end
+
+  defp creation_attr_value(attrs, key) do
+    Map.get(attrs, key) || Map.get(attrs, Atom.to_string(key))
+  end
+
+  defp positive_float(value, maximum) do
+    with {:ok, decimal} <- Decimal.cast(value),
+         :gt <- Decimal.compare(decimal, Decimal.new(0)),
+         comparison when comparison in [:eq, :lt] <-
+           Decimal.compare(decimal, Decimal.new(maximum)) do
+      {:ok, Decimal.to_float(decimal)}
+    else
+      _other -> :error
+    end
+  end
+
+  defp non_negative_float(value, _maximum) when value in [nil, ""] do
+    {:ok, 0.0}
+  end
+
+  defp non_negative_float(value, maximum) do
+    with {:ok, decimal} <- Decimal.cast(value),
+         minimum_comparison when minimum_comparison in [:eq, :gt] <-
+           Decimal.compare(decimal, Decimal.new(0)),
+         maximum_comparison when maximum_comparison in [:eq, :lt] <-
+           Decimal.compare(decimal, Decimal.new(maximum)) do
+      {:ok, Decimal.to_float(decimal)}
+    else
+      _other -> :error
+    end
+  end
+
+  defp put_attr(attrs, key, value) do
+    if Enum.any?(Map.keys(attrs), &is_atom/1) do
+      Map.put(attrs, key, value)
+    else
+      Map.put(attrs, Atom.to_string(key), value)
+    end
   end
 
   defp maybe_put_attr(attrs, _key, nil) do

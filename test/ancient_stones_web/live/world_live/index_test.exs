@@ -8,6 +8,7 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
   alias AncientStones.Maps
   alias AncientStones.Repo
   alias AncientStones.Worlds
+  alias AncientStones.Worlds.Moon
   alias AncientStones.Worlds.Spell
   alias AncientStones.Worlds.World
 
@@ -112,6 +113,39 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     world = Repo.preload(world, :galaxy)
 
     assert world.galaxy.name == "Mundus"
+  end
+
+  test "creates a blank world with a nested moon", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/worlds")
+
+    view
+    |> element("#dashboard-world-form-add-moon")
+    |> render_click()
+
+    assert has_element?(view, "#dashboard-world-form-moon-0")
+
+    view
+    |> form("#dashboard-world-form",
+      world: %{
+        name: "Pelagos",
+        template: "blank",
+        mass_earths: "1",
+        mean_radius_km: "6371",
+        moons: %{
+          "0" => %{
+            name: "Selene",
+            semi_major_axis_km: "384400",
+            mean_radius_km: "1737",
+            mass_lunar: "1"
+          }
+        }
+      }
+    )
+    |> render_submit()
+
+    world = Repo.get_by!(World, name: "Pelagos")
+
+    assert Repo.get_by!(Moon, world_id: world.id, name: "Selene")
   end
 
   test "creates a galaxy", %{conn: conn} do

@@ -129,7 +129,10 @@ defmodule AncientStones.Worlds.World do
     )
     |> validate_number(:day_length_hours, greater_than: 0)
     |> validate_number(:mean_radius_km, greater_than: 0)
-    |> validate_number(:mass_earths, greater_than: 0)
+    |> validate_number(:mass_earths,
+      greater_than_or_equal_to: Decimal.new("0.00001"),
+      less_than: Decimal.new("100000")
+    )
     |> validate_number(:surface_gravity_m_s2, greater_than: 0)
     |> validate_number(:orbital_distance_au, greater_than: 0)
     |> validate_number(:orbital_eccentricity, greater_than_or_equal_to: 0, less_than: 1)
@@ -145,5 +148,51 @@ defmodule AncientStones.Worlds.World do
     |> check_constraint(:orbital_eccentricity, name: :worlds_orbital_eccentricity_range)
     |> check_constraint(:bond_albedo, name: :worlds_physical_fractions_range)
     |> foreign_key_constraint(:galaxy_id)
+  end
+
+  def creation_changeset(world, attrs) do
+    world
+    |> changeset(attrs)
+    |> cast_assoc(:moons,
+      with: &Moon.nested_changeset/2,
+      sort_param: :moons_sort,
+      drop_param: :moons_drop
+    )
+    |> validate_moon_clearance()
+  end
+
+  defp validate_moon_clearance(changeset) do
+    case get_field(changeset, :mean_radius_km) do
+      planet_radius when is_integer(planet_radius) and planet_radius > 0 ->
+        update_change(changeset, :moons, fn moon_changesets ->
+          Enum.map(moon_changesets, &validate_moon_clearance(&1, planet_radius))
+        end)
+
+      _other ->
+        changeset
+    end
+  end
+
+  defp validate_moon_clearance(moon_changeset, planet_radius) do
+    semi_major_axis = get_field(moon_changeset, :semi_major_axis_km)
+    moon_radius = get_field(moon_changeset, :mean_radius_km) || 0
+    eccentricity = get_field(moon_changeset, :orbital_eccentricity) || Decimal.new(0)
+
+    with axis when is_integer(axis) and axis > 0 <- semi_major_axis,
+         radius when is_integer(radius) and radius >= 0 <- moon_radius do
+      periapsis = axis * (1.0 - Decimal.to_float(eccentricity))
+
+      if periapsis > planet_radius + radius do
+        moon_changeset
+      else
+        add_error(
+          moon_changeset,
+          :semi_major_axis_km,
+          "must keep the moon above the planet at periapsis"
+        )
+      end
+    else
+      _other -> moon_changeset
+    end
   end
 end

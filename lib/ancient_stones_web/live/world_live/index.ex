@@ -5,6 +5,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
   alias AncientStones.Maps
   alias AncientStones.Templates
   alias AncientStones.Worlds
+  alias AncientStonesWeb.WorldLive.WorldFormComponents
 
   def mount(_params, _session, socket) do
     galaxies = Galaxies.list_galaxies()
@@ -546,6 +547,15 @@ defmodule AncientStonesWeb.WorldLive.Index do
                           </div>
                         </div>
                       </details>
+
+                      <WorldFormComponents.moon_fields
+                        :if={is_nil(@selected_world)}
+                        form={@world_form}
+                        id_prefix="dashboard-world-form"
+                        add_event="add_world_moon"
+                        remove_event="remove_world_moon"
+                        map_form
+                      />
                     </div>
                     <.button
                       id={
@@ -613,6 +623,19 @@ defmodule AncientStonesWeb.WorldLive.Index do
      socket
      |> assign(:current_template, template)
      |> assign(:world_form, to_form(form_params, as: :world))}
+  end
+
+  def handle_event("add_world_moon", _params, socket) do
+    params = WorldFormComponents.append_moon_params(socket.assigns.world_form.params || %{})
+
+    {:noreply, assign(socket, :world_form, to_form(params, as: :world))}
+  end
+
+  def handle_event("remove_world_moon", %{"index" => index}, socket) do
+    params =
+      WorldFormComponents.remove_moon_params(socket.assigns.world_form.params || %{}, index)
+
+    {:noreply, assign(socket, :world_form, to_form(params, as: :world))}
   end
 
   def handle_event("create_world", %{"world" => world_params}, socket) do
