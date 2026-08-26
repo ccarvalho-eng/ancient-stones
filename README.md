@@ -1,61 +1,67 @@
 # Ancient Stones
 
-Ancient Stones is a Phoenix LiveView workspace for building RPG settings, campaign references, and fictional worlds. It combines structured lore management with an interactive map editor, so geography, characters, politics, calendars, and locations can evolve together instead of living in disconnected notes.
+[![CI](https://github.com/ccarvalho-eng/ancient-stones/actions/workflows/ci.yml/badge.svg)](https://github.com/ccarvalho-eng/ancient-stones/actions/workflows/ci.yml)
+[![Security](https://github.com/ccarvalho-eng/ancient-stones/actions/workflows/security.yml/badge.svg)](https://github.com/ccarvalho-eng/ancient-stones/actions/workflows/security.yml)
+[![Elixir 1.19.5](https://img.shields.io/badge/Elixir-1.19.5-4B275F?logo=elixir)](https://elixir-lang.org/)
+[![Phoenix 1.8](https://img.shields.io/badge/Phoenix-1.8-FD4F00?logo=phoenixframework)](https://www.phoenixframework.org/)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
-The application is designed as a generic world-building system. A Skyrim-inspired template is included as an optional example dataset, not as a limitation on the settings Ancient Stones can model.
+Ancient Stones is a Phoenix LiveView workspace for designing fictional worlds, RPG settings, campaign references, and story bibles. It keeps geography, societies, characters, history, economies, and maps in one structured model so a setting can grow without becoming a collection of disconnected notes.
 
-## Highlights
+The application is setting-agnostic. Its optional Skyrim-inspired template is a reference dataset that demonstrates the model; it does not constrain the kinds of worlds Ancient Stones can represent.
 
-### World-building dashboard
+## What it can model
 
-- Create blank worlds or start from a populated reference template.
-- Organize galaxies, worlds, continents, provinces, holds, and locations.
-- Edit records directly from a consistent select-and-form dashboard workflow.
-- Define custom weekday and calendar structures.
-- Track civilizations, races, characters, roles, guilds, gods, political offices, and relationships.
-- Catalog creatures, skills, perks, spells, items, inventories, documents, timelines, and regional commerce.
-- Record coordinates, capitals, terrain, climate, visibility, and other location details.
+- Galaxies, worlds, moons, continents, provinces, holds, locations, and connected bodies of water.
+- Terrain, climate, geology, watersheds, coordinates, capitals, settlement functions, and political jurisdictions.
+- Civilizations, races, households, characters, occupations, relationships, guilds, gods, and political offices.
+- Trade routes and legs, commodities, currencies, ventures, taxation, exemptions, revenue shares, and regional economic profiles.
+- Calendars, months, eras, events, documents, lore connections, skills, perks, spells, creatures, and historical items.
+- World guides exported as PDF or EPUB.
 
-### Atlas map editor
+## Atlas editor
 
-- Create and manage multiple maps for each world, including outer and nested maps.
-- Draw freehand ink, erase strokes, and construct editable landmass polygons.
-- Paint reusable terrain textures for forests, mountains, grasslands, marshes, deserts, roads, and water.
-- Place searchable medieval and fantasy symbols powered by [Game-icons.net](https://game-icons.net/).
-- Add, drag, duplicate, layer, lock, and precisely position symbols and text labels.
-- Use zoom, pinch gestures, pan mode, grid preferences, snapping, center guides, and focus mode.
-- Upload a reference image as a non-exported tracing layer.
-- Persist canvas documents and indexed map objects in PostgreSQL.
-- Export finished maps as PNG files.
+Each world can contain multiple maps, including nested regional maps. The browser editor supports:
 
-## Project Status
+- Freehand ink, erasing, editable landmass polygons, terrain textures, labels, and reusable map symbols.
+- Zoom, pinch gestures, panning, snapping, grids, center guides, focus mode, layering, locking, and duplication.
+- Searchable medieval and fantasy symbols sourced from [Game-icons.net](https://game-icons.net/).
+- Local reference-image uploads for tracing; reference images are excluded from exported maps.
+- PostgreSQL persistence for map documents and indexed map objects.
+- PNG export for finished maps.
 
-Ancient Stones is active early-stage software rather than a packaged library or production service. Its primary world-building and map-authoring workflows are functional, but the data model, editor tools, storage strategy, and deployment story are still evolving.
+## Project status
 
-Reference images currently use local application storage. That is suitable for development, but a production deployment should move uploads to durable object storage.
+Ancient Stones is active early-stage software. Its core world-building, map-authoring, template, and export workflows are functional, but the data model and user interface are still evolving.
 
-See [docs/skyrim_template.md](docs/skyrim_template.md) for the reference template's coverage and known gaps.
+The application does not currently provide authentication or production-grade upload storage. Reference images use local application storage, which is appropriate for development but should be replaced with durable object storage before a distributed deployment.
+
+See [docs/skyrim_template.md](docs/skyrim_template.md) for the reference template's coverage and known limitations.
 
 ## Technology
 
-- Elixir and Phoenix 1.8
-- Phoenix LiveView 1.2
+- Elixir 1.19 and Erlang/OTP 28
+- Phoenix 1.8 and Phoenix LiveView 1.2
 - Ecto and PostgreSQL
-- Tailwind CSS 4
-- Fabric.js canvas rendering
-- ExUnit and LiveViewTest
+- Tailwind CSS 4 and Fabric.js
+- ExUnit, LiveViewTest, Credo, Dialyzer, Doctor, Sobelow, and MixAudit
+
+The repository pins its development toolchain in [.tool-versions](.tool-versions).
 
 ## Requirements
 
-- Elixir 1.17 or later
-- A compatible Erlang/OTP release
-- PostgreSQL
+The supported project constraint is Elixir 1.17 or later. For a reproducible development environment, use the pinned versions:
 
-The development database defaults to a local PostgreSQL instance using the `postgres` user and password. Adjust `config/dev.exs` if your environment differs.
+- Erlang/OTP 28.4.1
+- Elixir 1.19.5 with OTP 28
+- Node.js 24.15.0
+- PostgreSQL 17
 
-## Getting Started
+The development database defaults to `localhost`, database `ancient_stones_dev`, and the `postgres` user with password `postgres`. Adjust [config/dev.exs](config/dev.exs) when your local database differs.
 
-Install dependencies, create and migrate the database, load seeds, and build assets:
+## Getting started
+
+Install dependencies, create and migrate the database, load development seeds, and build the assets:
 
 ```sh
 mix setup
@@ -67,48 +73,75 @@ Start the development server:
 mix phx.server
 ```
 
-Visit [http://localhost:4000](http://localhost:4000).
+Open [http://localhost:4000](http://localhost:4000).
 
-## Main Routes
+## Main routes
 
 | Route | Purpose |
 | --- | --- |
 | `/` or `/worlds` | Browse and edit galaxies and worlds |
 | `/worlds/new` | Create a blank or template-based world |
 | `/worlds/:id` | View a world summary |
-| `/worlds/:id/dashboard` | Manage a world's lore and maps |
+| `/worlds/:id/dashboard` | Manage a world's structured lore and maps |
 | `/maps` | Browse and filter the global map library |
+| `/worlds/:id/export.pdf` | Export a print-ready world guide |
+| `/worlds/:id/export.epub` | Export a reflowable e-reader edition |
+
+## Architecture
+
+Ancient Stones follows Phoenix context boundaries:
+
+- `AncientStones.Galaxies` owns galaxy persistence and associations.
+- `AncientStones.Worlds` owns world geography, society, history, economy, and related schemas.
+- `AncientStones.Maps` owns map documents, indexed map items, and reference images.
+- `AncientStones.Templates` creates optional reference datasets through the same domain APIs used by the application.
+- `AncientStones.WorldExports` turns a loaded world guide into PDF and EPUB editions.
+- `AncientStonesWeb` contains LiveViews, components, controllers, and the interactive map client.
+
+PostgreSQL is the source of truth for structured records and map state. LiveView owns server-rendered forms and navigation, while the Fabric.js hook manages direct canvas interaction and synchronizes map changes through LiveView events.
 
 ## Development
 
-Run the complete project checks before submitting changes:
+Run the full local gate before submitting changes:
 
 ```sh
 mix precommit
 ```
 
-Common commands:
+Useful commands:
 
 ```sh
-mix test          # Run the test suite
-mix format        # Format Elixir and HEEx files
-mix assets.build  # Compile CSS and JavaScript assets
-mix ecto.reset    # Recreate, migrate, and seed the database
+mix test                 # Run the Elixir test suite
+mix test --cover         # Run tests with built-in Elixir coverage
+mix quality              # Run compile, architecture, style, docs, security, and type checks
+mix format               # Format Elixir and HEEx files
+mix assets.build         # Compile CSS and JavaScript assets
+mix ecto.reset           # Recreate, migrate, and seed the development database
+mix docs                 # Generate local API documentation
 ```
 
-## Project Structure
+JavaScript regression tests use Node's built-in test runner:
+
+```sh
+node --test assets/js/game_icon_library.test.mjs assets/js/map_geometry.test.mjs
+```
+
+CI runs compilation with warnings as errors, formatting, compile-connected cycle detection, lockfile consistency, built-in coverage, JavaScript tests, asset compilation, Credo, documentation coverage, Sobelow, dependency auditing, Dialyzer, filesystem vulnerability scanning, and secret scanning.
+
+## Repository layout
 
 | Path | Contents |
 | --- | --- |
-| `lib/ancient_stones` | Domain contexts, schemas, and persistence logic |
-| `lib/ancient_stones_web/live` | LiveView pages and dashboard workflows |
+| `lib/ancient_stones` | Domain contexts, schemas, templates, exports, and persistence logic |
+| `lib/ancient_stones_web/live` | LiveView pages, components, forms, and dashboard workflows |
 | `assets/js/hooks` | Interactive map editor and browser integrations |
 | `assets/css` | Tailwind entry point and application styling |
 | `priv/repo/migrations` | PostgreSQL schema history |
 | `priv/repo/seeds.exs` | Development seed data |
-| `test` | Context, LiveView, and JavaScript regression coverage |
+| `docs` | Reference-template and project documentation |
+| `test` | Context, LiveView, export, template, and JavaScript regression coverage |
 
-## Template and Asset Attribution
+## Attribution
 
 The Skyrim-inspired template demonstrates the framework with a recognizable world structure. It is not intended to be a complete canonical database.
 
@@ -116,6 +149,6 @@ Ancient Stones is not affiliated with Bethesda, ZeniMax, or The Elder Scrolls. S
 
 Map symbols are sourced from [Game-icons.net](https://game-icons.net/) and retain their respective creator credits and licenses.
 
-## Direction
+## License
 
-The long-term goal is a focused, extensible workspace for designing original RPG worlds, preparing campaign material, organizing fiction lore, and producing maps whose objects remain connected to the underlying world model.
+Ancient Stones is available under the [Apache License 2.0](LICENSE).
