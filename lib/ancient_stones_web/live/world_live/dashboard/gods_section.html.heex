@@ -1,0 +1,139 @@
+<div
+  id="gods-dashboard"
+  class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+>
+  <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Gods</h2>
+        <p class="text-xs text-zinc-500">Pantheons, patrons, and domains</p>
+      </div>
+      <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
+        {length(@filtered_gods)}
+      </span>
+    </div>
+
+    <div id="god-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
+      <div
+        :if={@filtered_gods == []}
+        class="px-4 py-8 text-center text-sm text-zinc-500"
+      >
+        No gods have been added to this world.
+      </div>
+
+      <div
+        :for={{pantheon, pantheon_gods} <- grouped_gods(@filtered_gods)}
+        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
+      >
+        <.folded_group
+          id={folded_group_dom_id("gods", pantheon)}
+          label={display_value(pantheon)}
+          count={length(pantheon_gods)}
+          open={
+            @search_query != "" ||
+              folded_group_open?(@open_folded_groups, "gods", pantheon)
+          }
+          toggle_key={folded_group_key("gods", pantheon)}
+        >
+          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+            <div
+              :for={god <- pantheon_gods}
+              class={[
+                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                @selected_god && @selected_god.id == god.id && "stone-selected"
+              ]}
+            >
+              <.link
+                patch={~p"/worlds/#{@world}/dashboard?section=gods&god_id=#{god.id}"}
+                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+              >
+                <div class="truncate text-sm font-semibold text-zinc-800">
+                  {god.name}
+                </div>
+                <p class="mt-1 text-xs font-medium text-zinc-500">
+                  {display_value(god.domain)}
+                </p>
+              </.link>
+              <button
+                type="button"
+                phx-click="delete_god"
+                phx-value-id={god.id}
+                data-confirm={"Delete #{god.name}?"}
+                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                aria-label={"Delete #{god.name}"}
+              >
+                <.icon name="hero-trash" class="size-4" />
+              </button>
+            </div>
+          </div>
+        </.folded_group>
+      </div>
+    </div>
+  </section>
+
+  <main class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Details</h2>
+        <p class="text-xs text-zinc-500">
+          {if @selected_god, do: @selected_god.name, else: "No god selected"}
+        </p>
+      </div>
+    </div>
+
+    <div class="max-h-[800px] overflow-y-auto p-4">
+      <div :if={is_nil(@selected_god)} class="py-8 text-center text-sm text-zinc-500">
+        Select a god to inspect pantheon and domains.
+      </div>
+
+      <div :if={@selected_god} id="god-details" class="space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold text-zinc-800">{@selected_god.name}</h3>
+          <p class="mt-1 text-sm leading-6 text-zinc-600">
+            {@selected_god.description || "No description yet."}
+          </p>
+        </div>
+
+        <div class="grid gap-3 text-sm sm:grid-cols-2">
+          <.detail label="Pantheon" value={display_value(@selected_god.pantheon)} />
+          <.detail label="Domain" value={display_value(@selected_god.domain)} />
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="rounded-md border border-zinc-200 bg-white px-4 py-3">
+      <h2 class="text-sm font-semibold text-zinc-800">Actions</h2>
+      <p class="mt-1 text-xs text-zinc-500">Create records for this section.</p>
+    </div>
+
+    <div id="god-action-list" class="max-h-[800px] overflow-y-auto">
+      <.action_section
+        action="god"
+        expanded_action={@expanded_action}
+        icon="hero-sparkles"
+        title="Add God"
+      >
+        <.form
+          for={@god_form}
+          id="god-form"
+          phx-submit="create_god"
+          class="space-y-2"
+        >
+          <.input field={@god_form[:name]} type="text" label="Name" required />
+          <.input field={@god_form[:pantheon]} type="text" label="Pantheon" />
+          <.input field={@god_form[:domain]} type="text" label="Domain" />
+          <.input
+            field={@god_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+    </div>
+  </aside>
+</div>
