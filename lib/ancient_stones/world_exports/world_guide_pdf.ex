@@ -1,4 +1,11 @@
 defmodule AncientStones.WorldExports.WorldGuidePdf do
+  @moduledoc """
+  Renders world guides as paginated PDF manuals.
+
+  The renderer performs a layout pass to determine chapter destinations before
+  producing the final document with linked contents.
+  """
+
   alias AncientStones.WorldExports.WorldManual
 
   @page_width 595
@@ -11,6 +18,8 @@ defmodule AncientStones.WorldExports.WorldGuidePdf do
   @ink {20, 20, 20}
   @rule {128, 128, 124}
 
+  @doc "Renders a loaded world guide as a PDF binary."
+  @spec render(AncientStones.Worlds.WorldGuide.t()) :: binary()
   def render(guide) do
     manual = WorldManual.build(guide)
     chapter_pages = chapter_pages(guide, manual)

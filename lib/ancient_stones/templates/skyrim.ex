@@ -1,6 +1,10 @@
 defmodule AncientStones.Templates.Skyrim do
   @moduledoc """
-  Skyrim-inspired starter geography for the Nordic world-building template.
+  Builds the bundled Skyrim-inspired starter world.
+
+  The static snapshot and curated records are combined with physical,
+  geographic, economic, and institutional defaults before the template is
+  handed to the worlds context for persistence.
   """
 
   @snapshot_path Path.expand("../../../priv/templates/skyrim_snapshot.json", __DIR__)
@@ -32,6 +36,8 @@ defmodule AncientStones.Templates.Skyrim do
     water_body_connections watershed wealth_band weekday_names west_longitude world year_start_angle
   )a
 
+  @doc "Returns a fresh nested dataset for the Skyrim starter world."
+  @spec data() :: map()
   def data do
     snapshot = snapshot()
 

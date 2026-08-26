@@ -1,9 +1,18 @@
 defmodule AncientStones.WorldExports.WorldGuideEpub do
+  @moduledoc """
+  Renders world guides as self-contained EPUB 3 archives.
+
+  Output is deterministic for the same guide, including stable metadata and
+  chapter ordering.
+  """
+
   alias AncientStones.WorldExports.WorldManual
 
   @epub_version "3.0"
   @modified_at "2000-01-01T00:00:00Z"
 
+  @doc "Renders a loaded world guide as an EPUB archive binary."
+  @spec render(AncientStones.Worlds.WorldGuide.t()) :: binary()
   def render(guide) do
     manual = WorldManual.build(guide)
     chapters = chapters(manual)
