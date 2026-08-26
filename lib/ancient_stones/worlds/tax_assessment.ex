@@ -15,6 +15,10 @@ defmodule AncientStones.Worlds.TaxAssessment do
     field :in_kind_value, :decimal, default: 0
     field :customary_labor_days, :integer, default: 0
     field :confidence, Ecto.Enum, values: @confidences, default: :medium
+    field :assessed_unit, :string
+    field :assessed_unit_count, :decimal
+    field :coverage_percentage, :decimal
+    field :valuation_basis, :string
     field :description, :string
     belongs_to :tax_policy, TaxPolicy
     belongs_to :currency, ContinentCurrency
@@ -29,6 +33,10 @@ defmodule AncientStones.Worlds.TaxAssessment do
       :in_kind_value,
       :customary_labor_days,
       :confidence,
+      :assessed_unit,
+      :assessed_unit_count,
+      :coverage_percentage,
+      :valuation_basis,
       :description
     ])
     |> put_refs(refs)
@@ -44,9 +52,15 @@ defmodule AncientStones.Worlds.TaxAssessment do
     |> validate_number(:cash_yield, greater_than_or_equal_to: 0)
     |> validate_number(:in_kind_value, greater_than_or_equal_to: 0)
     |> validate_number(:customary_labor_days, greater_than_or_equal_to: 0)
+    |> validate_number(:assessed_unit_count, greater_than: 0)
+    |> validate_number(:coverage_percentage,
+      greater_than_or_equal_to: 0,
+      less_than_or_equal_to: 100
+    )
     |> foreign_key_constraint(:tax_policy_id)
     |> foreign_key_constraint(:currency_id)
     |> check_constraint(:cash_yield, name: :tax_assessments_values_non_negative)
+    |> check_constraint(:assessed_unit_count, name: :tax_assessments_coverage)
     |> unique_constraint([:tax_policy_id, :assessment_period_label])
   end
 

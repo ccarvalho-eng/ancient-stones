@@ -25,6 +25,7 @@ defmodule AncientStones.Worlds.PoliticalOffice do
     belongs_to(:province, Province)
     belongs_to(:hold, Hold)
     belongs_to(:character, Character)
+    belongs_to(:designated_successor, Character)
 
     timestamps(type: :utc_datetime)
   end
@@ -50,6 +51,7 @@ defmodule AncientStones.Worlds.PoliticalOffice do
     |> foreign_key_constraint(:province_id)
     |> foreign_key_constraint(:hold_id)
     |> foreign_key_constraint(:character_id)
+    |> foreign_key_constraint(:designated_successor_id)
     |> check_constraint(:scope, name: :political_offices_scope_target)
     |> unique_constraint(:office, name: :political_offices_continent_id_office_index)
     |> unique_constraint(:office, name: :political_offices_province_id_office_index)

@@ -663,6 +663,13 @@
                     id="continent-political-office-details"
                     class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"
                   >
+                    <.assembly_group
+                      id="continent-assembly-details"
+                      assemblies={
+                        assemblies_for(@assemblies, :continent, @selected_path.continent.id)
+                      }
+                    />
+
                     <div>
                       <p class="text-[11px] font-semibold uppercase text-zinc-500">
                         Province Politics
@@ -794,6 +801,12 @@
                     offices={@selected_province_political_offices}
                     record={@selected_path.province}
                     world={@world}
+                  />
+                  <.assembly_group
+                    id="province-assembly-details"
+                    assemblies={
+                      assemblies_for(@assemblies, :province, @selected_path.province.id)
+                    }
                   />
                 </div>
 
@@ -982,6 +995,10 @@
                       record={@selected_hold}
                       world={@world}
                     />
+                    <.assembly_group
+                      id="hold-assembly-details"
+                      assemblies={assemblies_for(@assemblies, :hold, @selected_hold.id)}
+                    />
                   </div>
                 </div>
 
@@ -1083,6 +1100,23 @@
                       label="Position"
                       value={geographic_coordinate_label(@selected_location)}
                       icon="hero-globe-alt"
+                    />
+                    <.detail
+                      label="Population estimate"
+                      value={display_value(@selected_location.population_estimate)}
+                    />
+                    <.detail
+                      label="Record scope"
+                      value={display_value(@selected_location.record_scope)}
+                    />
+                    <.detail
+                      label="Associated gods"
+                      value={
+                        @selected_location.gods
+                        |> Enum.map(& &1.name)
+                        |> Enum.join(", ")
+                        |> display_value()
+                      }
                     />
                   </div>
 
@@ -1751,6 +1785,13 @@
                     options={@character_options}
                   />
                   <.input
+                    field={@political_office_form[:designated_successor_id]}
+                    type="select"
+                    label="Designated Successor"
+                    prompt="None"
+                    options={@character_options}
+                  />
+                  <.input
                     field={@political_office_form[:office]}
                     type="text"
                     label="Office"
@@ -1818,6 +1859,13 @@
                     type="select"
                     label="Character"
                     prompt="Vacant"
+                    options={@character_options}
+                  />
+                  <.input
+                    field={@political_office_edit_form[:designated_successor_id]}
+                    type="select"
+                    label="Designated Successor"
+                    prompt="None"
                     options={@character_options}
                   />
                   <.input
@@ -6295,6 +6343,27 @@
                       <.detail label="Weight" value={display_value(@selected_item.weight)} />
                       <.detail label="Value" value={display_value(@selected_item.value)} />
                       <.detail label="Source" value={display_value(@selected_item.source)} />
+                      <.detail label="Period" value={display_value(@selected_item.period_name)} />
+                      <.detail label="Date" value={display_value(@selected_item.date_label)} />
+                      <.detail label="Maker" value={display_value(@selected_item.maker)} />
+                      <.detail
+                        label="Authenticity"
+                        value={display_value(@selected_item.authenticity)}
+                      />
+                      <.detail
+                        label="Find location"
+                        value={record_name(@selected_item.find_location)}
+                      />
+                    </div>
+
+                    <div
+                      :if={@selected_item.provenance}
+                      class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2"
+                    >
+                      <p class="text-[11px] font-semibold uppercase text-zinc-500">Provenance</p>
+                      <p class="mt-1 text-sm leading-6 text-zinc-600">
+                        {@selected_item.provenance}
+                      </p>
                     </div>
 
                     <div
@@ -6388,6 +6457,30 @@
                       <.input field={@item_form[:weight]} type="number" label="Weight" step="0.1" />
                       <.input field={@item_form[:value]} type="number" label="Value" />
                       <.input field={@item_form[:source]} type="text" label="Source" />
+                      <.input field={@item_form[:period_name]} type="text" label="Period" />
+                      <.input field={@item_form[:date_label]} type="text" label="Date label" />
+                      <.input field={@item_form[:maker]} type="text" label="Maker" />
+                      <.input
+                        field={@item_form[:authenticity]}
+                        type="select"
+                        label="Authenticity"
+                        prompt="Not assessed"
+                        options={[
+                          {"Working", "working"},
+                          {"Historic", "historic"},
+                          {"Reconstructed", "reconstructed"},
+                          {"Disputed", "disputed"},
+                          {"Legendary", "legendary"}
+                        ]}
+                      />
+                      <.input
+                        field={@item_form[:find_location_id]}
+                        type="select"
+                        label="Find location"
+                        prompt="Not recorded"
+                        options={@all_location_options}
+                      />
+                      <.input field={@item_form[:provenance]} type="textarea" label="Provenance" />
                       <.input
                         field={@item_form[:description]}
                         type="textarea"
@@ -6447,6 +6540,34 @@
                       />
                       <.input field={@item_edit_form[:value]} type="number" label="Value" />
                       <.input field={@item_edit_form[:source]} type="text" label="Source" />
+                      <.input field={@item_edit_form[:period_name]} type="text" label="Period" />
+                      <.input field={@item_edit_form[:date_label]} type="text" label="Date label" />
+                      <.input field={@item_edit_form[:maker]} type="text" label="Maker" />
+                      <.input
+                        field={@item_edit_form[:authenticity]}
+                        type="select"
+                        label="Authenticity"
+                        prompt="Not assessed"
+                        options={[
+                          {"Working", "working"},
+                          {"Historic", "historic"},
+                          {"Reconstructed", "reconstructed"},
+                          {"Disputed", "disputed"},
+                          {"Legendary", "legendary"}
+                        ]}
+                      />
+                      <.input
+                        field={@item_edit_form[:find_location_id]}
+                        type="select"
+                        label="Find location"
+                        prompt="Not recorded"
+                        options={@all_location_options}
+                      />
+                      <.input
+                        field={@item_edit_form[:provenance]}
+                        type="textarea"
+                        label="Provenance"
+                      />
                       <.input
                         field={@item_edit_form[:description]}
                         type="textarea"

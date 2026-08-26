@@ -57,6 +57,8 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
     |> Repo.preload([
       :location_type,
       :water_body,
+      :gods,
+      :location_gods,
       hold: [province: :continent],
       character_locations: [character: [character_occupations: :occupation]]
     ])
@@ -286,7 +288,7 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
   defp items(world_id) do
     Item
     |> world_records(world_id)
-    |> Repo.preload(item_effects: :effect)
+    |> Repo.preload([:find_location, item_effects: :effect])
     |> Enum.map(fn item ->
       card(item)
       |> Map.merge(%{
@@ -299,6 +301,12 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
         weight: item.weight,
         value: item.value,
         source: item.source,
+        period_name: item.period_name,
+        date_label: item.date_label,
+        maker: item.maker,
+        provenance: item.provenance,
+        authenticity: item.authenticity,
+        find_location: entity_name(item.find_location),
         effects:
           Enum.map(item.item_effects, fn item_effect ->
             record(entity_name(item_effect.effect), nil, item_effect.notes)
@@ -412,6 +420,9 @@ defmodule AncientStones.WorldExports.WorldGuideDetails do
       continent: entity_name(location.hold.province.continent),
       visibility: location.visibility,
       water_body: entity_name(location.water_body),
+      population_estimate: location.population_estimate,
+      record_scope: location.record_scope,
+      gods: Enum.map(location.gods, &entity_name/1),
       map_x: location.map_x,
       map_y: location.map_y,
       characters:

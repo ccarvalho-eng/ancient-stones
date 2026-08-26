@@ -632,10 +632,15 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   def handle_event("update_political_office", %{"political_office_edit" => params}, socket) do
     update_and_reload(socket, fn ->
       with {:ok, political_office} <- get_political_office_in_world(socket, params["id"]),
-           {:ok, character} <- get_optional_character_in_world(socket, params["character_id"]) do
+           {:ok, character} <- get_optional_character_in_world(socket, params["character_id"]),
+           {:ok, successor} <-
+             get_optional_character_in_world(socket, params["designated_successor_id"]) do
         attrs = Map.drop(params, ["id"])
 
-        Worlds.update_political_office(political_office, attrs, character: character)
+        Worlds.update_political_office(political_office, attrs,
+          character: character,
+          designated_successor: successor
+        )
       end
     end)
   end
@@ -1073,13 +1078,20 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
   end
 
   def handle_event("create_item", %{"item" => params}, socket) do
-    create_and_reload(socket, fn -> Worlds.create_item(socket.assigns.world, params) end)
+    create_and_reload(socket, fn ->
+      with {:ok, find_location} <-
+             get_optional_location_in_world(socket, params["find_location_id"]) do
+        Worlds.create_item(socket.assigns.world, params, find_location: find_location)
+      end
+    end)
   end
 
   def handle_event("update_item", %{"item_edit" => params}, socket) do
     update_and_reload(socket, fn ->
-      with {:ok, item} <- get_selected_item(socket) do
-        Worlds.update_item(item, params)
+      with {:ok, item} <- get_selected_item(socket),
+           {:ok, find_location} <-
+             get_optional_location_in_world(socket, params["find_location_id"]) do
+        Worlds.update_item(item, params, find_location: find_location)
       end
     end)
   end
@@ -1878,6 +1890,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       select_record(selected_political_offices, params["political_office_id"]) ||
         first_record(selected_political_offices)
 
+    assemblies = if section == "geography", do: world.assemblies, else: []
+
     selected_continent_id = selected_or_first_id(selected_path.continent, continents)
     selected_province_id = selected_or_first_id(selected_path.province, provinces)
     selected_hold_options = option_list(List.wrap(selected_hold))
@@ -1985,6 +1999,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     |> assign(:item_options, option_list(items))
     |> assign(:occupation_options, option_list(occupations))
     |> assign(:political_offices, political_offices)
+    |> assign(:assemblies, assemblies)
     |> assign(:currencies, currencies)
     |> assign(:trade_routes, trade_routes)
     |> assign(:trade_flows, trade_flows)
@@ -2354,7 +2369,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     )
     |> assign(:spell_form, data_form(:spell))
     |> assign(:spell_edit_form, data_form(:spell_edit, spell_edit_attrs(selected_spell)))
-    |> assign(:item_form, data_form(:item, %{"category" => "weapon", "source" => "Skyrim"}))
+    |> assign(:item_form, data_form(:item, %{"category" => "weapon"}))
     |> assign(:item_edit_form, data_form(:item_edit, item_edit_attrs(selected_item)))
     |> assign(:effect_form, data_form(:effect, %{"category" => "Alchemy"}))
     |> assign(
@@ -3407,15 +3422,19 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
 
   defp political_office_refs(socket, %{"scope" => "province"} = params) do
     with {:ok, province} <- get_province_in_world(socket, params["province_id"]),
-         {:ok, character} <- get_optional_character_in_world(socket, params["character_id"]) do
-      {:ok, %{province: province, character: character}}
+         {:ok, character} <- get_optional_character_in_world(socket, params["character_id"]),
+         {:ok, successor} <-
+           get_optional_character_in_world(socket, params["designated_successor_id"]) do
+      {:ok, %{province: province, character: character, designated_successor: successor}}
     end
   end
 
   defp political_office_refs(socket, %{"scope" => "hold"} = params) do
     with {:ok, hold} <- get_selected_hold(socket, params["hold_id"]),
-         {:ok, character} <- get_optional_character_in_world(socket, params["character_id"]) do
-      {:ok, %{hold: hold, character: character}}
+         {:ok, character} <- get_optional_character_in_world(socket, params["character_id"]),
+         {:ok, successor} <-
+           get_optional_character_in_world(socket, params["designated_successor_id"]) do
+      {:ok, %{hold: hold, character: character, designated_successor: successor}}
     end
   end
 
@@ -4321,6 +4340,12 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "weight" => item.weight,
       "value" => item.value,
       "source" => item.source,
+      "period_name" => item.period_name,
+      "date_label" => item.date_label,
+      "maker" => item.maker,
+      "provenance" => item.provenance,
+      "authenticity" => item.authenticity,
+      "find_location_id" => item.find_location_id,
       "description" => item.description
     }
   end
@@ -4566,6 +4591,7 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
     %{
       "id" => political_office.id,
       "character_id" => selected_record_id(political_office.character),
+      "designated_successor_id" => selected_record_id(political_office.designated_successor),
       "office" => political_office.office,
       "politics" => political_office.politics,
       "selection_method" => political_office.selection_method,
@@ -4574,6 +4600,24 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       "term_length_years" => political_office.term_length_years,
       "description" => political_office.description
     }
+  end
+
+  defp assemblies_for(assemblies, scope, target_id) do
+    Enum.filter(assemblies, fn assembly ->
+      assembly.scope == scope and assembly_target_id(assembly) == target_id
+    end)
+  end
+
+  defp assembly_target_id(%{scope: :continent, continent_id: id}) do
+    id
+  end
+
+  defp assembly_target_id(%{scope: :province, province_id: id}) do
+    id
+  end
+
+  defp assembly_target_id(%{scope: :hold, hold_id: id}) do
+    id
   end
 
   defp option_list(records) do
@@ -6090,6 +6134,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :destination_hold_id,
       :transport_mode,
       :distance_km,
+      :annual_capacity_tonnes,
+      :capacity_basis,
       :seasonality,
       :risk,
       :status,
@@ -6121,6 +6167,17 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :prevailing_conditions,
       :hazards,
       :status,
+      :latitude,
+      :longitude,
+      :source_latitude,
+      :source_longitude,
+      :mouth_latitude,
+      :mouth_longitude,
+      :length_km,
+      :area_km2,
+      :drainage_area_km2,
+      :source_elevation_m,
+      :mean_discharge_m3_s,
       :description
     ])
     |> string_keys()
@@ -6249,6 +6306,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :frequency,
       :coverage_scope,
       :quantity_basis,
+      :unit_mass_kg,
+      :annual_consignment_count,
       :description
     ])
     |> string_keys()
@@ -6329,6 +6388,10 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :cash_yield,
       :in_kind_value,
       :customary_labor_days,
+      :assessed_unit,
+      :assessed_unit_count,
+      :coverage_percentage,
+      :valuation_basis,
       :confidence,
       :description
     ])
@@ -6430,6 +6493,8 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
       :direction,
       :effective_from,
       :effective_to,
+      :effective_from_year,
+      :effective_to_year,
       :status,
       :description
     ])
@@ -6938,6 +7003,9 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
             <p :if={office.selection_method} class="mt-0.5 text-xs text-zinc-500">
               {office.selection_method}
             </p>
+            <p :if={office.designated_successor} class="mt-0.5 text-xs text-zinc-500">
+              Successor: {record_name(office.designated_successor)}
+            </p>
           </.link>
           <button
             type="button"
@@ -6950,6 +7018,52 @@ defmodule AncientStonesWeb.WorldLive.Dashboard do
             <.icon name="hero-trash" class="size-4" />
           </button>
         </div>
+      </div>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :assemblies, :list, required: true
+
+  defp assembly_group(assigns) do
+    ~H"""
+    <section
+      :if={@assemblies != []}
+      id={@id}
+      class="mt-3 rounded-md border border-zinc-200 bg-white px-3 py-2"
+    >
+      <p class="text-[11px] font-semibold uppercase text-zinc-500">Assemblies</p>
+      <div class="mt-1 flex flex-col divide-y divide-zinc-100">
+        <article :for={assembly <- @assemblies} class="py-2 first:pt-0 last:pb-0">
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <p class="text-sm font-medium text-zinc-800">{assembly.name}</p>
+            <span class="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+              {display_value(assembly.status)}
+            </span>
+          </div>
+          <p class="mt-0.5 text-xs leading-5 text-zinc-500">{assembly.meeting_cycle}</p>
+          <dl class="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+            <div>
+              <dt class="font-semibold uppercase text-zinc-500">Membership</dt>
+              <dd class="mt-0.5 leading-5 text-zinc-600">{assembly.membership_rule}</dd>
+            </div>
+            <div>
+              <dt class="font-semibold uppercase text-zinc-500">Jurisdiction</dt>
+              <dd class="mt-0.5 leading-5 text-zinc-600">{assembly.jurisdiction}</dd>
+            </div>
+            <div>
+              <dt class="font-semibold uppercase text-zinc-500">Appeal</dt>
+              <dd class="mt-0.5 leading-5 text-zinc-600">
+                {display_value(assembly.appeal_path)}
+              </dd>
+            </div>
+            <div>
+              <dt class="font-semibold uppercase text-zinc-500">Enforcement</dt>
+              <dd class="mt-0.5 leading-5 text-zinc-600">{assembly.enforcement}</dd>
+            </div>
+          </dl>
+        </article>
       </div>
     </section>
     """

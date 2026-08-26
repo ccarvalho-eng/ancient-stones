@@ -170,6 +170,86 @@ defmodule AncientStonesWeb.WorldLive.WaterComponents do
                   label="Prevailing conditions"
                 />
                 <.input field={@water_body_form[:hazards]} type="textarea" label="Hazards" />
+                <details class="rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900">
+                  <summary class="cursor-pointer text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Physical measurements
+                  </summary>
+                  <div class="mt-3 space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                      <.input
+                        field={@water_body_form[:latitude]}
+                        type="number"
+                        step="0.000001"
+                        label="Latitude"
+                      />
+                      <.input
+                        field={@water_body_form[:longitude]}
+                        type="number"
+                        step="0.000001"
+                        label="Longitude"
+                      />
+                      <.input
+                        field={@water_body_form[:source_latitude]}
+                        type="number"
+                        step="0.000001"
+                        label="Source latitude"
+                      />
+                      <.input
+                        field={@water_body_form[:source_longitude]}
+                        type="number"
+                        step="0.000001"
+                        label="Source longitude"
+                      />
+                      <.input
+                        field={@water_body_form[:mouth_latitude]}
+                        type="number"
+                        step="0.000001"
+                        label="Mouth latitude"
+                      />
+                      <.input
+                        field={@water_body_form[:mouth_longitude]}
+                        type="number"
+                        step="0.000001"
+                        label="Mouth longitude"
+                      />
+                    </div>
+                    <.input
+                      field={@water_body_form[:length_km]}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      label="Length (km)"
+                    />
+                    <.input
+                      field={@water_body_form[:area_km2]}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      label="Area (km²)"
+                    />
+                    <.input
+                      field={@water_body_form[:drainage_area_km2]}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      label="Drainage area (km²)"
+                    />
+                    <.input
+                      field={@water_body_form[:source_elevation_m]}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      label="Source elevation (m)"
+                    />
+                    <.input
+                      field={@water_body_form[:mean_discharge_m3_s]}
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      label="Mean discharge (m³/s)"
+                    />
+                  </div>
+                </details>
                 <.input
                   field={@water_body_form[:status]}
                   type="select"
@@ -436,6 +516,14 @@ defmodule AncientStonesWeb.WorldLive.WaterComponents do
         {"Freeze pattern", humanize(water.freeze_pattern)},
         {"Prevailing conditions", water.prevailing_conditions},
         {"Hazards", water.hazards},
+        {"Position", coordinate_pair(water.latitude, water.longitude)},
+        {"Source", coordinate_pair(water.source_latitude, water.source_longitude)},
+        {"Mouth", coordinate_pair(water.mouth_latitude, water.mouth_longitude)},
+        {"Length", value_with_unit(water.length_km, "km")},
+        {"Area", value_with_unit(water.area_km2, "km²")},
+        {"Drainage area", value_with_unit(water.drainage_area_km2, "km²")},
+        {"Source elevation", value_with_unit(water.source_elevation_m, "m")},
+        {"Mean discharge", value_with_unit(water.mean_discharge_m3_s, "m³/s")},
         {"Status", humanize(water.status)}
       ]
     )
@@ -539,6 +627,14 @@ defmodule AncientStonesWeb.WorldLive.WaterComponents do
     |> to_string()
     |> String.replace("_", " ")
     |> String.capitalize()
+  end
+
+  defp coordinate_pair(nil, nil) do
+    nil
+  end
+
+  defp coordinate_pair(latitude, longitude) do
+    "#{latitude || "?"}, #{longitude || "?"}"
   end
 
   defp value_with_unit(nil, _unit) do

@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.Province do
   import Ecto.Changeset
 
   alias AncientStones.Maps.MapItem
+  alias AncientStones.Worlds.Assembly
   alias AncientStones.Worlds.Continent
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.Hold
@@ -35,6 +36,7 @@ defmodule AncientStones.Worlds.Province do
     belongs_to(:continent, Continent)
     belongs_to(:capital_hold, Hold)
     has_many(:holds, Hold)
+    has_many(:assemblies, Assembly)
     has_many(:political_offices, PoliticalOffice)
     has_many(:water_body_links, ProvinceWaterBody)
     has_many(:map_items, MapItem)
@@ -69,6 +71,8 @@ defmodule AncientStones.Worlds.Province do
     |> validate_required([:name, :continent_id])
     |> foreign_key_constraint(:continent_id)
     |> foreign_key_constraint(:capital_hold_id)
+    |> check_constraint(:terrain, name: :provinces_terrain_enum)
+    |> check_constraint(:climate, name: :provinces_climate_enum)
     |> unique_constraint(:name, name: :provinces_continent_id_name_index)
   end
 

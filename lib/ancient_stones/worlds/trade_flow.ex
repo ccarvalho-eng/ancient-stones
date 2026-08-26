@@ -19,6 +19,8 @@ defmodule AncientStones.Worlds.TradeFlow do
     field :frequency, Ecto.Enum, values: @frequencies, default: :annual
     field :coverage_scope, Ecto.Enum, values: @coverage_scopes
     field :quantity_basis, :string
+    field :unit_mass_kg, :decimal
+    field :annual_consignment_count, :integer
     field :description, :string
     belongs_to :trade_route, TradeRoute
     belongs_to :currency, ContinentCurrency
@@ -36,6 +38,8 @@ defmodule AncientStones.Worlds.TradeFlow do
       :frequency,
       :coverage_scope,
       :quantity_basis,
+      :unit_mass_kg,
+      :annual_consignment_count,
       :description
     ])
     |> put_refs(refs)
@@ -50,11 +54,14 @@ defmodule AncientStones.Worlds.TradeFlow do
     ])
     |> validate_number(:quantity, greater_than: 0)
     |> validate_number(:declared_value, greater_than_or_equal_to: 0)
+    |> validate_number(:unit_mass_kg, greater_than: 0)
+    |> validate_number(:annual_consignment_count, greater_than: 0)
     |> foreign_key_constraint(:trade_route_id)
     |> foreign_key_constraint(:currency_id)
     |> check_constraint(:quantity, name: :trade_flows_quantity_positive)
     |> check_constraint(:declared_value, name: :trade_flows_declared_value_non_negative)
     |> check_constraint(:frequency, name: :trade_flows_frequency)
+    |> check_constraint(:unit_mass_kg, name: :trade_flows_mass_and_count_positive)
     |> unique_constraint(:commodity, name: :trade_flows_trade_route_id_commodity_index)
   end
 

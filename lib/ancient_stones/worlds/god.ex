@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.God do
   import Ecto.Changeset
 
   alias AncientStones.Worlds.GuildInfluence
+  alias AncientStones.Worlds.LocationGod
   alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.World
 
@@ -16,6 +17,8 @@ defmodule AncientStones.Worlds.God do
 
     belongs_to(:world, World)
     has_many(:guild_influences, GuildInfluence)
+    has_many(:location_gods, LocationGod)
+    has_many(:locations, through: [:location_gods, :location])
     has_many(:source_lore_connections, LoreConnection, foreign_key: :source_god_id)
     has_many(:target_lore_connections, LoreConnection, foreign_key: :target_god_id)
 
