@@ -1,0 +1,407 @@
+<div
+  id="bestiary-dashboard"
+  class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+>
+  <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Bestiary</h2>
+        <p class="text-xs text-zinc-500">Creature types, habitats, and lairs</p>
+      </div>
+      <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
+        {length(@filtered_creatures)}
+      </span>
+    </div>
+
+    <div id="creature-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
+      <div
+        :if={@filtered_creatures == []}
+        class="px-4 py-8 text-center text-sm text-zinc-500"
+      >
+        No creatures have been added to this world.
+      </div>
+
+      <div
+        :for={{creature_type, type_creatures} <- grouped_creatures(@filtered_creatures)}
+        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
+      >
+        <.folded_group
+          id={folded_group_dom_id("bestiary", creature_type)}
+          label={creature_type}
+          count={length(type_creatures)}
+          open={
+            @search_query != "" ||
+              folded_group_open?(@open_folded_groups, "bestiary", creature_type)
+          }
+          toggle_key={folded_group_key("bestiary", creature_type)}
+        >
+          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+            <div
+              :for={creature <- type_creatures}
+              class={[
+                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                @selected_creature && @selected_creature.id == creature.id &&
+                  "stone-selected"
+              ]}
+            >
+              <.link
+                patch={
+                  ~p"/worlds/#{@world}/dashboard?section=bestiary&creature_id=#{creature.id}"
+                }
+                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+              >
+                <div class="truncate text-sm font-semibold text-zinc-800">
+                  {creature.name}
+                </div>
+                <p class="mt-1 text-xs font-medium text-zinc-500">
+                  {display_value(creature.danger_level)}
+                </p>
+              </.link>
+              <button
+                type="button"
+                phx-click="delete_creature"
+                phx-value-id={creature.id}
+                data-confirm={"Delete #{creature.name}?"}
+                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                aria-label={"Delete #{creature.name}"}
+              >
+                <.icon name="hero-trash" class="size-4" />
+              </button>
+            </div>
+          </div>
+        </.folded_group>
+      </div>
+    </div>
+  </section>
+
+  <main class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Details</h2>
+        <p class="text-xs text-zinc-500">
+          {if @selected_creature,
+            do: @selected_creature.name,
+            else: "No creature selected"}
+        </p>
+      </div>
+    </div>
+
+    <div class="max-h-[800px] overflow-y-auto p-4">
+      <div
+        :if={is_nil(@selected_creature)}
+        class="py-8 text-center text-sm text-zinc-500"
+      >
+        Select a creature to inspect its habitat, temperament, and known locations.
+      </div>
+
+      <div :if={@selected_creature} id="creature-details" class="space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold text-zinc-800">
+            {@selected_creature.name}
+          </h3>
+          <p class="mt-1 text-sm leading-6 text-zinc-600">
+            {@selected_creature.description || "No description yet."}
+          </p>
+        </div>
+
+        <div class="grid gap-3 text-sm sm:grid-cols-2">
+          <.detail
+            label="Type"
+            value={record_name(@selected_creature.creature_type)}
+          />
+          <.detail
+            label="Danger"
+            value={display_value(@selected_creature.danger_level)}
+          />
+          <.detail
+            label="Habitat"
+            value={display_value(@selected_creature.habitat)}
+          />
+          <.detail
+            label="Temperament"
+            value={display_value(@selected_creature.temperament)}
+          />
+          <.detail
+            label="Population"
+            value={display_value(@selected_creature.population_status)}
+          />
+          <.detail label="Diet" value={display_value(@selected_creature.diet)} />
+          <.detail
+            label="Ecological Role"
+            value={display_value(@selected_creature.ecological_role)}
+          />
+          <.detail
+            label="Human Uses"
+            value={display_value(@selected_creature.economic_uses)}
+          />
+          <.detail
+            label="Seasonal Pattern"
+            value={display_value(@selected_creature.seasonal_pattern)}
+          />
+        </div>
+
+        <div class="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2">
+          <p class="text-[11px] font-semibold uppercase text-zinc-500">
+            Known Locations
+          </p>
+          <div class="mt-2 flex flex-col divide-y divide-zinc-100">
+            <div
+              :if={creature_locations(@selected_creature) == []}
+              class="py-2 text-sm text-zinc-500"
+            >
+              No location links have been added.
+            </div>
+            <div
+              :for={creature_location <- creature_locations(@selected_creature)}
+              class="grid grid-cols-[minmax(0,1fr)_44px] items-center gap-2 py-2 first:pt-0 last:pb-0"
+            >
+              <div>
+                <div class="text-sm font-medium text-zinc-800">
+                  {record_name(creature_location.location)}
+                </div>
+                <p class="text-xs text-zinc-500">
+                  {display_value(creature_location.presence)}
+                </p>
+              </div>
+              <button
+                type="button"
+                phx-click="delete_creature_location"
+                phx-value-id={creature_location.id}
+                data-confirm={"Remove #{record_name(creature_location.location)}?"}
+                class="stone-muted inline-flex size-8 items-center justify-center rounded border border-zinc-200 transition hover:bg-zinc-100 hover:text-zinc-700"
+                aria-label="Delete creature location"
+              >
+                <.icon name="hero-trash" class="size-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="rounded-md border border-zinc-200 bg-white px-4 py-3">
+      <h2 class="text-sm font-semibold text-zinc-800">Actions</h2>
+      <p class="mt-1 text-xs text-zinc-500">Create and place custom creatures.</p>
+    </div>
+
+    <div id="bestiary-action-list" class="max-h-[800px] overflow-y-auto">
+      <.action_section
+        action="creature_type"
+        expanded_action={@expanded_action}
+        icon="hero-tag"
+        title="Add Creature Type"
+      >
+        <.form
+          for={@creature_type_form}
+          id="creature-type-form"
+          phx-submit="create_creature_type"
+          class="space-y-2"
+        >
+          <.input
+            field={@creature_type_form[:name]}
+            type="text"
+            label="Name"
+            required
+          />
+          <.input
+            field={@creature_type_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+
+      <.action_section
+        action="creature"
+        expanded_action={@expanded_action}
+        icon="hero-bug-ant"
+        title="Add Creature"
+      >
+        <.form
+          for={@creature_form}
+          id="creature-form"
+          phx-submit="create_creature"
+          class="space-y-2"
+        >
+          <.input
+            field={@creature_form[:creature_type_id]}
+            type="select"
+            label="Type"
+            prompt="None"
+            options={@creature_type_options}
+          />
+          <.input field={@creature_form[:name]} type="text" label="Name" required />
+          <.input field={@creature_form[:habitat]} type="text" label="Habitat" />
+          <.input
+            field={@creature_form[:temperament]}
+            type="select"
+            label="Temperament"
+            prompt="None"
+            options={AncientStones.Worlds.Creature.temperament_options()}
+          />
+          <.input
+            field={@creature_form[:danger_level]}
+            type="select"
+            label="Danger"
+            prompt="None"
+            options={AncientStones.Worlds.Creature.danger_level_options()}
+          />
+          <.input
+            field={@creature_form[:population_status]}
+            type="select"
+            label="Population"
+            prompt="Not recorded"
+            options={AncientStones.Worlds.Creature.population_status_options()}
+          />
+          <.input field={@creature_form[:diet]} type="text" label="Diet" />
+          <.input
+            field={@creature_form[:ecological_role]}
+            type="text"
+            label="Ecological Role"
+          />
+          <.input
+            field={@creature_form[:economic_uses]}
+            type="text"
+            label="Human Uses"
+          />
+          <.input
+            field={@creature_form[:seasonal_pattern]}
+            type="textarea"
+            label="Seasonal Pattern"
+          />
+          <.input
+            field={@creature_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+
+      <.action_section
+        :if={@selected_creature}
+        action="creature_edit"
+        expanded_action={@expanded_action}
+        icon="hero-pencil-square"
+        title="Edit Creature"
+      >
+        <.form
+          for={@creature_edit_form}
+          id="creature-edit-form"
+          phx-submit="update_creature"
+          class="space-y-2"
+        >
+          <.input
+            field={@creature_edit_form[:creature_type_id]}
+            type="select"
+            label="Type"
+            prompt="None"
+            options={@creature_type_options}
+          />
+          <.input
+            field={@creature_edit_form[:name]}
+            type="text"
+            label="Name"
+            required
+          />
+          <.input field={@creature_edit_form[:habitat]} type="text" label="Habitat" />
+          <.input
+            field={@creature_edit_form[:temperament]}
+            type="select"
+            label="Temperament"
+            prompt="None"
+            options={AncientStones.Worlds.Creature.temperament_options()}
+          />
+          <.input
+            field={@creature_edit_form[:danger_level]}
+            type="select"
+            label="Danger"
+            prompt="None"
+            options={AncientStones.Worlds.Creature.danger_level_options()}
+          />
+          <.input
+            field={@creature_edit_form[:population_status]}
+            type="select"
+            label="Population"
+            prompt="Not recorded"
+            options={AncientStones.Worlds.Creature.population_status_options()}
+          />
+          <.input field={@creature_edit_form[:diet]} type="text" label="Diet" />
+          <.input
+            field={@creature_edit_form[:ecological_role]}
+            type="text"
+            label="Ecological Role"
+          />
+          <.input
+            field={@creature_edit_form[:economic_uses]}
+            type="text"
+            label="Human Uses"
+          />
+          <.input
+            field={@creature_edit_form[:seasonal_pattern]}
+            type="textarea"
+            label="Seasonal Pattern"
+          />
+          <.input
+            field={@creature_edit_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Save
+          </.button>
+        </.form>
+      </.action_section>
+
+      <.action_section
+        :if={@creature_options != [] && @all_location_options != []}
+        action="creature_location"
+        expanded_action={@expanded_action}
+        icon="hero-map-pin"
+        title="Add Location Link"
+      >
+        <.form
+          for={@creature_location_form}
+          id="creature-location-form"
+          phx-submit="create_creature_location"
+          class="space-y-2"
+        >
+          <.input
+            field={@creature_location_form[:creature_id]}
+            type="select"
+            label="Creature"
+            options={@creature_options}
+          />
+          <.input
+            field={@creature_location_form[:location_id]}
+            type="select"
+            label="Location"
+            options={@all_location_options}
+          />
+          <.input
+            field={@creature_location_form[:presence]}
+            type="select"
+            label="Presence"
+            prompt="None"
+            options={AncientStones.Worlds.CreatureLocation.presence_options()}
+          />
+          <.input
+            field={@creature_location_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+    </div>
+  </aside>
+</div>
