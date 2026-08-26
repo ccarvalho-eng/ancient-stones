@@ -92,18 +92,21 @@ defmodule AncientStonesWeb.WorldLive.New do
                       type="number"
                       label="Mass (Earths)"
                       step="0.00001"
+                      tooltip="Planetary mass relative to Earth; 1 equals Earth's mass."
                     />
                     <.input
                       field={@form[:surface_gravity_m_s2]}
                       type="number"
                       label="Gravity (m/s²)"
                       step="0.0001"
+                      tooltip="Surface acceleration due to gravity in metres per second squared; Earth is about 9.81 m/s²."
                     />
                     <.input
                       field={@form[:atmospheric_pressure_atm]}
                       type="number"
                       label="Pressure (atm)"
                       step="0.0001"
+                      tooltip="Mean surface pressure in standard atmospheres; 1 atm is 101.325 kPa."
                     />
                     <.input
                       field={@form[:ocean_fraction]}
@@ -112,6 +115,7 @@ defmodule AncientStonesWeb.WorldLive.New do
                       step="0.00001"
                       min="0"
                       max="1"
+                      tooltip="Fraction of the planet's surface covered by oceans, from 0 to 1."
                     />
                     <.input
                       field={@form[:bond_albedo]}
@@ -120,35 +124,41 @@ defmodule AncientStonesWeb.WorldLive.New do
                       step="0.00001"
                       min="0"
                       max="1"
+                      tooltip="Fraction of incoming stellar energy reflected by the planet, from 0 to 1."
                     />
                     <.input
                       field={@form[:orbital_distance_au]}
                       type="number"
                       label="Orbit (AU)"
                       step="0.000001"
+                      tooltip="Orbital semi-major axis in astronomical units; 1 AU is Earth's mean distance from the Sun."
                     />
                     <.input
                       field={@form[:orbital_eccentricity]}
                       type="number"
                       label="Eccentricity"
                       step="0.000001"
+                      tooltip="Orbital shape: 0 is circular, while values below 1 describe bound elliptical orbits."
                     />
                     <.input
                       field={@form[:star_mass_solar]}
                       type="number"
                       label="Star Mass (Suns)"
                       step="0.00001"
+                      tooltip="Primary star mass relative to the Sun; 1 equals one solar mass."
                     />
                     <.input
                       field={@form[:star_luminosity_solar]}
                       type="number"
                       label="Star Luminosity (Suns)"
                       step="0.00001"
+                      tooltip="Primary star energy output relative to the Sun; 1 equals one solar luminosity."
                     />
                     <.input
                       field={@form[:star_temperature_k]}
                       type="number"
                       label="Star Temperature (K)"
+                      tooltip="Primary star effective surface temperature in kelvins; the Sun is about 5,772 K."
                     />
                   </div>
                 </details>

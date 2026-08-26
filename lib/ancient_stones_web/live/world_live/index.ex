@@ -466,25 +466,28 @@ defmodule AncientStonesWeb.WorldLive.Index do
                         <summary class="stone-heading cursor-pointer px-3 py-2 text-sm font-semibold">
                           Advanced physical data
                         </summary>
-                        <div class="stone-border space-y-3 border-t p-3">
+                        <div class="stone-border grid gap-3 border-t p-3 sm:grid-cols-2">
                           <div class="grid gap-3">
                             <.input
                               field={@world_form[:mass_earths]}
                               type="number"
                               label="Mass (Earths)"
                               step="0.00001"
+                              tooltip="Planetary mass relative to Earth; 1 equals Earth's mass."
                             />
                             <.input
                               field={@world_form[:surface_gravity_m_s2]}
                               type="number"
                               label="Gravity (m/s²)"
                               step="0.0001"
+                              tooltip="Surface acceleration due to gravity in metres per second squared; Earth is about 9.81 m/s²."
                             />
                             <.input
                               field={@world_form[:atmospheric_pressure_atm]}
                               type="number"
                               label="Pressure (atm)"
                               step="0.0001"
+                              tooltip="Mean surface pressure in standard atmospheres; 1 atm is 101.325 kPa."
                             />
                             <.input
                               field={@world_form[:ocean_fraction]}
@@ -493,6 +496,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                               step="0.00001"
                               min="0"
                               max="1"
+                              tooltip="Fraction of the planet's surface covered by oceans, from 0 to 1."
                             />
                             <.input
                               field={@world_form[:bond_albedo]}
@@ -501,6 +505,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                               step="0.00001"
                               min="0"
                               max="1"
+                              tooltip="Fraction of incoming stellar energy reflected by the planet, from 0 to 1."
                             />
                           </div>
                           <div class="grid gap-3">
@@ -509,29 +514,34 @@ defmodule AncientStonesWeb.WorldLive.Index do
                               type="number"
                               label="Orbit (AU)"
                               step="0.000001"
+                              tooltip="Orbital semi-major axis in astronomical units; 1 AU is Earth's mean distance from the Sun."
                             />
                             <.input
                               field={@world_form[:orbital_eccentricity]}
                               type="number"
                               label="Eccentricity"
                               step="0.000001"
+                              tooltip="Orbital shape: 0 is circular, while values below 1 describe bound elliptical orbits."
                             />
                             <.input
                               field={@world_form[:star_mass_solar]}
                               type="number"
                               label="Star Mass (Suns)"
                               step="0.00001"
+                              tooltip="Primary star mass relative to the Sun; 1 equals one solar mass."
                             />
                             <.input
                               field={@world_form[:star_luminosity_solar]}
                               type="number"
                               label="Star Luminosity (Suns)"
                               step="0.00001"
+                              tooltip="Primary star energy output relative to the Sun; 1 equals one solar luminosity."
                             />
                             <.input
                               field={@world_form[:star_temperature_k]}
                               type="number"
                               label="Star Temperature (K)"
+                              tooltip="Primary star effective surface temperature in kelvins; the Sun is about 5,772 K."
                             />
                           </div>
                         </div>

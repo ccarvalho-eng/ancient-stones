@@ -28,6 +28,21 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
              view,
              "#dashboard-world-form [title='Planet tilt in degrees. Earth is about 23.5 degrees.']"
            )
+
+    assert has_element?(
+             view,
+             "#world-advanced-physical-data [title=\"Planetary mass relative to Earth; 1 equals Earth's mass.\"]"
+           )
+
+    assert has_element?(
+             view,
+             "#world-advanced-physical-data [title='Primary star effective surface temperature in kelvins; the Sun is about 5,772 K.']"
+           )
+
+    assert has_element?(
+             view,
+             "#world-advanced-physical-data > div[class*='sm:grid-cols-2']"
+           )
   end
 
   test "switches the world library tabs", %{conn: conn} do

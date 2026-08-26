@@ -31,6 +31,17 @@ defmodule AncientStonesWeb.WorldLive.NewTest do
            )
 
     assert has_element?(view, "#new-world-advanced-physical-data #world_star_temperature_k")
+
+    assert has_element?(
+             view,
+             "#new-world-advanced-physical-data [title=\"Planetary mass relative to Earth; 1 equals Earth's mass.\"]"
+           )
+
+    assert has_element?(
+             view,
+             "#new-world-advanced-physical-data [title='Primary star effective surface temperature in kelvins; the Sun is about 5,772 K.']"
+           )
+
     assert has_element?(view, "#create-world-button")
   end
 
