@@ -1,0 +1,218 @@
+<div
+  id="spells-dashboard"
+  class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
+>
+  <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Spells</h2>
+        <p class="text-xs text-zinc-500">
+          Magic schools, levels, costs, and spellbook entries
+        </p>
+      </div>
+      <span class="rounded border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600">
+        {length(@filtered_spells)}
+      </span>
+    </div>
+
+    <div id="spell-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
+      <div
+        :if={@filtered_spells == []}
+        class="px-4 py-8 text-center text-sm text-zinc-500"
+      >
+        No spells have been added to this world.
+      </div>
+
+      <div
+        :for={{school, school_spells} <- grouped_spells(@filtered_spells)}
+        class="overflow-hidden rounded-md border border-zinc-200 bg-white"
+      >
+        <.folded_group
+          id={folded_group_dom_id("spells", school)}
+          label={display_value(school)}
+          count={length(school_spells)}
+          open={
+            @search_query != "" ||
+              folded_group_open?(@open_folded_groups, "spells", school)
+          }
+          toggle_key={folded_group_key("spells", school)}
+        >
+          <div class="space-y-1.5 border-t border-zinc-100 p-1.5">
+            <div
+              :for={spell <- school_spells}
+              class={[
+                "grid grid-cols-[minmax(0,1fr)_44px] items-stretch overflow-hidden rounded-md stone-record-card border",
+                @selected_spell && @selected_spell.id == spell.id &&
+                  "stone-selected"
+              ]}
+            >
+              <.link
+                patch={~p"/worlds/#{@world}/dashboard?section=spells&spell_id=#{spell.id}"}
+                class="block min-w-0 px-3 py-2 transition hover:bg-zinc-50"
+              >
+                <div class="truncate text-sm font-semibold text-zinc-800">
+                  {spell.name}
+                </div>
+                <p class="mt-1 text-xs font-medium text-zinc-500">
+                  {display_value(spell.level)}
+                </p>
+              </.link>
+              <button
+                type="button"
+                phx-click="delete_spell"
+                phx-value-id={spell.id}
+                data-confirm={"Delete #{spell.name}?"}
+                class="stone-muted inline-flex shrink-0 items-center justify-center border-l border-zinc-100 transition hover:bg-zinc-100 hover:text-zinc-700"
+                aria-label={"Delete #{spell.name}"}
+              >
+                <.icon name="hero-trash" class="size-4" />
+              </button>
+            </div>
+          </div>
+        </.folded_group>
+      </div>
+    </div>
+  </section>
+
+  <main class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-800">Details</h2>
+        <p class="text-xs text-zinc-500">
+          {if @selected_spell, do: @selected_spell.name, else: "No spell selected"}
+        </p>
+      </div>
+    </div>
+
+    <div class="max-h-[800px] overflow-y-auto p-4">
+      <div
+        :if={is_nil(@selected_spell)}
+        class="py-8 text-center text-sm text-zinc-500"
+      >
+        Select a spell to inspect its school, level, cost, and source.
+      </div>
+
+      <div :if={@selected_spell} id="spell-details" class="space-y-4">
+        <div>
+          <h3 class="text-lg font-semibold text-zinc-800">{@selected_spell.name}</h3>
+          <p class="mt-1 text-sm leading-6 text-zinc-600">
+            {@selected_spell.description || "No description yet."}
+          </p>
+        </div>
+
+        <div class="grid gap-3 text-sm sm:grid-cols-2">
+          <.detail label="School" value={display_value(@selected_spell.school)} />
+          <.detail label="Level" value={display_value(@selected_spell.level)} />
+          <.detail
+            label="Magicka Cost"
+            value={display_value(@selected_spell.magicka_cost)}
+          />
+          <.detail label="Source" value={display_value(@selected_spell.source)} />
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+    <div class="rounded-md border border-zinc-200 bg-white px-4 py-3">
+      <h2 class="text-sm font-semibold text-zinc-800">Actions</h2>
+      <p class="mt-1 text-xs text-zinc-500">Create and edit custom spells.</p>
+    </div>
+
+    <div id="spell-action-list" class="max-h-[800px] overflow-y-auto">
+      <.action_section
+        action="spell"
+        expanded_action={@expanded_action}
+        icon="hero-bolt"
+        title="Add Spell"
+      >
+        <.form
+          for={@spell_form}
+          id="spell-form"
+          phx-submit="create_spell"
+          class="space-y-2"
+        >
+          <.input field={@spell_form[:name]} type="text" label="Name" required />
+          <.input
+            field={@spell_form[:school]}
+            type="select"
+            label="School"
+            prompt="None"
+            options={AncientStones.Worlds.Spell.school_options()}
+          />
+          <.input
+            field={@spell_form[:level]}
+            type="select"
+            label="Level"
+            prompt="None"
+            options={AncientStones.Worlds.Spell.level_options()}
+          />
+          <.input
+            field={@spell_form[:magicka_cost]}
+            type="number"
+            label="Magicka Cost"
+          />
+          <.input field={@spell_form[:source]} type="text" label="Source" />
+          <.input
+            field={@spell_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Create
+          </.button>
+        </.form>
+      </.action_section>
+
+      <.action_section
+        :if={@selected_spell}
+        action="spell_edit"
+        expanded_action={@expanded_action}
+        icon="hero-pencil-square"
+        title="Edit Spell"
+      >
+        <.form
+          for={@spell_edit_form}
+          id="spell-edit-form"
+          phx-submit="update_spell"
+          class="space-y-2"
+        >
+          <.input
+            field={@spell_edit_form[:name]}
+            type="text"
+            label="Name"
+            required
+          />
+          <.input
+            field={@spell_edit_form[:school]}
+            type="select"
+            label="School"
+            prompt="None"
+            options={AncientStones.Worlds.Spell.school_options()}
+          />
+          <.input
+            field={@spell_edit_form[:level]}
+            type="select"
+            label="Level"
+            prompt="None"
+            options={AncientStones.Worlds.Spell.level_options()}
+          />
+          <.input
+            field={@spell_edit_form[:magicka_cost]}
+            type="number"
+            label="Magicka Cost"
+          />
+          <.input field={@spell_edit_form[:source]} type="text" label="Source" />
+          <.input
+            field={@spell_edit_form[:description]}
+            type="textarea"
+            label="Description"
+          />
+          <.button class="stone-button w-full rounded-md border px-3 py-2 text-sm font-medium transition">
+            Save
+          </.button>
+        </.form>
+      </.action_section>
+    </div>
+  </aside>
+</div>
