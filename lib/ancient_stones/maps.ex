@@ -1,4 +1,12 @@
 defmodule AncientStones.Maps do
+  @moduledoc """
+  Map-document persistence and searchable canvas-object indexing.
+
+  This context keeps serialized Fabric.js documents and relational map-item
+  indexes consistent. Linked geography is validated against the owning world,
+  map hierarchies are kept acyclic, and editor updates use optimistic locking.
+  """
+
   import Ecto.Query
 
   alias AncientStones.Maps.MapDocument
@@ -10,6 +18,17 @@ defmodule AncientStones.Maps do
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.World
 
+  @type attrs :: map()
+  @type error ::
+          Ecto.Changeset.t()
+          | :map_selection_required
+          | :map_not_found
+          | :entity_outside_world
+          | :invalid_map_document
+  @type result(record) :: {:ok, record} | {:error, error()}
+
+  @doc "Lists every map alphabetically with its world and parent map preloaded."
+  @spec list_maps() :: [MapDocument.t()]
   def list_maps do
     MapDocument
     |> order_by([map], asc: map.name)
@@ -17,10 +36,19 @@ defmodule AncientStones.Maps do
     |> Repo.preload([:world, :parent_map])
   end
 
+  @doc "Counts all map documents."
+  @spec count_maps() :: non_neg_integer()
   def count_maps do
     Repo.aggregate(MapDocument, :count, :id)
   end
 
+  @doc """
+  Returns a world's map when the world has exactly one map.
+
+  Returns `nil` when the world has no map or when multiple maps require an
+  explicit selection.
+  """
+  @spec get_world_map(%World{}) :: MapDocument.t() | nil
   def get_world_map(%World{id: world_id}) do
     world_id
     |> world_maps_query()
@@ -32,12 +60,16 @@ defmodule AncientStones.Maps do
     end
   end
 
+  @doc "Returns the selected map when it belongs to the supplied world."
+  @spec get_world_map(%World{}, Ecto.UUID.t()) :: MapDocument.t() | nil
   def get_world_map(%World{id: world_id}, id) do
     MapDocument
     |> Repo.get_by(id: id, world_id: world_id)
     |> preload_items()
   end
 
+  @doc "Lists a world's maps with parent-map metadata preloaded."
+  @spec list_world_maps(%World{}) :: [MapDocument.t()]
   def list_world_maps(%World{id: world_id}) do
     world_id
     |> world_maps_query()
@@ -45,10 +77,14 @@ defmodule AncientStones.Maps do
     |> Repo.preload(:parent_map)
   end
 
+  @doc "Builds a metadata-only changeset for a world map."
+  @spec change_world_map(MapDocument.t(), attrs()) :: Ecto.Changeset.t()
   def change_world_map(%MapDocument{} = map_document, attrs \\ %{}) do
     MapDocument.metadata_changeset(map_document, attrs)
   end
 
+  @doc "Creates a map owned by a world after validating any parent map."
+  @spec create_world_map(%World{}, attrs()) :: result(MapDocument.t())
   def create_world_map(%World{id: world_id}, attrs) do
     map_document = %MapDocument{world_id: world_id}
 
@@ -58,6 +94,13 @@ defmodule AncientStones.Maps do
     |> Repo.insert()
   end
 
+  @doc """
+  Updates map metadata under a world-scoped lock.
+
+  Stale editor state returns a changeset error on `lock_version`; parent-map
+  changes are checked for cross-world references and cycles.
+  """
+  @spec update_world_map(MapDocument.t(), attrs()) :: result(MapDocument.t())
   def update_world_map(%MapDocument{world_id: world_id} = map_document, attrs) do
     Repo.transaction(fn ->
       lock_world_maps(world_id)
@@ -80,10 +123,18 @@ defmodule AncientStones.Maps do
     |> unwrap_repo_transaction()
   end
 
+  @doc "Deletes a map document."
+  @spec delete_world_map(MapDocument.t()) :: result(MapDocument.t())
   def delete_world_map(%MapDocument{} = map_document) do
     Repo.delete(map_document)
   end
 
+  @doc """
+  Duplicates a map and regenerates every indexed canvas-object identifier.
+
+  The duplicate receives the first available `copy` suffix within its world.
+  """
+  @spec duplicate_world_map(MapDocument.t()) :: result(MapDocument.t())
   def duplicate_world_map(%MapDocument{id: id, world_id: world_id}) do
     Repo.transaction(fn ->
       lock_world_maps(world_id)
@@ -116,6 +167,8 @@ defmodule AncientStones.Maps do
     |> unwrap_repo_transaction()
   end
 
+  @doc "Lists indexed objects for a world's only map, or an empty list otherwise."
+  @spec list_world_map_items(%World{}) :: [MapItem.t()]
   def list_world_map_items(%World{} = world) do
     case get_world_map(world) do
       nil -> []
@@ -123,6 +176,8 @@ defmodule AncientStones.Maps do
     end
   end
 
+  @doc "Lists indexed objects for a map in canvas order."
+  @spec list_map_items(MapDocument.t()) :: [MapItem.t()]
   def list_map_items(%MapDocument{id: map_document_id}) do
     MapItem
     |> where([item], item.map_document_id == ^map_document_id)
@@ -130,6 +185,12 @@ defmodule AncientStones.Maps do
     |> Repo.all()
   end
 
+  @doc """
+  Creates or replaces a world's map when selection is unambiguous.
+
+  Returns `{:error, :map_selection_required}` when the world has multiple maps.
+  """
+  @spec save_world_map(%World{}, attrs()) :: result(MapDocument.t())
   def save_world_map(%World{id: world_id}, attrs) do
     world_id
     |> world_maps_query()
@@ -142,6 +203,14 @@ defmodule AncientStones.Maps do
     end
   end
 
+  @doc """
+  Atomically saves serialized canvas state and its relational object index.
+
+  Map objects receive stable identifiers when missing. Any linked geography
+  must belong to the map's world, and stale updates fail through optimistic
+  locking without partially replacing indexed items.
+  """
+  @spec save_map_document(MapDocument.t(), attrs()) :: result(MapDocument.t())
   def save_map_document(%MapDocument{world_id: world_id} = map_document, attrs) do
     document =
       attrs

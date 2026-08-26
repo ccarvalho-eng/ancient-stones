@@ -1,4 +1,12 @@
 defmodule AncientStones.Maps.MapDocument do
+  @moduledoc """
+  Persisted canvas metadata and serialized drawing state for one world map.
+
+  A map document can belong to another map, forming an acyclic hierarchy of
+  world, regional, city, interior, and dungeon maps. `lock_version` provides
+  optimistic concurrency control for editor saves.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -15,6 +23,10 @@ defmodule AncientStones.Maps.MapDocument do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+
+  @type kind :: :world | :region | :city | :interior | :dungeon
+  @type document :: map()
+  @type t :: %__MODULE__{}
 
   schema "map_documents" do
     field :name, :string, default: "World Map"
@@ -33,6 +45,14 @@ defmodule AncientStones.Maps.MapDocument do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Builds a complete map changeset, including serialized document validation.
+
+  Canvas documents are bounded by object count and encoded size. Objects,
+  layers, geometry, and local reference-image paths are validated before the
+  document can be stored.
+  """
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(map_document, attrs) do
     map_document
     |> metadata_changeset(attrs)
@@ -45,6 +65,8 @@ defmodule AncientStones.Maps.MapDocument do
     |> unique_constraint(:name, name: :map_documents_world_id_name_index)
   end
 
+  @doc "Builds a changeset for editable map metadata without replacing canvas data."
+  @spec metadata_changeset(t(), map()) :: Ecto.Changeset.t()
   def metadata_changeset(map_document, attrs) do
     map_document
     |> cast(attrs, [:name, :description, :kind, :width, :height])
@@ -57,6 +79,8 @@ defmodule AncientStones.Maps.MapDocument do
     |> unique_constraint(:name, name: :map_documents_world_id_name_index)
   end
 
+  @doc "Returns the canonical empty serialized canvas document."
+  @spec empty_document() :: document()
   def empty_document do
     %{"objects" => []}
   end
