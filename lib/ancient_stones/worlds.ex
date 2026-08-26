@@ -131,7 +131,7 @@ defmodule AncientStones.Worlds do
   def get_world!(id) do
     World
     |> Repo.get!(id)
-    |> Repo.preload(:galaxy)
+    |> Repo.preload([:galaxy, :moons])
   end
 
   @doc "Loads a world with the geography associations needed by the dashboard."
@@ -276,6 +276,25 @@ defmodule AncientStones.Worlds do
   def update_world(%World{} = world, attrs, refs) do
     world
     |> World.changeset(attrs)
+    |> put_ref(:galaxy_id, refs[:galaxy])
+    |> Repo.update()
+  end
+
+  def update_world_with_moons(%World{} = world, attrs) do
+    world = Repo.preload(world, :moons, force: true)
+    attrs = prepare_world_moon_attrs(attrs, world.mass_earths)
+
+    world
+    |> World.update_with_moons_changeset(attrs)
+    |> Repo.update()
+  end
+
+  def update_world_with_moons(%World{} = world, attrs, refs) do
+    world = Repo.preload(world, :moons, force: true)
+    attrs = prepare_world_moon_attrs(attrs, world.mass_earths)
+
+    world
+    |> World.update_with_moons_changeset(attrs)
     |> put_ref(:galaxy_id, refs[:galaxy])
     |> Repo.update()
   end
@@ -3730,13 +3749,25 @@ defmodule AncientStones.Worlds do
   end
 
   defp prepare_world_creation_attrs(attrs) when is_map(attrs) do
+    prepare_world_moon_attrs(attrs, nil)
+  end
+
+  defp prepare_world_moon_attrs(attrs, fallback_mass) when is_map(attrs) do
     with {:ok, planet_mass} <-
-           positive_float(creation_attr_value(attrs, :mass_earths), @max_world_mass_earths) do
+           positive_float(world_mass_value(attrs, fallback_mass), @max_world_mass_earths) do
       update_moon_attrs(attrs, fn moon_attrs ->
         derive_moon_orbital_period(moon_attrs, planet_mass)
       end)
     else
       :error -> attrs
+    end
+  end
+
+  defp world_mass_value(attrs, fallback_mass) do
+    if Map.has_key?(attrs, :mass_earths) or Map.has_key?(attrs, "mass_earths") do
+      creation_attr_value(attrs, :mass_earths)
+    else
+      fallback_mass
     end
   end
 

@@ -386,7 +386,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
                   <.form
                     for={@world_form}
                     id="dashboard-world-form"
-                    phx-change={if(is_nil(@selected_world), do: "change_template")}
+                    phx-change={if(@selected_world, do: "change_world", else: "change_template")}
                     phx-submit={if(@selected_world, do: "update_world", else: "create_world")}
                     class="space-y-3 p-4"
                   >
@@ -549,11 +549,11 @@ defmodule AncientStonesWeb.WorldLive.Index do
                       </details>
 
                       <WorldFormComponents.moon_fields
-                        :if={is_nil(@selected_world)}
                         form={@world_form}
                         id_prefix="dashboard-world-form"
                         add_event="add_world_moon"
                         remove_event="remove_world_moon"
+                        editing={!is_nil(@selected_world)}
                         map_form
                       />
                     </div>
@@ -623,6 +623,10 @@ defmodule AncientStonesWeb.WorldLive.Index do
      socket
      |> assign(:current_template, template)
      |> assign(:world_form, to_form(form_params, as: :world))}
+  end
+
+  def handle_event("change_world", %{"world" => world_params}, socket) do
+    {:noreply, assign(socket, :world_form, to_form(world_params, as: :world))}
   end
 
   def handle_event("add_world_moon", _params, socket) do
@@ -764,7 +768,7 @@ defmodule AncientStonesWeb.WorldLive.Index do
         attrs = Map.drop(params, ["galaxy_id", "template", "template_galaxy"])
 
         with {:ok, galaxy} <- get_optional_galaxy(socket, params["galaxy_id"]),
-             {:ok, _world} <- Worlds.update_world(world, attrs, galaxy: galaxy) do
+             {:ok, _world} <- Worlds.update_world_with_moons(world, attrs, galaxy: galaxy) do
           {:noreply, socket |> put_flash(:info, "World updated") |> reload_index()}
         else
           {:error, _reason} ->
@@ -868,9 +872,31 @@ defmodule AncientStonesWeb.WorldLive.Index do
       "star_luminosity_solar" => world.star_luminosity_solar,
       "star_temperature_k" => world.star_temperature_k,
       "map_projection" => world.map_projection,
+      "moons" => selected_moon_params(world.moons),
       "template_galaxy" => nil
     }
     |> to_form(as: :world)
+  end
+
+  defp selected_moon_params(moons) do
+    moons
+    |> Enum.sort_by(& &1.name)
+    |> Enum.with_index()
+    |> Map.new(fn {moon, index} ->
+      {Integer.to_string(index),
+       %{
+         "id" => moon.id,
+         "name" => moon.name,
+         "orbital_period_days" => moon.orbital_period_days,
+         "semi_major_axis_km" => moon.semi_major_axis_km,
+         "mean_radius_km" => moon.mean_radius_km,
+         "mass_lunar" => moon.mass_lunar,
+         "orbital_eccentricity" => moon.orbital_eccentricity,
+         "inclination_degrees" => moon.inclination_degrees,
+         "tidal_role" => moon.tidal_role,
+         "description" => moon.description
+       }}
+    end)
   end
 
   defp selected_galaxy_form(galaxy) do

@@ -106,6 +106,142 @@ defmodule AncientStones.WorldsTest do
     assert %{mass_earths: [_], moons: [_]} = errors_on(changeset)
   end
 
+  test "updates, adds, and removes moons atomically with their world" do
+    {:ok, world} =
+      Worlds.create_world(%{
+        name: "Pelagos",
+        mass_earths: "1",
+        mean_radius_km: 6_371,
+        moons: [
+          %{
+            name: "Selene",
+            orbital_period_days: "27.3",
+            semi_major_axis_km: 384_400,
+            mean_radius_km: 1_737,
+            mass_lunar: "1"
+          },
+          %{
+            name: "Thalassa",
+            orbital_period_days: "12",
+            semi_major_axis_km: 180_000,
+            mean_radius_km: 500,
+            mass_lunar: "0.1"
+          }
+        ]
+      })
+
+    selene = Repo.get_by!(Moon, world_id: world.id, name: "Selene")
+    thalassa = Repo.get_by!(Moon, world_id: world.id, name: "Thalassa")
+
+    assert {:ok, updated_world} =
+             Worlds.update_world_with_moons(world, %{
+               "name" => "Pelagos Prime",
+               "mass_earths" => "1",
+               "mean_radius_km" => "6371",
+               "moons" => %{
+                 "0" => %{
+                   "id" => selene.id,
+                   "name" => "Selene Major",
+                   "orbital_period_days" => "27.3",
+                   "semi_major_axis_km" => "384400",
+                   "mean_radius_km" => "1737",
+                   "mass_lunar" => "1"
+                 },
+                 "1" => %{
+                   "id" => "",
+                   "name" => "Nereid",
+                   "orbital_period_days" => "",
+                   "semi_major_axis_km" => "250000",
+                   "mean_radius_km" => "800",
+                   "mass_lunar" => "0.2"
+                 }
+               }
+             })
+
+    assert updated_world.name == "Pelagos Prime"
+    assert Repo.get!(Moon, selene.id).name == "Selene Major"
+    refute Repo.get(Moon, thalassa.id)
+
+    nereid = Repo.get_by!(Moon, world_id: world.id, name: "Nereid")
+    assert nereid.orbital_period_days
+  end
+
+  test "rejects moon ids belonging to another world and rolls back the update" do
+    {:ok, world} = Worlds.create_world(%{name: "Pelagos", mean_radius_km: 6_371})
+
+    {:ok, other_world} =
+      Worlds.create_world(%{
+        name: "Oceanus",
+        mean_radius_km: 5_000,
+        moons: [
+          %{
+            name: "Foreign Moon",
+            orbital_period_days: "20",
+            semi_major_axis_km: 200_000,
+            mean_radius_km: 500
+          }
+        ]
+      })
+
+    foreign_moon = Repo.get_by!(Moon, world_id: other_world.id, name: "Foreign Moon")
+
+    assert {:error, changeset} =
+             Worlds.update_world_with_moons(world, %{
+               "name" => "Compromised Name",
+               "mean_radius_km" => "6371",
+               "moons" => %{
+                 "0" => %{
+                   "id" => foreign_moon.id,
+                   "name" => "Stolen Moon",
+                   "orbital_period_days" => "20",
+                   "semi_major_axis_km" => "200000",
+                   "mean_radius_km" => "500"
+                 }
+               }
+             })
+
+    assert %{moons: [_]} = errors_on(changeset)
+    assert Repo.get!(World, world.id).name == "Pelagos"
+    assert Repo.get!(Moon, foreign_moon.id).name == "Foreign Moon"
+  end
+
+  test "rolls back the world and moon removals when a nested moon is invalid" do
+    {:ok, world} =
+      Worlds.create_world(%{
+        name: "Pelagos",
+        mean_radius_km: 6_371,
+        moons: [
+          %{
+            name: "Selene",
+            orbital_period_days: "27.3",
+            semi_major_axis_km: 384_400,
+            mean_radius_km: 1_737
+          }
+        ]
+      })
+
+    selene = Repo.get_by!(Moon, world_id: world.id, name: "Selene")
+
+    assert {:error, changeset} =
+             Worlds.update_world_with_moons(world, %{
+               "name" => "Pelagos Prime",
+               "mean_radius_km" => "6371",
+               "moons" => %{
+                 "0" => %{
+                   "name" => "Falling Moon",
+                   "orbital_period_days" => "1",
+                   "semi_major_axis_km" => "6000",
+                   "mean_radius_km" => "500"
+                 }
+               }
+             })
+
+    assert %{moons: moon_errors} = errors_on(changeset)
+    assert Enum.any?(moon_errors, &Map.has_key?(&1, :semi_major_axis_km))
+    assert Repo.get!(World, world.id).name == "Pelagos"
+    assert Repo.get!(Moon, selene.id).name == "Selene"
+  end
+
   test "lists map regions in name order" do
     {:ok, world} = Worlds.create_world(%{name: "Nirn"})
     {:ok, continent} = Worlds.create_continent(world, %{name: "Tamriel"})

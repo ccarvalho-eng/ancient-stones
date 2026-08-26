@@ -6,15 +6,24 @@ defmodule AncientStonesWeb.WorldLive.WorldFormComponents do
   attr :add_event, :string, required: true
   attr :remove_event, :string, required: true
   attr :map_form, :boolean, default: false
+  attr :editing, :boolean, default: false
 
   def moon_fields(assigns) do
     ~H"""
-    <section id={"#{@id_prefix}-moons"} class="stone-border rounded-md border">
+    <section
+      id={"#{@id_prefix}-moons"}
+      data-mode={if(@editing, do: "edit", else: "create")}
+      class="stone-border rounded-md border"
+    >
       <div class="stone-border flex items-start justify-between gap-3 border-b px-3 py-3">
         <div>
           <h4 class="stone-heading text-sm font-semibold">Moons</h4>
           <p class="stone-muted mt-1 text-xs">
-            Add any known natural satellites. A world may be created without one.
+            <%= if @editing do %>
+              Edit existing moons or stage additions and removals. Changes apply when you save the world.
+            <% else %>
+              Add any known natural satellites. A world may be created without one.
+            <% end %>
           </p>
         </div>
         <button
@@ -75,9 +84,10 @@ defmodule AncientStonesWeb.WorldLive.WorldFormComponents do
       id={"#{@id_prefix}-moon-#{@moon_form.index}"}
       class="stone-panel-muted stone-border rounded-md border p-3"
     >
+      <.input field={@moon_form[:id]} type="hidden" />
       <div class="mb-3 flex items-center justify-between gap-3">
         <h5 class="stone-heading text-xs font-semibold uppercase tracking-wide">
-          Moon {@moon_form.index + 1}
+          {moon_heading(@moon_form)}
         </h5>
         <button
           id={"#{@id_prefix}-remove-moon-#{@moon_form.index}"}
@@ -85,7 +95,7 @@ defmodule AncientStonesWeb.WorldLive.WorldFormComponents do
           phx-click={@remove_event}
           phx-value-index={@moon_form.index}
           class="stone-button inline-flex size-7 items-center justify-center rounded-md border transition"
-          aria-label={"Remove moon #{@moon_form.index + 1}"}
+          aria-label={"Remove #{moon_heading(@moon_form)}"}
         >
           <.icon name="hero-x-mark" class="size-3.5" />
         </button>
@@ -199,8 +209,16 @@ defmodule AncientStonesWeb.WorldLive.WorldFormComponents do
     end
   end
 
+  defp moon_heading(moon_form) do
+    case moon_form[:name].value |> to_string() |> String.trim() do
+      "" -> "Moon #{moon_form.index + 1}"
+      name -> name
+    end
+  end
+
   defp blank_moon_params do
     %{
+      "id" => "",
       "name" => "",
       "orbital_period_days" => "",
       "semi_major_axis_km" => "",

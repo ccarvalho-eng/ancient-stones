@@ -123,6 +123,7 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     |> render_click()
 
     assert has_element?(view, "#dashboard-world-form-moon-0")
+    assert has_element?(view, "#dashboard-world-form-moon-0 h5", "Moon 1")
 
     view
     |> form("#dashboard-world-form",
@@ -293,6 +294,124 @@ defmodule AncientStonesWeb.WorldLive.IndexTest do
     assert updated_world.galaxy_id == new_galaxy.id
     assert has_element?(view, "#galaxies", "Eldoria Prime")
     assert has_element?(view, "#dashboard-world-form[phx-submit='create_world']")
+  end
+
+  test "edits existing moons and stages moon additions and removals with the world", %{conn: conn} do
+    {:ok, world} =
+      Worlds.create_world(%{
+        name: "Pelagos",
+        mass_earths: "1",
+        mean_radius_km: 6_371,
+        moons: [
+          %{
+            name: "Selene",
+            orbital_period_days: "27.3",
+            semi_major_axis_km: 384_400,
+            mean_radius_km: 1_737,
+            mass_lunar: "1"
+          },
+          %{
+            name: "Thalassa",
+            orbital_period_days: "12",
+            semi_major_axis_km: 180_000,
+            mean_radius_km: 500,
+            mass_lunar: "0.1"
+          }
+        ]
+      })
+
+    selene = Repo.get_by!(Moon, world_id: world.id, name: "Selene")
+    thalassa = Repo.get_by!(Moon, world_id: world.id, name: "Thalassa")
+
+    {:ok, view, _html} = live(conn, ~p"/worlds")
+
+    view
+    |> element("#select-world-#{world.id}")
+    |> render_click()
+
+    assert has_element?(view, "#dashboard-world-form-moons[data-mode='edit']")
+    assert has_element?(view, "#world_moons_0_id[value='#{selene.id}']")
+    assert has_element?(view, "#world_moons_0_name[value='Selene']")
+    assert has_element?(view, "#world_moons_1_name[value='Thalassa']")
+    assert has_element?(view, "#dashboard-world-form-moon-0 h5", "Selene")
+    assert has_element?(view, "#dashboard-world-form-moon-1 h5", "Thalassa")
+
+    view
+    |> form("#dashboard-world-form",
+      world: %{
+        name: "Pelagos Draft",
+        mass_earths: "1",
+        mean_radius_km: "6371",
+        moons: %{
+          "0" => %{
+            id: selene.id,
+            name: "Selene Major",
+            orbital_period_days: "27.3",
+            semi_major_axis_km: "384400",
+            mean_radius_km: "1737",
+            mass_lunar: "1"
+          },
+          "1" => %{
+            id: thalassa.id,
+            name: "Thalassa",
+            orbital_period_days: "12",
+            semi_major_axis_km: "180000",
+            mean_radius_km: "500",
+            mass_lunar: "0.1"
+          }
+        }
+      }
+    )
+    |> render_change()
+
+    assert has_element?(view, "#dashboard-world-form-moon-0 h5", "Selene Major")
+
+    view
+    |> element("#dashboard-world-form-remove-moon-1")
+    |> render_click()
+
+    assert Repo.get(Moon, thalassa.id)
+    refute has_element?(view, "#dashboard-world-form-moon-1")
+
+    view
+    |> element("#dashboard-world-form-add-moon")
+    |> render_click()
+
+    assert has_element?(view, "#dashboard-world-form-moon-1")
+    assert has_element?(view, "#world_name[value='Pelagos Draft']")
+
+    view
+    |> form("#dashboard-world-form",
+      world: %{
+        name: "Pelagos Prime",
+        mass_earths: "1",
+        mean_radius_km: "6371",
+        moons: %{
+          "0" => %{
+            id: selene.id,
+            name: "Selene Major",
+            orbital_period_days: "27.3",
+            semi_major_axis_km: "384400",
+            mean_radius_km: "1737",
+            mass_lunar: "1"
+          },
+          "1" => %{
+            id: "",
+            name: "Nereid",
+            orbital_period_days: "",
+            semi_major_axis_km: "250000",
+            mean_radius_km: "800",
+            mass_lunar: "0.2"
+          }
+        }
+      }
+    )
+    |> render_submit()
+
+    assert Repo.get!(World, world.id).name == "Pelagos Prime"
+    assert Repo.get!(Moon, selene.id).name == "Selene Major"
+    refute Repo.get(Moon, thalassa.id)
+    assert Repo.get_by!(Moon, world_id: world.id, name: "Nereid")
   end
 
   test "selects a galaxy and updates all its attributes with the galaxy form", %{conn: conn} do

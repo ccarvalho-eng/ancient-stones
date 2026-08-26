@@ -84,7 +84,7 @@ defmodule AncientStones.Worlds.World do
     has_many(:items, Item)
     has_many(:effects, Effect)
     has_many(:location_types, LocationType)
-    has_many(:moons, Moon)
+    has_many(:moons, Moon, on_replace: :delete)
     has_many(:occupations, Occupation)
     has_many(:political_offices, PoliticalOffice)
     has_many(:races, Race)
@@ -151,29 +151,72 @@ defmodule AncientStones.Worlds.World do
   end
 
   def creation_changeset(world, attrs) do
-    world
-    |> changeset(attrs)
+    moons_changeset(world, attrs)
+  end
+
+  def update_with_moons_changeset(world, attrs) do
+    moons_changeset(world, attrs)
+  end
+
+  defp moons_changeset(world, attrs) do
+    changeset = changeset(world, attrs)
+    planet_radius = get_field(changeset, :mean_radius_km)
+
+    changeset
+    |> validate_moon_ids(world, attrs)
     |> cast_assoc(:moons,
-      with: &Moon.nested_changeset/2,
+      with: fn moon, moon_attrs ->
+        moon
+        |> Moon.nested_changeset(moon_attrs)
+        |> validate_moon_clearance(planet_radius)
+      end,
       sort_param: :moons_sort,
       drop_param: :moons_drop
     )
-    |> validate_moon_clearance()
   end
 
-  defp validate_moon_clearance(changeset) do
-    case get_field(changeset, :mean_radius_km) do
-      planet_radius when is_integer(planet_radius) and planet_radius > 0 ->
-        update_change(changeset, :moons, fn moon_changesets ->
-          Enum.map(moon_changesets, &validate_moon_clearance(&1, planet_radius))
-        end)
+  defp validate_moon_ids(changeset, world, attrs) do
+    known_ids = MapSet.new(Enum.map(loaded_moons(world.moons), & &1.id))
 
-      _other ->
-        changeset
+    unknown_id? =
+      attrs
+      |> moon_attrs()
+      |> Enum.any?(fn moon_attrs ->
+        case moon_attr_value(moon_attrs, :id) do
+          id when id in [nil, ""] -> false
+          id -> not MapSet.member?(known_ids, id)
+        end
+      end)
+
+    if unknown_id? do
+      add_error(changeset, :moons, "contains a moon that does not belong to this world")
+    else
+      changeset
     end
   end
 
-  defp validate_moon_clearance(moon_changeset, planet_radius) do
+  defp loaded_moons(%Ecto.Association.NotLoaded{}) do
+    []
+  end
+
+  defp loaded_moons(moons) when is_list(moons) do
+    moons
+  end
+
+  defp moon_attrs(attrs) do
+    case moon_attr_value(attrs, :moons) do
+      moons when is_map(moons) -> Map.values(moons)
+      moons when is_list(moons) -> moons
+      _other -> []
+    end
+  end
+
+  defp moon_attr_value(attrs, key) when is_map(attrs) do
+    Map.get(attrs, key) || Map.get(attrs, Atom.to_string(key))
+  end
+
+  defp validate_moon_clearance(moon_changeset, planet_radius)
+       when is_integer(planet_radius) and planet_radius > 0 do
     semi_major_axis = get_field(moon_changeset, :semi_major_axis_km)
     moon_radius = get_field(moon_changeset, :mean_radius_km) || 0
     eccentricity = get_field(moon_changeset, :orbital_eccentricity) || Decimal.new(0)
@@ -194,5 +237,9 @@ defmodule AncientStones.Worlds.World do
     else
       _other -> moon_changeset
     end
+  end
+
+  defp validate_moon_clearance(moon_changeset, _planet_radius) do
+    moon_changeset
   end
 end
