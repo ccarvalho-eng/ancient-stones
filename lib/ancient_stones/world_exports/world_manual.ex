@@ -18,6 +18,7 @@ defmodule AncientStones.WorldExports.WorldManual do
         chapter("races", "Races", Map.get(details, :races, []), &race_record/1),
         chapter("guilds", "Guilds", resolved(guide, details, :guilds), &guild_record/1),
         chapter("gods", "Gods", Map.get(details, :gods, []), &god_record/1),
+        chapter("assemblies", "Assemblies", Map.get(guide, :assemblies, []), &assembly_record/1),
         chapter("people", "People", resolved(guide, details, :characters), &character_record/1),
         society_chapter(details),
         skills_chapter(details),
@@ -118,7 +119,15 @@ defmodule AncientStones.WorldExports.WorldManual do
       Map.get(water, :description),
       facts([
         {"Prevailing conditions", Map.get(water, :prevailing_conditions)},
-        {"Hazards", Map.get(water, :hazards)}
+        {"Hazards", Map.get(water, :hazards)},
+        {"Position", geographic_coordinates(water)},
+        {"Source", coordinate_pair(water, :source_latitude, :source_longitude)},
+        {"Mouth", coordinate_pair(water, :mouth_latitude, :mouth_longitude)},
+        {"Length", measure(Map.get(water, :length_km), "km")},
+        {"Area", measure(Map.get(water, :area_km2), "km²")},
+        {"Drainage area", measure(Map.get(water, :drainage_area_km2), "km²")},
+        {"Source elevation", measure(Map.get(water, :source_elevation_m), "m")},
+        {"Mean discharge", measure(Map.get(water, :mean_discharge_m3_s), "m³/s")}
       ]),
       entity_records("Provinces", Map.get(water, :provinces, []))
     )
@@ -212,7 +221,10 @@ defmodule AncientStones.WorldExports.WorldManual do
       facts([
         {"Water body", Map.get(location, :water_body)},
         {"Coordinates", coordinates(location)},
-        {"Geographic position", geographic_coordinates(location)}
+        {"Geographic position", geographic_coordinates(location)},
+        {"Population estimate", Map.get(location, :population_estimate)},
+        {"Record scope", humanize(Map.get(location, :record_scope))},
+        {"Associated gods", join_values(Map.get(location, :gods, []))}
       ]),
       section("Associated people", people)
     )
@@ -427,7 +439,13 @@ defmodule AncientStones.WorldExports.WorldManual do
         {"Critical damage", Map.get(item, :critical_damage)},
         {"Weight", Map.get(item, :weight)},
         {"Value", Map.get(item, :value)},
-        {"Source", Map.get(item, :source)}
+        {"Source", Map.get(item, :source)},
+        {"Period", Map.get(item, :period_name)},
+        {"Date", Map.get(item, :date_label)},
+        {"Maker", Map.get(item, :maker)},
+        {"Authenticity", humanize(Map.get(item, :authenticity))},
+        {"Find location", Map.get(item, :find_location)},
+        {"Provenance", Map.get(item, :provenance)}
       ]),
       section("Effects", Enum.map(Map.get(item, :effects, []), &simple_record/1))
     )
@@ -528,7 +546,10 @@ defmodule AncientStones.WorldExports.WorldManual do
               policy.name,
               Map.get(policy, :detail),
               Map.get(policy, :description),
-              [],
+              facts([
+                {"Effective from year", Map.get(policy, :effective_from_year)},
+                {"Effective to year", Map.get(policy, :effective_to_year)}
+              ]),
               section(
                 "Revenue allocation",
                 Enum.map(Map.get(policy, :revenue_shares, []), &simple_record/1)
@@ -568,10 +589,29 @@ defmodule AncientStones.WorldExports.WorldManual do
       route.name,
       Map.get(route, :detail),
       Map.get(route, :description),
-      [],
+      facts([
+        {"Annual capacity", measure(Map.get(route, :annual_capacity_tonnes), "tonnes")},
+        {"Capacity basis", Map.get(route, :capacity_basis)}
+      ]),
       section("Commodity flows", Enum.map(Map.get(route, :flows, []), &simple_record/1)) ++
         section("Itinerary stops", Enum.map(Map.get(route, :stops, []), &simple_record/1)) ++
         section("Route legs", Enum.map(Map.get(route, :legs, []), &simple_record/1))
+    )
+  end
+
+  defp assembly_record(assembly) do
+    record(
+      assembly.name,
+      Map.get(assembly, :detail),
+      Map.get(assembly, :description),
+      facts([
+        {"Meeting cycle", Map.get(assembly, :meeting_cycle)},
+        {"Membership", Map.get(assembly, :membership_rule)},
+        {"Jurisdiction", Map.get(assembly, :jurisdiction)},
+        {"Appeal path", Map.get(assembly, :appeal_path)},
+        {"Enforcement", Map.get(assembly, :enforcement)},
+        {"Meeting place", Map.get(assembly, :location)}
+      ])
     )
   end
 
@@ -707,6 +747,13 @@ defmodule AncientStones.WorldExports.WorldManual do
     case {Map.get(entity, :latitude), Map.get(entity, :longitude)} do
       {nil, nil} -> nil
       {latitude, longitude} -> "#{latitude}°, #{longitude}°"
+    end
+  end
+
+  defp coordinate_pair(entity, latitude_key, longitude_key) do
+    case {Map.get(entity, latitude_key), Map.get(entity, longitude_key)} do
+      {nil, nil} -> nil
+      {latitude, longitude} -> "#{latitude || "?"}°, #{longitude || "?"}°"
     end
   end
 

@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.World do
   import Ecto.Changeset
 
   alias AncientStones.Maps.MapDocument
+  alias AncientStones.Worlds.Assembly
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CharacterRole
   alias AncientStones.Worlds.Civilization
@@ -56,6 +57,7 @@ defmodule AncientStones.Worlds.World do
     belongs_to(:galaxy, Galaxy)
 
     has_many(:characters, Character)
+    has_many(:assemblies, Assembly)
     has_many(:character_roles, CharacterRole)
     has_many(:civilizations, Civilization)
     has_many(:commercial_ventures, CommercialVenture)

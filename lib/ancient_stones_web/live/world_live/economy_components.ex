@@ -266,6 +266,18 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
                   label="Distance km"
                 />
                 <.input
+                  field={@trade_route_form[:annual_capacity_tonnes]}
+                  type="number"
+                  step="any"
+                  min="0"
+                  label="Annual capacity (tonnes)"
+                />
+                <.input
+                  field={@trade_route_form[:capacity_basis]}
+                  type="textarea"
+                  label="Capacity basis"
+                />
+                <.input
                   field={@trade_route_form[:seasonality]}
                   type="select"
                   label="Seasonality"
@@ -356,6 +368,19 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
                   options={AncientStones.Worlds.TradeFlow.coverage_scope_options()}
                 />
                 <.input field={@trade_flow_form[:quantity_basis]} label="Quantity basis" />
+                <.input
+                  field={@trade_flow_form[:unit_mass_kg]}
+                  type="number"
+                  step="any"
+                  min="0"
+                  label="Unit mass (kg)"
+                />
+                <.input
+                  field={@trade_flow_form[:annual_consignment_count]}
+                  type="number"
+                  min="1"
+                  label="Annual consignments"
+                />
                 <.input field={@trade_flow_form[:description]} type="textarea" label="Description" />
                 <.actions world={@world} />
               </.form>
@@ -419,6 +444,18 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
                   label="Status"
                   options={AncientStones.Worlds.TaxPolicy.status_options()}
                 />
+                <div class="grid grid-cols-2 gap-3">
+                  <.input
+                    field={@tax_policy_form[:effective_from_year]}
+                    type="number"
+                    label="Effective from year"
+                  />
+                  <.input
+                    field={@tax_policy_form[:effective_to_year]}
+                    type="number"
+                    label="Effective to year"
+                  />
+                </div>
                 <.input field={@tax_policy_form[:description]} type="textarea" label="Description" />
                 <.actions world={@world} />
               </.form>
@@ -662,6 +699,27 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
                   type="number"
                   label="Customary labor days"
                   required
+                />
+                <.input field={@tax_assessment_form[:assessed_unit]} label="Assessed unit" />
+                <.input
+                  field={@tax_assessment_form[:assessed_unit_count]}
+                  type="number"
+                  step="any"
+                  min="0"
+                  label="Assessed units"
+                />
+                <.input
+                  field={@tax_assessment_form[:coverage_percentage]}
+                  type="number"
+                  step="any"
+                  min="0"
+                  max="100"
+                  label="Coverage percentage"
+                />
+                <.input
+                  field={@tax_assessment_form[:valuation_basis]}
+                  type="textarea"
+                  label="Valuation basis"
                 />
                 <.input
                   field={@tax_assessment_form[:confidence]}
@@ -1320,6 +1378,8 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
         {"Destination", association_name(route.destination_hold)},
         {"Transport", humanize(route.transport_mode)},
         {"Distance", value_with_unit(route.distance_km, "km")},
+        {"Annual capacity", value_with_unit(route.annual_capacity_tonnes, "tonnes")},
+        {"Capacity basis", route.capacity_basis},
         {"Seasonality", humanize(route.seasonality)},
         {"Risk", humanize(route.risk)},
         {"Status", humanize(route.status)}
@@ -1347,7 +1407,9 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
         {"Declared value", money_value(flow.declared_value, flow.currency)},
         {"Frequency", humanize(flow.frequency)},
         {"Coverage", humanize(flow.coverage_scope)},
-        {"Quantity basis", flow.quantity_basis}
+        {"Quantity basis", flow.quantity_basis},
+        {"Unit mass", value_with_unit(flow.unit_mass_kg, "kg")},
+        {"Annual consignments", display(flow.annual_consignment_count)}
       ],
       []
     )
@@ -1368,6 +1430,8 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
         {"Currency", association_name(policy.currency)},
         {"Effective from", display(policy.effective_from)},
         {"Effective to", display(policy.effective_to)},
+        {"Effective from year", display(policy.effective_from_year)},
+        {"Effective to year", display(policy.effective_to_year)},
         {"Status", humanize(policy.status)}
       ],
       [
@@ -1465,6 +1529,10 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
         {"Cash yield", money_value(assessment.cash_yield, assessment.currency)},
         {"In-kind value", money_value(assessment.in_kind_value, assessment.currency)},
         {"Customary labor", value_with_unit(assessment.customary_labor_days, "days")},
+        {"Assessed unit", assessment.assessed_unit},
+        {"Assessed units", display(assessment.assessed_unit_count)},
+        {"Coverage", value_with_unit(assessment.coverage_percentage, "%")},
+        {"Valuation basis", assessment.valuation_basis},
         {"Confidence", humanize(assessment.confidence)}
       ],
       []

@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.Hold do
   import Ecto.Changeset
 
   alias AncientStones.Maps.MapItem
+  alias AncientStones.Worlds.Assembly
   alias AncientStones.Worlds.Geography
   alias AncientStones.Worlds.CommodityBalance
   alias AncientStones.Worlds.HoldCommerceEntry
@@ -38,6 +39,7 @@ defmodule AncientStones.Worlds.Hold do
     belongs_to(:province, Province)
     belongs_to(:capital_location, Location)
     has_many(:locations, Location)
+    has_many(:assemblies, Assembly)
     has_many(:landholdings, Landholding)
     has_many(:commerce_entries, HoldCommerceEntry)
     has_one(:economic_profile, HoldEconomicProfile)
@@ -75,6 +77,8 @@ defmodule AncientStones.Worlds.Hold do
     |> validate_required([:name, :province_id])
     |> foreign_key_constraint(:province_id)
     |> foreign_key_constraint(:capital_location_id)
+    |> check_constraint(:terrain, name: :holds_terrain_enum)
+    |> check_constraint(:climate, name: :holds_climate_enum)
     |> unique_constraint(:name, name: :holds_province_id_name_index)
   end
 

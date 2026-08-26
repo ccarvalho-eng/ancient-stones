@@ -4,6 +4,7 @@ defmodule AncientStones.Worlds.Item do
 
   alias AncientStones.Worlds.CharacterInventoryItem
   alias AncientStones.Worlds.ItemEffect
+  alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.World
 
   @hands_options [
@@ -26,9 +27,18 @@ defmodule AncientStones.Worlds.Item do
     field :weight, :decimal
     field :value, :integer
     field :source, :string
+    field :period_name, :string
+    field :date_label, :string
+    field :maker, :string
+    field :provenance, :string
+
+    field :authenticity, Ecto.Enum,
+      values: [:working, :historic, :reconstructed, :disputed, :legendary]
+
     field :description, :string
 
     belongs_to(:world, World)
+    belongs_to(:find_location, Location)
     has_many(:character_inventory_items, CharacterInventoryItem)
     has_many(:item_effects, ItemEffect)
 
@@ -48,6 +58,11 @@ defmodule AncientStones.Worlds.Item do
       :weight,
       :value,
       :source,
+      :period_name,
+      :date_label,
+      :maker,
+      :provenance,
+      :authenticity,
       :description
     ])
     |> validate_required([:name, :world_id])
@@ -56,6 +71,8 @@ defmodule AncientStones.Worlds.Item do
     |> validate_number(:value, greater_than_or_equal_to: 0)
     |> validate_inclusion(:hands, hands_values())
     |> foreign_key_constraint(:world_id)
+    |> foreign_key_constraint(:find_location_id)
+    |> check_constraint(:authenticity, name: :items_authenticity)
     |> unique_constraint(:name, name: :items_world_id_name_index)
   end
 

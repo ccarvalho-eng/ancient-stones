@@ -38,6 +38,17 @@ defmodule AncientStones.Worlds.WaterBody do
     field :freeze_pattern, Ecto.Enum, values: @freeze_patterns
     field :prevailing_conditions, :string
     field :hazards, :string
+    field :latitude, :decimal
+    field :longitude, :decimal
+    field :source_latitude, :decimal
+    field :source_longitude, :decimal
+    field :mouth_latitude, :decimal
+    field :mouth_longitude, :decimal
+    field :length_km, :decimal
+    field :area_km2, :decimal
+    field :drainage_area_km2, :decimal
+    field :source_elevation_m, :integer
+    field :mean_discharge_m3_s, :decimal
     field :status, Ecto.Enum, values: @statuses, default: :active
     field :description, :string
     belongs_to :world, World
@@ -65,9 +76,21 @@ defmodule AncientStones.Worlds.WaterBody do
       :freeze_pattern,
       :prevailing_conditions,
       :hazards,
+      :latitude,
+      :longitude,
+      :source_latitude,
+      :source_longitude,
+      :mouth_latitude,
+      :mouth_longitude,
+      :length_km,
+      :area_km2,
+      :drainage_area_km2,
+      :source_elevation_m,
+      :mean_discharge_m3_s,
       :status,
       :description
     ])
+    |> validate_measurements()
     |> put_refs(refs)
     |> validate_required([
       :name,
@@ -82,6 +105,8 @@ defmodule AncientStones.Worlds.WaterBody do
     |> foreign_key_constraint(:world_id)
     |> foreign_key_constraint(:parent_water_body_id)
     |> check_constraint(:parent_water_body_id, name: :water_bodies_not_own_parent)
+    |> check_constraint(:latitude, name: :water_bodies_geographic_ranges)
+    |> check_constraint(:length_km, name: :water_bodies_measurements_positive)
     |> unique_constraint(:name, name: :water_bodies_world_id_name_index)
   end
 
@@ -115,6 +140,33 @@ defmodule AncientStones.Worlds.WaterBody do
 
   def status_options do
     options(@statuses)
+  end
+
+  defp validate_measurements(changeset) do
+    changeset
+    |> validate_number(:latitude, greater_than_or_equal_to: -90, less_than_or_equal_to: 90)
+    |> validate_number(:longitude, greater_than_or_equal_to: -180, less_than_or_equal_to: 180)
+    |> validate_number(:source_latitude,
+      greater_than_or_equal_to: -90,
+      less_than_or_equal_to: 90
+    )
+    |> validate_number(:source_longitude,
+      greater_than_or_equal_to: -180,
+      less_than_or_equal_to: 180
+    )
+    |> validate_number(:mouth_latitude,
+      greater_than_or_equal_to: -90,
+      less_than_or_equal_to: 90
+    )
+    |> validate_number(:mouth_longitude,
+      greater_than_or_equal_to: -180,
+      less_than_or_equal_to: 180
+    )
+    |> validate_number(:length_km, greater_than: 0)
+    |> validate_number(:area_km2, greater_than: 0)
+    |> validate_number(:drainage_area_km2, greater_than: 0)
+    |> validate_number(:source_elevation_m, greater_than_or_equal_to: 0)
+    |> validate_number(:mean_discharge_m3_s, greater_than: 0)
   end
 
   defp validate_parent(changeset) do

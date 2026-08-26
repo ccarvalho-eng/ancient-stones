@@ -2,6 +2,7 @@ defmodule AncientStones.Worlds.WorldGuide do
   import Ecto.Query
 
   alias AncientStones.Repo
+  alias AncientStones.Worlds.Assembly
   alias AncientStones.Worlds.Calendar
   alias AncientStones.Worlds.Character
   alias AncientStones.Worlds.CommodityBalance
@@ -37,7 +38,7 @@ defmodule AncientStones.Worlds.WorldGuide do
     locations =
       Location
       |> list_by_parent(:hold_id, Enum.map(holds, & &1.id))
-      |> Repo.preload(:water_body)
+      |> Repo.preload([:water_body, :gods, :location_gods])
 
     calendars = list_by_parent(Calendar, :continent_id, Enum.map(continents, & &1.id))
     offices = list_offices(world.id)
@@ -58,6 +59,7 @@ defmodule AncientStones.Worlds.WorldGuide do
     water_bodies = list_water_bodies(world.id)
     water_connections = list_water_connections(world.id)
     commercial_ventures = list_commercial_ventures(world.id)
+    assemblies = list_assemblies(world.id)
 
     %{
       world: world_card(world),
@@ -94,7 +96,8 @@ defmodule AncientStones.Worlds.WorldGuide do
         tax_assessments |> Map.values() |> List.flatten() |> Enum.map(&tax_assessment_card/1),
       water_bodies: Enum.map(water_bodies, &water_body_card/1),
       water_connections: Enum.map(water_connections, &water_connection_card/1),
-      commercial_ventures: Enum.map(commercial_ventures, &commercial_venture_card/1)
+      commercial_ventures: Enum.map(commercial_ventures, &commercial_venture_card/1),
+      assemblies: Enum.map(assemblies, &assembly_card/1)
     }
   end
 
@@ -161,7 +164,15 @@ defmodule AncientStones.Worlds.WorldGuide do
     |> where([office], office.world_id == ^world_id)
     |> order_by([office], asc: office.office)
     |> Repo.all()
-    |> Repo.preload(:character)
+    |> Repo.preload([:character, :designated_successor])
+  end
+
+  defp list_assemblies(world_id) do
+    Assembly
+    |> where([assembly], assembly.world_id == ^world_id)
+    |> order_by([assembly], asc: assembly.scope, asc: assembly.name)
+    |> Repo.all()
+    |> Repo.preload([:continent, :province, :hold, :location])
   end
 
   defp list_trade_routes(world_id) do
@@ -342,7 +353,10 @@ defmodule AncientStones.Worlds.WorldGuide do
       description: location.description,
       detail: loaded_name(location.water_body),
       latitude: location.latitude,
-      longitude: location.longitude
+      longitude: location.longitude,
+      population_estimate: location.population_estimate,
+      record_scope: label(location.record_scope),
+      gods: Enum.map(location.gods, &loaded_name/1)
     }
   end
 
@@ -439,6 +453,8 @@ defmodule AncientStones.Worlds.WorldGuide do
           |> Enum.reject(&is_nil/1),
           " - "
         ),
+      annual_capacity_tonnes: route.annual_capacity_tonnes,
+      capacity_basis: route.capacity_basis,
       flows: Enum.map(flows, &trade_flow_card/1),
       stops:
         route.stops
@@ -567,6 +583,17 @@ defmodule AncientStones.Worlds.WorldGuide do
         ),
       prevailing_conditions: water.prevailing_conditions,
       hazards: water.hazards,
+      latitude: water.latitude,
+      longitude: water.longitude,
+      source_latitude: water.source_latitude,
+      source_longitude: water.source_longitude,
+      mouth_latitude: water.mouth_latitude,
+      mouth_longitude: water.mouth_longitude,
+      length_km: water.length_km,
+      area_km2: water.area_km2,
+      drainage_area_km2: water.drainage_area_km2,
+      source_elevation_m: water.source_elevation_m,
+      mean_discharge_m3_s: water.mean_discharge_m3_s,
       provinces:
         Enum.map(water.province_links, fn link ->
           %{
@@ -610,7 +637,10 @@ defmodule AncientStones.Worlds.WorldGuide do
             "#{flow.declared_value} #{flow.currency.name}",
             label(flow.frequency),
             label(flow.coverage_scope),
-            flow.quantity_basis
+            flow.quantity_basis,
+            flow.unit_mass_kg && "#{flow.unit_mass_kg} kg per unit",
+            flow.annual_consignment_count &&
+              "#{flow.annual_consignment_count} consignments/year"
           ]
           |> Enum.reject(&is_nil/1),
           " - "
@@ -637,6 +667,8 @@ defmodule AncientStones.Worlds.WorldGuide do
           |> Enum.reject(&is_nil/1),
           " - "
         ),
+      effective_from_year: policy.effective_from_year,
+      effective_to_year: policy.effective_to_year,
       exemptions: Enum.map(exemptions, &tax_exemption_card/1),
       revenue_shares: Enum.map(revenue_shares, &revenue_share_card/1),
       assessments: Enum.map(assessments, &tax_assessment_card/1)
@@ -693,6 +725,10 @@ defmodule AncientStones.Worlds.WorldGuide do
     %{
       name: (policy && policy.name) || assessment.assessment_period_label,
       description: assessment.description,
+      assessed_unit: assessment.assessed_unit,
+      assessed_unit_count: assessment.assessed_unit_count,
+      coverage_percentage: assessment.coverage_percentage,
+      valuation_basis: assessment.valuation_basis,
       detail:
         Enum.join(
           [
@@ -700,8 +736,13 @@ defmodule AncientStones.Worlds.WorldGuide do
             "#{assessment.cash_yield} #{assessment.currency.name} cash",
             "#{assessment.in_kind_value} #{assessment.currency.name} in kind",
             "#{assessment.customary_labor_days} customary labor days",
+            assessment.assessed_unit_count &&
+              "#{assessment.assessed_unit_count} #{assessment.assessed_unit}",
+            assessment.coverage_percentage && "#{assessment.coverage_percentage}% coverage",
+            assessment.valuation_basis,
             label(assessment.confidence)
-          ],
+          ]
+          |> Enum.reject(&is_nil/1),
           " - "
         )
     }
@@ -731,6 +772,25 @@ defmodule AncientStones.Worlds.WorldGuide do
       name: share.political_office.office,
       description: nil,
       detail: "#{share.percentage}% of collected revenue"
+    }
+  end
+
+  defp assembly_card(assembly) do
+    target = assembly.continent || assembly.province || assembly.hold
+
+    %{
+      name: assembly.name,
+      description: assembly.description,
+      detail:
+        [label(assembly.scope), loaded_name(target), label(assembly.status)]
+        |> Enum.reject(&is_nil/1)
+        |> Enum.join(" - "),
+      meeting_cycle: assembly.meeting_cycle,
+      membership_rule: assembly.membership_rule,
+      jurisdiction: assembly.jurisdiction,
+      appeal_path: assembly.appeal_path,
+      enforcement: assembly.enforcement,
+      location: loaded_name(assembly.location)
     }
   end
 

@@ -3,6 +3,7 @@ defmodule AncientStones.Worlds.Location do
   import Ecto.Changeset
 
   alias AncientStones.Maps.MapItem
+  alias AncientStones.Worlds.Assembly
   alias AncientStones.Worlds.CharacterLocation
   alias AncientStones.Worlds.CivilizationLocation
   alias AncientStones.Worlds.CommercialVenture
@@ -11,6 +12,7 @@ defmodule AncientStones.Worlds.Location do
   alias AncientStones.Worlds.Hold
   alias AncientStones.Worlds.Location
   alias AncientStones.Worlds.LocationType
+  alias AncientStones.Worlds.LocationGod
   alias AncientStones.Worlds.LoreConnection
   alias AncientStones.Worlds.Household
   alias AncientStones.Worlds.Landholding
@@ -25,6 +27,8 @@ defmodule AncientStones.Worlds.Location do
     field :map_y, :integer
     field :latitude, :decimal
     field :longitude, :decimal
+    field :population_estimate, :integer
+    field :record_scope, Ecto.Enum, values: [:specific, :representative, :comprehensive]
     field :visibility, Ecto.Enum, values: Geography.visibility_values(), default: :known
 
     belongs_to(:hold, Hold)
@@ -44,16 +48,30 @@ defmodule AncientStones.Worlds.Location do
     has_many(:map_items, MapItem)
     has_many(:households, Household, foreign_key: :home_location_id)
     has_many(:landholdings, Landholding)
+    has_many(:assemblies, Assembly)
+    has_many(:location_gods, LocationGod)
+    has_many(:gods, through: [:location_gods, :god])
 
     timestamps(type: :utc_datetime)
   end
 
   def changeset(location, attrs) do
     location
-    |> cast(attrs, [:name, :description, :map_x, :map_y, :latitude, :longitude, :visibility])
+    |> cast(attrs, [
+      :name,
+      :description,
+      :map_x,
+      :map_y,
+      :latitude,
+      :longitude,
+      :population_estimate,
+      :record_scope,
+      :visibility
+    ])
     |> validate_required([:name, :hold_id, :location_type_id])
     |> validate_number(:latitude, greater_than_or_equal_to: -90, less_than_or_equal_to: 90)
     |> validate_number(:longitude, greater_than_or_equal_to: -180, less_than_or_equal_to: 180)
+    |> validate_number(:population_estimate, greater_than_or_equal_to: 0)
     |> foreign_key_constraint(:hold_id)
     |> foreign_key_constraint(:parent_location_id)
     |> foreign_key_constraint(:location_type_id)
@@ -65,5 +83,7 @@ defmodule AncientStones.Worlds.Location do
       message: "coordinates already used by another location in this hold"
     )
     |> check_constraint(:latitude, name: :locations_geographic_coordinates_range)
+    |> check_constraint(:population_estimate, name: :locations_population_non_negative)
+    |> check_constraint(:record_scope, name: :locations_record_scope)
   end
 end

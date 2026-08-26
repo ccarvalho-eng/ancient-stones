@@ -31,6 +31,8 @@ defmodule AncientStones.Worlds.TradeRoute do
     field :name, :string
     field :transport_mode, Ecto.Enum, values: @transport_modes
     field :distance_km, :decimal
+    field :annual_capacity_tonnes, :decimal
+    field :capacity_basis, :string
     field :seasonality, Ecto.Enum, values: @seasonalities
     field :risk, Ecto.Enum, values: @risk_levels
     field :status, Ecto.Enum, values: @statuses, default: :active
@@ -54,6 +56,8 @@ defmodule AncientStones.Worlds.TradeRoute do
       :name,
       :transport_mode,
       :distance_km,
+      :annual_capacity_tonnes,
+      :capacity_basis,
       :seasonality,
       :risk,
       :status,
@@ -69,6 +73,7 @@ defmodule AncientStones.Worlds.TradeRoute do
       :destination_hold_id
     ])
     |> validate_number(:distance_km, greater_than_or_equal_to: 0)
+    |> validate_number(:annual_capacity_tonnes, greater_than: 0)
     |> foreign_key_constraint(:world_id)
     |> foreign_key_constraint(:origin_hold_id)
     |> foreign_key_constraint(:destination_hold_id)
@@ -76,6 +81,7 @@ defmodule AncientStones.Worlds.TradeRoute do
     |> foreign_key_constraint(:destination_location_id)
     |> check_constraint(:destination_hold_id, name: :trade_routes_distinct_holds)
     |> check_constraint(:distance_km, name: :trade_routes_distance_non_negative)
+    |> check_constraint(:annual_capacity_tonnes, name: :trade_routes_capacity_positive)
     |> check_constraint(:seasonality, name: :trade_routes_seasonality)
     |> check_constraint(:risk, name: :trade_routes_risk)
     |> unique_constraint(:name, name: :trade_routes_world_id_name_index)

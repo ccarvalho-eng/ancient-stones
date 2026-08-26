@@ -38,6 +38,8 @@ defmodule AncientStones.Worlds.TaxPolicy do
     field :direction, Ecto.Enum, values: @directions, default: :any
     field :effective_from, :date
     field :effective_to, :date
+    field :effective_from_year, :integer
+    field :effective_to_year, :integer
     field :status, Ecto.Enum, values: @statuses, default: :active
     field :description, :string
     belongs_to :world, World
@@ -64,6 +66,8 @@ defmodule AncientStones.Worlds.TaxPolicy do
       :direction,
       :effective_from,
       :effective_to,
+      :effective_from_year,
+      :effective_to_year,
       :status,
       :description
     ])
@@ -73,6 +77,7 @@ defmodule AncientStones.Worlds.TaxPolicy do
     |> validate_percentage_rate()
     |> validate_currency_for_rate_basis()
     |> validate_date_order()
+    |> validate_year_order()
     |> validate_single_jurisdiction()
     |> foreign_key_constraint(:world_id)
     |> foreign_key_constraint(:continent_id)
@@ -84,6 +89,7 @@ defmodule AncientStones.Worlds.TaxPolicy do
     |> check_constraint(:rate, name: :tax_policies_rate_non_negative)
     |> check_constraint(:rate, name: :tax_policies_percentage_rate)
     |> check_constraint(:effective_to, name: :tax_policies_effective_dates)
+    |> check_constraint(:effective_to_year, name: :tax_policies_effective_years)
     |> unique_constraint(:name, name: :tax_policies_world_id_name_index)
   end
 
@@ -141,6 +147,17 @@ defmodule AncientStones.Worlds.TaxPolicy do
       changeset
     else
       add_error(changeset, :jurisdiction, "must select exactly one jurisdiction")
+    end
+  end
+
+  defp validate_year_order(changeset) do
+    from = get_field(changeset, :effective_from_year)
+    to = get_field(changeset, :effective_to_year)
+
+    if from && to && to < from do
+      add_error(changeset, :effective_to_year, "must be on or after the effective start year")
+    else
+      changeset
     end
   end
 
