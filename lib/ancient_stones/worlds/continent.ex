@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.Continent do
+  @moduledoc """
+  A world-scale landmass with measured bounds and physical geography.
+
+  Continents own provinces and calendars and may record tectonics, winds,
+  currents, and major watersheds for geographic consistency.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -12,6 +19,8 @@ defmodule AncientStones.Worlds.Continent do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+
   schema "continents" do
     field :name, :string
     field :description, :string
@@ -38,6 +47,8 @@ defmodule AncientStones.Worlds.Continent do
     timestamps(type: :utc_datetime)
   end
 
+  @doc "Builds a continent changeset and validates its bounds, area, and world ownership."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(continent, attrs) do
     continent
     |> cast(attrs, [

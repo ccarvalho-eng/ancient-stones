@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.Location do
+  @moduledoc """
+  A settlement, site, or establishment within a hold.
+
+  Locations can form parent-child hierarchies, reference a named water body,
+  and host people, institutions, creatures, worship, and commerce.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -20,6 +27,8 @@ defmodule AncientStones.Worlds.Location do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+
   schema "locations" do
     field :name, :string
     field :description, :string
@@ -55,6 +64,10 @@ defmodule AncientStones.Worlds.Location do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Builds a location changeset and validates hierarchy, coordinates, population, and ownership.
+  """
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(location, attrs) do
     location
     |> cast(attrs, [

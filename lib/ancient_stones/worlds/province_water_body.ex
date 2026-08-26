@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.ProvinceWaterBody do
+  @moduledoc """
+  Joins a province to a water body with a geographic relationship.
+
+  Relationships distinguish coasts and borders from containment, drainage, and
+  river sources.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -9,6 +16,9 @@ defmodule AncientStones.Worlds.ProvinceWaterBody do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+  @type option :: {String.t(), atom()}
+
   schema "province_water_bodies" do
     field :relationship, Ecto.Enum, values: @relationships
     field :description, :string
@@ -17,6 +27,8 @@ defmodule AncientStones.Worlds.ProvinceWaterBody do
     timestamps(type: :utc_datetime)
   end
 
+  @doc "Builds a province-water link changeset with optional trusted references."
+  @spec changeset(t(), map(), map()) :: Ecto.Changeset.t()
   def changeset(link, attrs, refs \\ %{}) do
     link
     |> cast(attrs, [:relationship, :description])
@@ -29,6 +41,8 @@ defmodule AncientStones.Worlds.ProvinceWaterBody do
     )
   end
 
+  @doc "Returns labeled province-to-water relationship options."
+  @spec relationship_options() :: [option()]
   def relationship_options do
     Enum.map(@relationships, fn relationship ->
       label = relationship |> Atom.to_string() |> String.replace("_", " ") |> String.capitalize()

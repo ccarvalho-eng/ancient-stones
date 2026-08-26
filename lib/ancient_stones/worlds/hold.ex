@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.Hold do
+  @moduledoc """
+  A local territorial jurisdiction within a province.
+
+  Holds group settlements, offices, landholdings, commerce, and measured local
+  geography beneath their province.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -15,6 +22,8 @@ defmodule AncientStones.Worlds.Hold do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+
   schema "holds" do
     field :name, :string
     field :description, :string
@@ -50,6 +59,8 @@ defmodule AncientStones.Worlds.Hold do
     timestamps(type: :utc_datetime)
   end
 
+  @doc "Builds a hold changeset with geographic ranges and province ownership constraints."
+  @spec changeset(t(), map()) :: Ecto.Changeset.t()
   def changeset(hold, attrs) do
     hold
     |> cast(attrs, [

@@ -1,4 +1,11 @@
 defmodule AncientStones.Worlds.WaterBody do
+  @moduledoc """
+  A named ocean, sea, river, lake, or connecting body of water.
+
+  Water bodies record hydrology, navigation, seasonal ice, measured geography,
+  and hierarchical relationships such as rivers flowing into seas.
+  """
+
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -30,6 +37,9 @@ defmodule AncientStones.Worlds.WaterBody do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   @foreign_key_type :binary_id
+  @type t :: %__MODULE__{}
+  @type option :: {String.t(), atom()}
+
   schema "water_bodies" do
     field :name, :string
     field :kind, Ecto.Enum, values: @kinds
@@ -66,6 +76,12 @@ defmodule AncientStones.Worlds.WaterBody do
     timestamps(type: :utc_datetime)
   end
 
+  @doc """
+  Builds a water-body changeset with optional trusted association references.
+
+  Measurements, ownership, hierarchy, and the world-scoped unique name are validated.
+  """
+  @spec changeset(t(), map(), map()) :: Ecto.Changeset.t()
   def changeset(water_body, attrs, refs \\ %{}) do
     water_body
     |> cast(attrs, [
@@ -110,6 +126,8 @@ defmodule AncientStones.Worlds.WaterBody do
     |> unique_constraint(:name, name: :water_bodies_world_id_name_index)
   end
 
+  @doc "Prepares deletion and reports associations that still depend on the water body."
+  @spec delete_changeset(t()) :: Ecto.Changeset.t()
   def delete_changeset(water_body) do
     water_body
     |> change()
@@ -122,22 +140,32 @@ defmodule AncientStones.Worlds.WaterBody do
     |> no_assoc_constraint(:trade_route_leg_waters)
   end
 
+  @doc "Returns labeled water-body kind options."
+  @spec kind_options() :: [option()]
   def kind_options do
     options(@kinds)
   end
 
+  @doc "Returns labeled salinity options."
+  @spec salinity_options() :: [option()]
   def salinity_options do
     options(@salinities)
   end
 
+  @doc "Returns labeled vessel-capability options."
+  @spec navigability_options() :: [option()]
   def navigability_options do
     options(@navigabilities)
   end
 
+  @doc "Returns labeled seasonal-freezing options."
+  @spec freeze_pattern_options() :: [option()]
   def freeze_pattern_options do
     options(@freeze_patterns)
   end
 
+  @doc "Returns labeled lifecycle status options."
+  @spec status_options() :: [option()]
   def status_options do
     options(@statuses)
   end

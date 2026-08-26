@@ -1,7 +1,26 @@
 defmodule AncientStones.Worlds.Geography do
   @moduledoc """
-  Shared geography vocabulary for terrain and climate fields.
+  Shared controlled vocabulary for geographic records and forms.
+
+  Keeping terrain, climate, and discovery visibility here ensures Ecto enums,
+  templates, and imported world data use the same persisted values.
   """
+
+  @type terrain ::
+          :coast
+          | :forest
+          | :highlands
+          | :marsh
+          | :mountain
+          | :plains
+          | :riverlands
+          | :snowfield
+          | :tundra
+          | :volcanic
+          | :wetlands
+  @type climate :: :arctic | :coastal | :cold | :dry | :temperate | :volcanic | :wet
+  @type visibility :: :known | :rumored | :hidden | :lost
+  @type option(value) :: {String.t(), value}
 
   @terrain_values [
     :coast,
@@ -34,30 +53,44 @@ defmodule AncientStones.Worlds.Geography do
     :lost
   ]
 
+  @doc "Returns the terrain atoms accepted by province and hold schemas."
+  @spec terrain_values() :: [terrain()]
   def terrain_values do
     @terrain_values
   end
 
+  @doc "Returns the climate atoms accepted by province and hold schemas."
+  @spec climate_values() :: [climate()]
   def climate_values do
     @climate_values
   end
 
+  @doc "Returns the discovery states accepted by geographic records."
+  @spec visibility_values() :: [visibility()]
   def visibility_values do
     @visibility_values
   end
 
+  @doc "Returns labeled terrain options for forms."
+  @spec terrain_options() :: [option(terrain())]
   def terrain_options do
     enum_options(@terrain_values)
   end
 
+  @doc "Returns labeled climate options for forms."
+  @spec climate_options() :: [option(climate())]
   def climate_options do
     enum_options(@climate_values)
   end
 
+  @doc "Returns labeled discovery-state options for forms."
+  @spec visibility_options() :: [option(visibility())]
   def visibility_options do
     enum_options(@visibility_values)
   end
 
+  @doc "Converts an enum atom or underscore-delimited string into a display label."
+  @spec label(atom() | String.t() | nil) :: String.t()
   def label(nil) do
     ""
   end
