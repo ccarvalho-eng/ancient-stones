@@ -3,7 +3,6 @@ defmodule AncientStones.Templates do
   Starter datasets that can be copied into a user's world.
   """
 
-  alias AncientStones.Templates.Audrun
   alias AncientStones.Templates.Skyrim
 
   @blank %{
@@ -31,14 +30,6 @@ defmodule AncientStones.Templates do
     {:ok, Skyrim.data()}
   end
 
-  def get(:audrun) do
-    {:ok, Audrun.data()}
-  end
-
-  def get("audrun") do
-    {:ok, Audrun.data()}
-  end
-
   def get(_template) do
     :error
   end
@@ -46,7 +37,6 @@ defmodule AncientStones.Templates do
   def options do
     [
       {"Blank", "blank"},
-      {"Audrun", "audrun"},
       {"Skyrim", "skyrim"}
     ]
   end
