@@ -15,6 +15,7 @@ defmodule AncientStones.WorldsTest do
   alias AncientStones.Worlds.LocationType
   alias AncientStones.Worlds.CharacterRelationship
   alias AncientStones.Worlds.Landholding
+  alias AncientStones.Worlds.Moon
   alias AncientStones.Worlds.Province
   alias AncientStones.Worlds.World
 
@@ -44,6 +45,65 @@ defmodule AncientStones.WorldsTest do
              })
 
     assert hold.province_id == province.id
+  end
+
+  test "creates moons atomically with a world and derives their orbital periods" do
+    assert {:ok, %World{} = world} =
+             Worlds.create_world(%{
+               name: "Pelagos",
+               mass_earths: "1",
+               mean_radius_km: 6_371,
+               moons: [
+                 %{
+                   name: "Selene",
+                   semi_major_axis_km: 384_400,
+                   mean_radius_km: 1_737,
+                   mass_lunar: "1",
+                   orbital_eccentricity: "0.0549"
+                 }
+               ]
+             })
+
+    moon = Repo.get_by!(Moon, world_id: world.id, name: "Selene")
+
+    assert Decimal.compare(moon.orbital_period_days, Decimal.new("27.28")) in [:eq, :gt]
+    assert Decimal.compare(moon.orbital_period_days, Decimal.new("27.29")) == :lt
+  end
+
+  test "rolls back world creation when a nested moon is invalid" do
+    assert {:error, changeset} =
+             Worlds.create_world(%{
+               name: "Unstable World",
+               mean_radius_km: 6_000,
+               moons: [
+                 %{
+                   name: "Buried Moon",
+                   semi_major_axis_km: 5_000,
+                   mean_radius_km: 500
+                 }
+               ]
+             })
+
+    assert %{moons: [_]} = errors_on(changeset)
+    refute Repo.get_by(World, name: "Unstable World")
+  end
+
+  test "rejects orbital derivation inputs outside storage bounds" do
+    changeset =
+      Worlds.change_new_world(%{
+        name: "Impossible World",
+        mass_earths: "1e100",
+        moons: [
+          %{
+            name: "Distant Moon",
+            semi_major_axis_km: "1e100",
+            mass_lunar: "1e100"
+          }
+        ]
+      })
+
+    refute changeset.valid?
+    assert %{mass_earths: [_], moons: [_]} = errors_on(changeset)
   end
 
   test "lists map regions in name order" do
