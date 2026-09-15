@@ -29,12 +29,12 @@ defmodule AncientStonesWeb.WorldLive.WaterComponents do
       id="waters-dashboard"
       class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_380px] dark:bg-zinc-900"
     >
-      <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
+      <aside class="flex min-h-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
         <header class="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
           <h2 class="stone-heading text-sm font-semibold">Waters</h2>
           <p class="stone-muted text-xs">Named seas, rivers, drainage, and navigable links</p>
         </header>
-        <div id="water-record-list" class="max-h-[800px] space-y-2 overflow-y-auto p-2">
+        <div id="water-record-list" class="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
           <.stream_group
             title="Water bodies"
             stream={@water_bodies}
@@ -421,7 +421,7 @@ defmodule AncientStonesWeb.WorldLive.WaterComponents do
             patch={record_path(@world, @param, @kind, record)}
             class={[
               "stone-heading truncate px-2.5 py-2 text-xs font-semibold transition hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              @selected && @selected.id == record.id && "bg-zinc-100 dark:bg-zinc-800"
+              @selected && @selected.id == record.id && "stone-selected"
             ]}
           >{record_name(record)}</.link>
           <button

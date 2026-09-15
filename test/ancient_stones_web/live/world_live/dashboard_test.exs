@@ -2303,7 +2303,11 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     {:ok, view, _html} = live(conn, ~p"/worlds/#{world}/dashboard?section=society")
 
-    assert has_element?(view, "#society-dashboard")
+    assert has_element?(view, "#society-dashboard.bg-zinc-100")
+    assert has_element?(view, "#society-dashboard aside header", "Society")
+    assert has_element?(view, "#society-dashboard > aside.flex.flex-col")
+    assert has_element?(view, "#society-record-list.min-h-0.flex-1.overflow-y-auto")
+    assert has_element?(view, "#society-record-details #society-mode-navigation")
     assert has_element?(view, "#society-households[phx-update='stream']")
     assert has_element?(view, "#society-household-form")
 
@@ -2322,6 +2326,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     [household] = Worlds.list_households(world)
     assert has_element?(view, "#society_households-#{household.id}", household.name)
+    assert has_element?(view, "#society_households-#{household.id}.stone-record-card")
 
     view
     |> form("#dashboard-search-form", search: %{query: "Ragna"})
@@ -2337,6 +2342,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
       view,
       ~p"/worlds/#{world}/dashboard?section=society&mode=household&household_id=#{household.id}"
     )
+
+    assert has_element?(view, "#society_households-#{household.id}.stone-selected")
 
     view
     |> form("#society-household-form",
@@ -2404,6 +2411,8 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
       view,
       ~p"/worlds/#{world}/dashboard?section=society&mode=household&household_id=#{household.id}&membership_id=#{membership.id}"
     )
+
+    assert has_element?(view, "#household-membership-#{membership.id}.stone-selected")
 
     view
     |> form("#household-membership-form",
@@ -2505,7 +2514,7 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
 
     assert has_element?(
              relationship_view,
-             "#society_relationships-#{relationship.id}",
+             "#society_relationships-#{relationship.id}.stone-record-card",
              parent.name
            )
 
@@ -2554,7 +2563,12 @@ defmodule AncientStonesWeb.WorldLive.DashboardTest do
     |> render_submit()
 
     [holding] = Worlds.list_landholdings(world)
-    assert has_element?(holding_view, "#society_landholdings-#{holding.id}", holding.name)
+
+    assert has_element?(
+             holding_view,
+             "#society_landholdings-#{holding.id}.stone-record-card",
+             holding.name
+           )
 
     holding_view
     |> element("#society_landholdings-#{holding.id}")

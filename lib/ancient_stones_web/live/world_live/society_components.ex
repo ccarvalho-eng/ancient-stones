@@ -24,29 +24,15 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
     ~H"""
     <div
       id="society-dashboard"
-      class="grid min-h-[800px] gap-4 bg-stone-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_380px] dark:bg-zinc-900"
+      class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_380px] dark:bg-zinc-900"
     >
-      <aside class="overflow-hidden rounded-md border border-stone-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
-        <header class="border-b border-stone-200 px-4 py-3 dark:border-zinc-700">
-          <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Social record
-          </p>
-          <h2 class="stone-heading mt-1 text-sm font-semibold">Household and kindred</h2>
-          <p class="stone-muted mt-1 text-xs leading-5">
-            Residence, dependency, kinship, fosterage, and rights of use
-          </p>
+      <aside class="flex min-h-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
+        <header class="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+          <h2 class="stone-heading text-sm font-semibold">Society</h2>
+          <p class="stone-muted text-xs">Households, personal ties, and tenure</p>
         </header>
 
-        <nav
-          id="society-mode-navigation"
-          class="grid grid-cols-3 gap-1 border-b border-stone-200 p-2 dark:border-zinc-700"
-        >
-          <.mode_link world={@world} mode={:household} current={@mode} label="Households" />
-          <.mode_link world={@world} mode={:relationship} current={@mode} label="Ties" />
-          <.mode_link world={@world} mode={:holding} current={@mode} label="Tenure" />
-        </nav>
-
-        <div class="max-h-[720px] overflow-y-auto p-2">
+        <div id="society-record-list" class="min-h-0 flex-1 overflow-y-auto p-2">
           <%= case @mode do %>
             <% :household -> %>
               <div id="society-households" phx-update="stream" class="space-y-1.5">
@@ -63,11 +49,8 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
                     ~p"/worlds/#{@world}/dashboard?section=society&mode=household&household_id=#{household.id}"
                   }
                   class={[
-                    "block rounded border px-3 py-2.5 transition",
-                    selected?(@selected_household, household) &&
-                      "border-amber-500 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30",
-                    !selected?(@selected_household, household) &&
-                      "border-transparent hover:border-stone-200 hover:bg-stone-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
+                    "stone-record-card block rounded-md border px-3 py-2.5",
+                    selected?(@selected_household, household) && "stone-selected"
                   ]}
                 >
                   <span class="stone-heading block text-sm font-semibold">{household.name}</span>
@@ -91,11 +74,8 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
                     ~p"/worlds/#{@world}/dashboard?section=society&mode=relationship&relationship_id=#{relationship.id}"
                   }
                   class={[
-                    "block rounded border px-3 py-2.5 transition",
-                    selected?(@selected_relationship, relationship) &&
-                      "border-amber-500 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30",
-                    !selected?(@selected_relationship, relationship) &&
-                      "border-transparent hover:border-stone-200 hover:bg-stone-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
+                    "stone-record-card block rounded-md border px-3 py-2.5",
+                    selected?(@selected_relationship, relationship) && "stone-selected"
                   ]}
                 >
                   <span class="stone-heading block text-sm font-semibold">
@@ -121,11 +101,8 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
                     ~p"/worlds/#{@world}/dashboard?section=society&mode=holding&landholding_id=#{holding.id}"
                   }
                   class={[
-                    "block rounded border px-3 py-2.5 transition",
-                    selected?(@selected_landholding, holding) &&
-                      "border-amber-500 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30",
-                    !selected?(@selected_landholding, holding) &&
-                      "border-transparent hover:border-stone-200 hover:bg-stone-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-900"
+                    "stone-record-card block rounded-md border px-3 py-2.5",
+                    selected?(@selected_landholding, holding) && "stone-selected"
                   ]}
                 >
                   <span class="stone-heading block text-sm font-semibold">{holding.name}</span>
@@ -138,7 +115,7 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
         </div>
       </aside>
 
-      <main class="rounded-md border border-stone-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-950">
+      <main class="rounded-md border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-950">
         <.record_details
           mode={@mode}
           household={@selected_household}
@@ -151,10 +128,10 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
         />
       </main>
 
-      <aside class="overflow-hidden rounded-md border border-stone-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
-        <header class="border-b border-stone-200 px-4 py-3 dark:border-zinc-700">
+      <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
+        <header class="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
           <h2 class="stone-heading text-sm font-semibold">Properties</h2>
-          <p class="stone-muted mt-1 text-xs">Blank fields remain unknown, not assumed.</p>
+          <p class="stone-muted text-xs">Select to edit, then Save or Cancel.</p>
         </header>
         <div id="society-properties" class="max-h-[750px] overflow-y-auto p-4">
           <%= case @mode do %>
@@ -356,9 +333,9 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
     <.link
       patch={~p"/worlds/#{@world}/dashboard?section=society&mode=#{@mode}"}
       class={[
-        "rounded px-2 py-1.5 text-center text-[11px] font-semibold transition",
-        @current == @mode && "bg-stone-800 text-white dark:bg-stone-200 dark:text-stone-900",
-        @current != @mode && "stone-muted hover:bg-stone-100 dark:hover:bg-zinc-800"
+        "stone-button rounded border px-2 py-1 text-[11px] font-semibold transition",
+        @current == @mode &&
+          "border-zinc-800 bg-zinc-800 text-white dark:border-zinc-200 dark:bg-zinc-200 dark:text-zinc-900"
       ]}
     >
       {@label}
@@ -378,7 +355,12 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
   defp record_details(%{mode: :household} = assigns) do
     ~H"""
     <div id="society-record-details">
-      <.details_header eyebrow="Household" title={record_name(@household, "No household selected")} />
+      <.details_header
+        world={@world}
+        current={@mode}
+        eyebrow="Household"
+        title={record_name(@household, "No household selected")}
+      />
       <%= if @household do %>
         <p class="stone-muted mt-5 max-w-3xl text-sm leading-6">
           {@household.description || "Composition and means have not been recorded."}
@@ -394,6 +376,7 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
         ]} />
         <.membership_list
           memberships={@household.memberships}
+          selected_membership={@selected_membership}
           household={@household}
           world={@world}
         />
@@ -417,6 +400,8 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
     ~H"""
     <div id="society-record-details">
       <.details_header
+        world={@world}
+        current={@mode}
         eyebrow="Personal tie"
         title={relationship_name(@relationship, "No relationship selected")}
       />
@@ -443,6 +428,8 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
     ~H"""
     <div id="society-record-details">
       <.details_header
+        world={@world}
+        current={@mode}
         eyebrow="Tenure and use"
         title={record_name(@landholding, "No holding selected")}
       />
@@ -470,12 +457,21 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
 
   attr :eyebrow, :string, required: true
   attr :title, :string, required: true
+  attr :world, :any, required: true
+  attr :current, :atom, required: true
 
   defp details_header(assigns) do
     ~H"""
-    <header class="border-b border-stone-200 pb-4 dark:border-zinc-700">
-      <p class="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">{@eyebrow}</p>
-      <h2 class="stone-heading mt-1 text-xl font-semibold">{@title}</h2>
+    <header class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-700">
+      <div>
+        <p class="stone-muted text-[11px] font-semibold uppercase tracking-widest">{@eyebrow}</p>
+        <h2 class="stone-heading text-lg font-semibold">{@title}</h2>
+      </div>
+      <nav id="society-mode-navigation" class="flex flex-wrap gap-1.5">
+        <.mode_link world={@world} mode={:household} current={@current} label="Households" />
+        <.mode_link world={@world} mode={:relationship} current={@current} label="Ties" />
+        <.mode_link world={@world} mode={:holding} current={@current} label="Tenure" />
+      </nav>
     </header>
     """
   end
@@ -484,9 +480,11 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
 
   defp fact_grid(assigns) do
     ~H"""
-    <dl class="mt-5 grid gap-px overflow-hidden rounded border border-stone-200 bg-stone-200 sm:grid-cols-2 dark:border-zinc-700 dark:bg-zinc-700">
-      <div :for={{label, value} <- @facts} class="bg-stone-50 px-3 py-2.5 dark:bg-zinc-900">
-        <dt class="text-[10px] font-semibold uppercase tracking-wider text-stone-500">{label}</dt>
+    <dl class="mt-5 grid gap-px overflow-hidden rounded-md border border-zinc-200 bg-zinc-200 sm:grid-cols-2 dark:border-zinc-700 dark:bg-zinc-700">
+      <div :for={{label, value} <- @facts} class="bg-zinc-50 px-3 py-2.5 dark:bg-zinc-900">
+        <dt class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          {label}
+        </dt>
         <dd class="stone-heading mt-1 text-sm font-medium">{value}</dd>
       </div>
     </dl>
@@ -500,9 +498,9 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
     ~H"""
     <section
       id="household-venture-participation"
-      class="mt-6 rounded border border-stone-200 dark:border-zinc-700"
+      class="mt-6 rounded-md border border-zinc-200 dark:border-zinc-700"
     >
-      <header class="border-b border-stone-200 bg-stone-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+      <header class="border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
         <h3 class="stone-heading text-xs font-semibold uppercase tracking-wide">
           Commercial partnerships
         </h3>
@@ -513,7 +511,7 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
       <article
         :for={membership <- @memberships}
         id={"household-venture-membership-#{membership.id}"}
-        class="flex items-start justify-between gap-4 border-b border-stone-100 px-3 py-3 last:border-b-0 dark:border-zinc-800"
+        class="flex items-start justify-between gap-4 border-b border-zinc-100 px-3 py-3 last:border-b-0 dark:border-zinc-800"
       >
         <div>
           <.link
@@ -533,6 +531,7 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
   end
 
   attr :memberships, :list, required: true
+  attr :selected_membership, :any, default: nil
   attr :household, :any, required: true
   attr :world, :any, required: true
 
@@ -540,9 +539,9 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
     ~H"""
     <section
       id="society-household-members"
-      class="mt-6 rounded border border-stone-200 dark:border-zinc-700"
+      class="mt-6 rounded-md border border-zinc-200 dark:border-zinc-700"
     >
-      <header class="border-b border-stone-200 bg-stone-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+      <header class="border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
         <h3 class="stone-heading text-xs font-semibold uppercase tracking-wide">
           People of the household
         </h3>
@@ -551,7 +550,10 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
       <article
         :for={membership <- @memberships}
         id={"household-membership-#{membership.id}"}
-        class="flex items-start justify-between gap-4 border-b border-stone-100 px-3 py-3 last:border-b-0 dark:border-zinc-800"
+        class={[
+          "flex items-start justify-between gap-4 border-b border-zinc-100 px-3 py-3 last:border-b-0 dark:border-zinc-800",
+          selected?(@selected_membership, membership) && "stone-selected"
+        ]}
       >
         <div>
           <h4 class="stone-heading text-sm font-semibold">{membership.character.name}</h4>
@@ -575,7 +577,7 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
               patch={
                 ~p"/worlds/#{@world}/dashboard?section=society&mode=household&household_id=#{@household.id}&membership_id=#{membership.id}"
               }
-              class="stone-text rounded px-1.5 py-1 text-[10px] font-semibold hover:bg-stone-100 dark:hover:bg-zinc-800"
+              class="stone-text rounded px-1.5 py-1 text-[10px] font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
               Edit
             </.link>
@@ -606,7 +608,7 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
     ~H"""
     <section
       id="household-membership-editor"
-      class="mt-4 rounded border border-stone-200 bg-stone-50 p-3 dark:border-zinc-700 dark:bg-zinc-900"
+      class="mt-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900"
     >
       <div class="mb-3 flex items-center justify-between gap-3">
         <h3 class="stone-heading text-xs font-semibold uppercase tracking-wide">
@@ -680,9 +682,9 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
     ~H"""
     <section
       id="society-household-holdings"
-      class="mt-6 rounded border border-stone-200 dark:border-zinc-700"
+      class="mt-6 rounded-md border border-zinc-200 dark:border-zinc-700"
     >
-      <header class="border-b border-stone-200 bg-stone-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+      <header class="border-b border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
         <h3 class="stone-heading text-xs font-semibold uppercase tracking-wide">
           Tenure and use rights
         </h3>
@@ -691,7 +693,7 @@ defmodule AncientStonesWeb.WorldLive.SocietyComponents do
       <article
         :for={holding <- @holdings}
         id={"household-landholding-#{holding.id}"}
-        class="flex items-baseline justify-between gap-4 border-b border-stone-100 px-3 py-3 last:border-b-0 dark:border-zinc-800"
+        class="flex items-baseline justify-between gap-4 border-b border-zinc-100 px-3 py-3 last:border-b-0 dark:border-zinc-800"
       >
         <div>
           <h4 class="stone-heading text-sm font-semibold">{holding.name}</h4>

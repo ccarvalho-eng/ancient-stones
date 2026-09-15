@@ -31,6 +31,18 @@ defmodule AncientStonesWeb.MapLive.IndexTest do
     assert has_element?(view, "#maps-empty")
   end
 
+  test "handles persisted theme events", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/maps")
+
+    render_hook(view, "set_theme", %{"theme" => "dark"})
+
+    assert has_element?(view, "#maps-index.stone-theme-dark[data-theme='dark']")
+
+    render_hook(view, "set_theme", %{"theme" => "unsupported"})
+
+    assert has_element?(view, "#maps-index.stone-theme-system[data-theme='light']")
+  end
+
   test "shows all maps by default and filters when a world is selected", %{conn: conn} do
     {:ok, nirn} = Worlds.create_world(%{name: "Nirn"})
     {:ok, tamriel} = Maps.create_world_map(nirn, %{"name" => "Tamriel"})
