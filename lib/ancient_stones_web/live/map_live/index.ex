@@ -45,6 +45,10 @@ defmodule AncientStonesWeb.MapLive.Index do
     {:noreply, push_patch(socket, to: ~p"/maps?world_id=#{world_id}")}
   end
 
+  def handle_event("set_theme", %{"theme" => theme}, socket) do
+    {:noreply, assign(socket, :theme, normalize_theme(theme))}
+  end
+
   def handle_event("edit_map_name", %{"id" => id, "world-id" => world_id}, socket) do
     world = Enum.find(socket.assigns.worlds, &(&1.id == world_id))
 
@@ -170,7 +174,7 @@ defmodule AncientStonesWeb.MapLive.Index do
       <div
         id="maps-index"
         class={["stone-page min-h-screen px-4 py-5", "stone-theme-#{@theme}"]}
-        data-theme="light"
+        data-theme={daisy_theme(@theme)}
         phx-hook="AncientStonesTheme"
       >
         <div class="stone-shell mx-auto grid max-w-[1400px] overflow-hidden rounded-lg border shadow-sm lg:grid-cols-[240px_minmax(0,1fr)]">
@@ -443,5 +447,21 @@ defmodule AncientStonesWeb.MapLive.Index do
 
   defp stale_map_changeset?(changeset) do
     Keyword.has_key?(changeset.errors, :lock_version)
+  end
+
+  defp normalize_theme(theme) when theme in ~w(system light dark) do
+    theme
+  end
+
+  defp normalize_theme(_theme) do
+    "system"
+  end
+
+  defp daisy_theme("dark") do
+    "dark"
+  end
+
+  defp daisy_theme(_theme) do
+    "light"
   end
 end
