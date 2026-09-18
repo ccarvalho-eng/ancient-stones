@@ -80,7 +80,7 @@ defmodule AncientStones.MixProject do
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:pdf, "~> 0.8.1"},
-      {:dns_cluster, "~> 0.2.0"},
+      {:dns_cluster, "~> 0.3.0"},
       {:bandit, "~> 1.5"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
