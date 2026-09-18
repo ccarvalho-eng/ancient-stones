@@ -68,12 +68,12 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
       id="economy-dashboard"
       class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_380px] dark:bg-zinc-900"
     >
-      <aside class="overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
+      <aside class="flex min-h-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-950">
         <header class="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
           <h2 class="stone-heading text-sm font-semibold">Economy</h2>
           <p class="stone-muted text-xs">Trade, taxation, exemptions, and treasury shares</p>
         </header>
-        <div id="economy-record-list" class="max-h-[800px] space-y-2 overflow-y-auto p-2">
+        <div id="economy-record-list" class="min-h-0 flex-1 space-y-2 overflow-y-auto p-2">
           <.group
             title="Trade routes"
             records={@trade_routes}
@@ -853,7 +853,7 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
               }
               class={[
                 "stone-heading truncate px-2 py-1.5 text-xs font-semibold transition hover:bg-zinc-100 dark:hover:bg-zinc-800",
-                @selected_stop && @selected_stop.id == stop.id && "bg-zinc-100 dark:bg-zinc-800"
+                @selected_stop && @selected_stop.id == stop.id && "stone-selected"
               ]}
             >{stop.position}. {association_name(stop.location)}</.link>
             <button
@@ -914,7 +914,7 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
               }
               class={[
                 "stone-heading min-w-0 px-2 py-1.5 text-xs font-semibold transition hover:bg-zinc-100 dark:hover:bg-zinc-800",
-                @selected_leg && @selected_leg.id == leg.id && "bg-zinc-100 dark:bg-zinc-800"
+                @selected_leg && @selected_leg.id == leg.id && "stone-selected"
               ]}
             >
               <span class="block truncate">
@@ -1043,7 +1043,7 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
             patch={record_path(@world, @param, @kind, record)}
             class={[
               "stone-heading truncate px-2.5 py-2 text-xs font-semibold transition hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              @selected && @selected.id == record.id && "bg-zinc-100 dark:bg-zinc-800"
+              @selected && @selected.id == record.id && "stone-selected"
             ]}
           >{display(Map.get(record, @name_field))}</.link>
           <button
@@ -1097,7 +1097,7 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
             patch={record_path(@world, @param, @kind, record)}
             class={[
               "stone-heading truncate px-2.5 py-2 text-xs font-semibold transition hover:bg-zinc-100 dark:hover:bg-zinc-800",
-              @selected && @selected.id == record.id && "bg-zinc-100 dark:bg-zinc-800"
+              @selected && @selected.id == record.id && "stone-selected"
             ]}
           >{display(Map.get(record, @name_field) || association_name(Map.get(record, :hold)))}</.link>
           <button
@@ -1151,7 +1151,11 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
           <article
             :for={{dom_id, membership} <- @memberships}
             id={dom_id}
-            class="flex items-start justify-between gap-3 px-3 py-2.5"
+            class={[
+              "flex items-start justify-between gap-3 px-3 py-2.5",
+              @selected_membership && @selected_membership.id == membership.id &&
+                "stone-selected"
+            ]}
           >
             <div>
               <p class="stone-heading text-xs font-semibold">{venture_member_name(membership)}</p>
@@ -1234,7 +1238,10 @@ defmodule AncientStonesWeb.WorldLive.EconomyComponents do
           <article
             :for={{dom_id, link} <- @route_links}
             id={dom_id}
-            class="flex items-start justify-between gap-3 px-3 py-2.5"
+            class={[
+              "flex items-start justify-between gap-3 px-3 py-2.5",
+              @selected_route_link && @selected_route_link.id == link.id && "stone-selected"
+            ]}
           >
             <div>
               <p class="stone-heading text-xs font-semibold">{association_name(link.trade_route)}</p>

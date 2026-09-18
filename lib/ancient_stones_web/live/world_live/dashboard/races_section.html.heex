@@ -2,7 +2,7 @@
   id="races-dashboard"
   class="grid min-h-[800px] gap-4 bg-zinc-100 p-4 xl:grid-cols-[320px_minmax(0,1fr)_340px]"
 >
-  <section class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+  <section class="flex min-h-0 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white">
     <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
       <div>
         <h2 class="text-sm font-semibold text-zinc-800">Races</h2>
@@ -13,7 +13,7 @@
       </span>
     </div>
 
-    <div id="race-list" class="max-h-[800px] space-y-1.5 overflow-y-auto p-1.5">
+    <div id="race-list" class="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-1.5">
       <div
         :if={@filtered_races == []}
         class="px-4 py-8 text-center text-sm text-zinc-500"

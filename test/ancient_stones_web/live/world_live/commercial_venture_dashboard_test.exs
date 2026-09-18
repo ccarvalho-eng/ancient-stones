@@ -57,6 +57,12 @@ defmodule AncientStonesWeb.WorldLive.CommercialVentureDashboardTest do
     assert has_element?(view, "#edit-venture-membership-#{membership.id}")
 
     view
+    |> element("#edit-venture-membership-#{membership.id}")
+    |> render_click()
+
+    assert has_element?(view, "#venture_memberships-#{membership.id}.stone-selected")
+
+    view
     |> form("#venture-trade-route-form",
       venture_trade_route: %{
         trade_route_id: economy.route.id,
@@ -68,6 +74,12 @@ defmodule AncientStonesWeb.WorldLive.CommercialVentureDashboardTest do
 
     route_link = Repo.get_by!(VentureTradeRoute, commercial_venture_id: venture.id)
     assert has_element?(view, "#edit-venture-trade-route-#{route_link.id}")
+
+    view
+    |> element("#edit-venture-trade-route-#{route_link.id}")
+    |> render_click()
+
+    assert has_element?(view, "#venture_trade_routes-#{route_link.id}.stone-selected")
     assert has_element?(view, "#economy-related-venture-members article")
     assert has_element?(view, "#economy-related-venture-routes article")
 

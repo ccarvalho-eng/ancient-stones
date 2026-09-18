@@ -577,6 +577,11 @@
   border-color: var(--stone-border-strong);
 }
 
+.stone-page .stone-selected {
+  background: var(--stone-surface-raised);
+  border-color: var(--stone-border-strong);
+}
+
 .stone-page .divide-zinc-100 > :not(:last-child) {
   border-color: var(--stone-border);
 }
